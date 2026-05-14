@@ -3,8 +3,12 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import crypto from "crypto";
 import dotenv from "dotenv";
+import Stripe from "stripe";
 
 dotenv.config();
+
+// STRIPE CONFIG
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 async function startServer() {
   const app = express();
@@ -59,11 +63,11 @@ async function startServer() {
 
       const params: Record<string, any> = {
         apiKey: FLOW_API_KEY,
+        commerceOrder: externalId,
+        subject: description,
         amount: cleanAmount,
         currency: "CLP",
-        description: description,
         email: email,
-        externalId: externalId,
         urlConfirmation: `${baseUrl}/api/flow/confirm`,
         urlReturn: `${baseUrl}/flow-result`,
       };
@@ -143,6 +147,27 @@ async function startServer() {
 
       res.json(statusData);
     } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Stripe Payment Intent (Apple Pay / Google Pay Support)
+  app.post("/api/stripe/create-payment-intent", async (req, res) => {
+    try {
+      if (!stripe) {
+        throw new Error("Stripe no está configurado en el servidor.");
+      }
+
+      const { amount } = req.body;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(Number(amount)), // Stripe uses smallest currency unit (cents in most, but keep integer for others)
+        currency: "clp",
+        automatic_payment_methods: { enabled: true },
+      });
+
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (err: any) {
+      console.error("Stripe Error:", err);
       res.status(500).json({ error: err.message });
     }
   });

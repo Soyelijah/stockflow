@@ -23,8 +23,13 @@ import {
   Tag,
   CreditCard,
   Banknote,
-  Smartphone
+  Smartphone,
+  X,
+  Loader2,
+  RefreshCw,
+  Cpu
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn, formatCurrency } from "../lib/utils";
 
@@ -58,6 +63,42 @@ export function POS() {
   });
   const [cashReceived, setCashReceived] = useState<string>("");
   const [lastOrder, setLastOrder] = useState<any>(null);
+
+  // Flow QR states
+  const [showFlowModal, setShowFlowModal] = useState(false);
+  const [flowToken, setFlowToken] = useState("");
+  const [flowUrl, setFlowUrl] = useState("");
+  const [flowStatus, setFlowStatus] = useState<"pending" | "success" | "error">("pending");
+
+  // NFC / Contactless Sim State
+  const [showNFCSim, setShowNFCSim] = useState(false);
+  const [nfcState, setNfcState] = useState<"waiting" | "processing" | "success">("waiting");
+
+  useEffect(() => {
+    let interval: any;
+    if (showFlowModal && flowToken && flowStatus === "pending") {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/flow/payment-status?token=${flowToken}`);
+          if (!res.ok) return;
+          const statusData = await res.json();
+          // status 2 = Aceptado
+          if (statusData.status === 2 || statusData.status === "2") {
+            setFlowStatus("success");
+            clearInterval(interval);
+            // Finish order
+            await finishOrder(flowToken);
+          } else if (statusData.status === 3 || statusData.status === 4) {
+            setFlowStatus("error");
+            clearInterval(interval);
+          }
+        } catch (err) {
+          console.error("Polling error:", err);
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [showFlowModal, flowToken, flowStatus]);
 
   useEffect(() => {
     const q = query(collection(db, "products"), orderBy("name"));
@@ -189,42 +230,61 @@ export function POS() {
       return;
     }
 
-    // Handle Flow Payment if there's digital portion
+    // Handle Flow QR Payment if there's digital portion
     if (payments.digital > 0) {
-      try {
-        setIsProcessing(true);
-        const baseUrl = window.location.origin;
-        const response = await fetch("/api/flow/create-payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: payments.digital,
-            email: profile?.email || "caja@stockflow.cl",
-            description: `Venta POS StockFlow - Orden ${Date.now()}`,
-            externalId: `pos_${Date.now()}`,
-            baseUrl: baseUrl
-          })
-        });
-
-        const data = await response.json();
-        if (data.url) {
-          // Save cart and payments state to storage because we will be redirected
-          localStorage.setItem("pending_order_cart", JSON.stringify(cart));
-          localStorage.setItem("pending_order_payments", JSON.stringify(payments));
-          
-          // Flow will redirect back to this app
-          window.location.href = data.url;
-          return; 
-        } else {
-          throw new Error(data.error || "No se pudo generar el pago en Flow");
-        }
-      } catch (err: any) {
-        alert("Error al iniciar pago Flow: " + err.message);
-        setIsProcessing(false);
-        return;
-      }
+      setShowNFCSim(true);
+      setNfcState("waiting");
+      return;
     }
 
+    await finishOrder();
+  };
+
+  const startFlowQR = async () => {
+    try {
+      setIsProcessing(true);
+      const baseUrl = window.location.origin;
+      const response = await fetch("/api/flow/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: payments.digital,
+          email: profile?.email || "caja@stockflow.cl",
+          description: `Cobro POS - ${profile?.name || "Caja"}`,
+          externalId: `pos_${Date.now()}`,
+          baseUrl: baseUrl
+        })
+      });
+
+      const data = await response.json();
+      if (data.url && data.token) {
+        setFlowUrl(data.url);
+        setFlowToken(data.token);
+        setFlowStatus("pending");
+        setShowFlowModal(true);
+        setIsProcessing(false);
+        setShowNFCSim(false);
+      } else {
+        throw new Error(data.error || "No se pudo generar el QR");
+      }
+    } catch (err: any) {
+      alert("Error Flow: " + err.message);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleNFCSimulateSuccess = async () => {
+    setNfcState("processing");
+    setTimeout(async () => {
+      setNfcState("success");
+      setTimeout(async () => {
+        setShowNFCSim(false);
+        await finishOrder("nfc_simulated");
+      }, 1500);
+    }, 2000);
+  };
+
+  const finishOrder = async (token?: string) => {
     setIsProcessing(true);
     try {
       const batch = writeBatch(db);
@@ -250,7 +310,7 @@ export function POS() {
           paymentBreakdown: payments,
           timestamp: serverTimestamp(),
           orderId: orderId,
-          note: `Venta múltiple. Total: $ ${cartTotal}`
+          note: token === "nfc_simulated" ? "Pago Simulado Sin Contacto" : token ? `Pago Flow QR (Token: ${token})` : `Venta Directa`
         });
       });
 
@@ -267,7 +327,10 @@ export function POS() {
       setCart([]);
       setPayments({ efectivo: 0, tarjeta: 0, digital: 0 });
       setCashReceived("");
-      setShowSuccess(true);
+      
+      if (!showFlowModal) {
+        setShowSuccess(true);
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, "checkout");
     } finally {
@@ -484,6 +547,169 @@ export function POS() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* NFC / Contactless Simulation Modal */}
+      <AnimatePresence>
+        {showNFCSim && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="bg-white rounded-[3rem] shadow-2xl max-w-md w-full p-10 flex flex-col items-center text-center relative"
+            >
+              <button 
+                onClick={() => setShowNFCSim(false)}
+                className="absolute top-8 right-8 p-2 text-slate-300 hover:text-slate-900"
+              >
+                <X size={24} />
+              </button>
+
+              {nfcState === "waiting" && (
+                <>
+                  <div className="w-24 h-24 bg-indigo-50 text-indigo-500 rounded-3xl flex items-center justify-center mb-8 animate-bounce">
+                    <Cpu size={48} />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-800 mb-4">Acerque el Dispositivo</h3>
+                  <p className="text-slate-500 mb-8 font-medium">Acerque la tarjeta o el celular del cliente a la parte posterior de este dispositivo.</p>
+                  
+                  <div className="flex flex-col w-full gap-4">
+                    <button 
+                      onClick={handleNFCSimulateSuccess}
+                      className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2"
+                    >
+                      <CheckCircle2 size={18} />
+                      <span>Simular "Tap" con Tarjeta</span>
+                    </button>
+                    
+                    <button 
+                      onClick={startFlowQR}
+                      className="w-full h-16 bg-slate-50 text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2 border border-indigo-100"
+                    >
+                      <Smartphone size={18} />
+                      <span>Usar Flow QR (Respaldo)</span>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {nfcState === "processing" && (
+                <div className="py-20 flex flex-col items-center text-center">
+                  <div className="w-20 h-20 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-8" />
+                  <h3 className="text-xl font-black text-slate-800">Procesando Tarjeta...</h3>
+                  <p className="text-slate-400 text-sm font-bold mt-2 uppercase tracking-tight">Comunicando con Procesador EMV</p>
+                </div>
+              )}
+
+              {nfcState === "success" && (
+                <div className="py-20 flex flex-col items-center text-center">
+                  <motion.div 
+                    initial={{ scale: 0.5 }}
+                    animate={{ scale: 1 }}
+                    className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-8"
+                  >
+                    <CheckCircle2 size={50} />
+                  </motion.div>
+                  <h3 className="text-2xl font-black text-slate-800">¡Pago Aprobado!</h3>
+                  <p className="text-slate-500 font-medium mt-2">Transacción autorizada exitosamente.</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* QR Flow Payment Modal */}
+      <AnimatePresence>
+        {showFlowModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 flex flex-col items-center text-center relative overflow-hidden"
+            >
+              <button 
+                onClick={() => {
+                  if (flowStatus !== "success") setShowFlowModal(false);
+                  else { setShowSuccess(true); setShowFlowModal(false); }
+                }}
+                className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-900 transition-colors"
+                disabled={isProcessing}
+              >
+                <X size={24} />
+              </button>
+
+              {flowStatus === "pending" && (
+                <>
+                  <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mb-6">
+                    <Smartphone size={32} />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 mb-2">Pago por QR</h3>
+                  <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-8">Cliente debe escanear</p>
+                  
+                  <div className="p-4 bg-white border-4 border-slate-50 rounded-3xl mb-8">
+                    <QRCodeSVG 
+                      value={flowUrl} 
+                      size={200}
+                      level="H"
+                      includeMargin={true}
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2 text-indigo-500 font-black text-xs animate-pulse">
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>ESPERANDO PAGO...</span>
+                  </div>
+                </>
+              )}
+
+              {flowStatus === "success" && (
+                <>
+                  <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
+                    <CheckCircle2 size={40} />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-800 mb-2">¡Pago Recibido!</h3>
+                  <p className="text-slate-500 mb-8 font-medium">La transacción ha sido aprobada por Flow.</p>
+                  <button 
+                    onClick={() => {
+                      setShowFlowModal(false);
+                      setShowSuccess(true);
+                    }}
+                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs"
+                  >
+                    Continuar
+                  </button>
+                </>
+              )}
+
+              {flowStatus === "error" && (
+                <>
+                  <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6">
+                    <X size={40} />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-800 mb-2">Pago Cancelado</h3>
+                  <p className="text-slate-500 mb-8 font-medium">No se pudo confirmar o el tiempo expiró.</p>
+                  <button 
+                    onClick={() => setShowFlowModal(false)}
+                    className="w-full py-4 bg-slate-100 text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs"
+                  >
+                    Cerrar
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
