@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserRole() == 'admin';
+    }
+
+    function isSeller() {
+      return isSignedIn() && getUserRole() == 'seller';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Collections ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        incoming().keys().hasAll(['uid', 'email', 'role', 'name', 'createdAt']) &&
+        incoming().keys().size() == 5 &&
+        (incoming().role == 'seller' || (incoming().role == 'admin' && incoming().email == 'solier.elijah@gmail.com')) &&
+        incoming().uid == userId
+      );
+      allow update: if isAdmin() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['role', 'name'])
+      );
+    }
+
+    match /products/{productId} {
+      function isValidProduct(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+               data.price is number && data.price >= 0 &&
+               data.stock is number &&
+               data.minThreshold is number && data.minThreshold >= 0;
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidProduct(incoming()) && isValidId(productId);
+      allow update: if (isAdmin() && isValidProduct(incoming())) || (
+        isSeller() &&
+        isValidProduct(incoming()) &&
+        // Sellers can ONLY update stock and it must be a decrease
+        incoming().name == existing().name &&
+        incoming().price == existing().price &&
+        incoming().minThreshold == existing().minThreshold &&
+        incoming().stock < existing().stock &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'updatedAt', 'updatedBy'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{txId} {
+      function isValidTransaction(data) {
+        return data.productId is string && isValidId(data.productId) &&
+               data.type in ['in', 'out'] &&
+               data.quantity is number && data.quantity > 0 &&
+               data.userId == request.auth.uid &&
+               data.timestamp == request.time;
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidTransaction(incoming()) && (
+        // Verify product exists and verify stock consistency
+        // Note: For a real app, you'd check exists() and maybe more.
+        // For MVP, we emphasize the stock check on the product side.
+        exists(/databases/$(database)/documents/products/$(incoming().productId))
+      );
+      allow update, delete: if false; // Transactions are immutable
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

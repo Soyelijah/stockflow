@@ -1,0 +1,6 @@
+{
+  "name": "StockFlow",
+  "description": "Sistema integral de gestión de inventarios y logística con control de stock en tiempo real, alertas de nivel crítico y roles diferenciados para administrador y vendedores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
