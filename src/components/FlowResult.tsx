@@ -1,0 +1,152 @@
+import React, { useEffect, useState } from "react";
+import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
+import { motion } from "motion/react";
+import { db } from "../lib/firebase";
+import { collection, doc, writeBatch, increment, serverTimestamp } from "firebase/firestore";
+import { useAuth } from "../contexts/AuthContext";
+
+export function FlowResult() {
+  const { profile } = useAuth();
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+
+    if (!token) {
+      setStatus("error");
+      setMessage("Token de pago no encontrado.");
+      return;
+    }
+
+    async function processPayment() {
+      try {
+        // 1. Verify status with our backend
+        const response = await fetch(`/api/flow/payment-status?token=${token}`);
+        const flowData = await response.json();
+
+        // status 2 = Aceptado
+        if (flowData.status === 2 || flowData.status === "2") {
+          // 2. Recover cart from storage
+          const cartRaw = localStorage.getItem("pending_order_cart");
+          const paymentsRaw = localStorage.getItem("pending_order_payments");
+          
+          if (!cartRaw || !paymentsRaw) {
+            console.error("No pending order data found in storage");
+            setStatus("success"); // Still success because money was taken, but log error
+            setMessage("Pago exitoso pero hubo un problema recuperando la orden. Por favor contacte a soporte.");
+            return;
+          }
+
+          const cart = JSON.parse(cartRaw);
+          const payments = JSON.parse(paymentsRaw);
+
+          // 3. Update Firebase
+          const batch = writeBatch(db);
+          const orderId = doc(collection(db, "transactions")).id;
+          const cartTotal = cart.reduce((sumValue: number, itemValue: any) => sumValue + (itemValue.price * itemValue.quantity), 0);
+
+          cart.forEach((item: any) => {
+            const productRef = doc(db, "products", item.id);
+            const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
+            
+            batch.update(productRef, {
+              stock: increment(-item.quantity),
+              updatedAt: serverTimestamp()
+            });
+            
+            batch.set(transactionRef, {
+              productId: item.id,
+              productName: item.name,
+              type: "sale",
+              quantity: item.quantity,
+              amount: item.price * item.quantity,
+              userId: profile?.uid || "system",
+              userName: profile?.name || "Auto System",
+              paymentBreakdown: payments,
+              timestamp: serverTimestamp(),
+              orderId: orderId,
+              note: `Venta Flow Procesada. Token: ${token}`
+            });
+          });
+
+          await batch.commit();
+
+          // 4. Clear storage
+          localStorage.removeItem("pending_order_cart");
+          localStorage.removeItem("pending_order_payments");
+
+          setStatus("success");
+        } else {
+          setStatus("error");
+          setMessage(`Estado del pago: ${flowData.status}. La transacción no ha sido aprobada.`);
+        }
+      } catch (err: any) {
+        console.error(err);
+        setStatus("error");
+        setMessage("Error verificando el pago: " + err.message);
+      }
+    }
+
+    processPayment();
+  }, [profile]);
+
+  const goBack = () => {
+    window.location.href = "/";
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-slate-800">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-[480px] w-full bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl p-10 text-center"
+      >
+        {status === "loading" && (
+          <div className="flex flex-col items-center">
+            <Loader2 size={48} className="text-indigo-500 animate-spin mb-6" />
+            <h2 className="text-2xl font-black mb-2">Verificando Pago</h2>
+            <p className="text-slate-500">Estamos confirmando tu transacción con Flow...</p>
+          </div>
+        )}
+
+        {status === "success" && (
+          <div className="flex flex-col items-center">
+            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
+              <CheckCircle2 size={40} />
+            </div>
+            <h2 className="text-2xl font-black mb-2">¡Pago Exitoso!</h2>
+            <p className="text-slate-500 mb-2">Tu pago ha sido procesado correctamente.</p>
+            {message && <p className="text-amber-600 text-xs font-bold mb-8">{message}</p>}
+            {!message && <p className="text-slate-500 mb-8">Stock actualizado y orden registrada.</p>}
+            
+            <button 
+              onClick={goBack}
+              className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2"
+            >
+              <span>Volver al Sistema</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
+
+        {status === "error" && (
+          <div className="flex flex-col items-center">
+            <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6">
+              <XCircle size={40} />
+            </div>
+            <h2 className="text-2xl font-black mb-2">No se pudo procesar</h2>
+            <p className="text-slate-500 mb-4">{message || "No pudimos confirmar tu pago o la transacción fue cancelada."}</p>
+            <button 
+              onClick={goBack}
+              className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs"
+            >
+              Volver al inicio
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}

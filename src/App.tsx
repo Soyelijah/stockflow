@@ -6,11 +6,13 @@
 import { useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Login } from "./components/Login";
+import { VerifyEmail } from "./components/VerifyEmail";
 import { Dashboard } from "./components/Dashboard";
 import { Inventory } from "./components/Inventory";
 import { POS } from "./components/POS";
 import { Transactions } from "./components/Transactions";
 import { Layout } from "./components/Layout";
+import { FlowResult } from "./components/FlowResult";
 import { motion, AnimatePresence } from "motion/react";
 
 type Page = "dashboard" | "inventory" | "pos" | "transactions";
@@ -18,6 +20,11 @@ type Page = "dashboard" | "inventory" | "pos" | "transactions";
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+
+  // Handle Flow Result Path
+  if (window.location.pathname === "/flow-result") {
+    return <FlowResult />;
+  }
 
   if (loading) {
     return (
@@ -29,6 +36,10 @@ function AppContent() {
 
   if (!user || !profile) {
     return <Login />;
+  }
+
+  if (!user.emailVerified) {
+    return <VerifyEmail />;
   }
 
   const renderPage = () => {

@@ -33,16 +33,27 @@
     },
     "Transaction": {
       "title": "Stock Transaction",
-      "description": "Record of stock movement (entry/exit)",
+      "description": "Record of stock movement (entry/exit/sale)",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "productId": { "type": "string" },
         "productName": { "type": "string" },
-        "type": { "type": "string", "enum": ["in", "out"] },
+        "type": { "type": "string", "enum": ["in", "out", "sale"] },
         "quantity": { "type": "number" },
+        "amount": { "type": "number" },
         "userId": { "type": "string" },
         "userName": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "paymentBreakdown": {
+          "type": "object",
+          "properties": {
+            "efectivo": { "type": "number" },
+            "tarjeta": { "type": "number" },
+            "digital": { "type": "number" }
+          }
+        },
+        "orderId": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "note": { "type": "string" }
       },

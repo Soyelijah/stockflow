@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { 
+  onAuthStateChanged, 
+  User as FirebaseUser,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signOut
+} from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 
@@ -14,6 +22,11 @@ interface AuthContextType {
   user: FirebaseUser | null;
   profile: UserProfile | null;
   loading: boolean;
+  login: (email: string, pass: string) => Promise<void>;
+  register: (email: string, pass: string, name: string) => Promise<void>;
+  sendVerification: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -35,12 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (docSnap.exists()) {
             setProfile(docSnap.data() as UserProfile);
           } else {
-            // New user defaults to seller, but specific user is admin
-            const isAdminEmail = user.email === "solier.elijah@gmail.com";
+            // This is a safety check: profile should be created at register
             const newProfile: UserProfile = {
               uid: user.uid,
               email: user.email,
-              role: isAdminEmail ? "admin" : "seller",
+              role: user.email === "solier.elijah@gmail.com" ? "admin" : "seller",
               name: user.displayName || "Usuario",
             };
             await setDoc(docRef, {
@@ -53,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null);
         }
       } catch (error) {
-        console.error("Error in AuthContext:", error);
+        console.error("Auth status change error:", error);
       } finally {
         setLoading(false);
       }
@@ -62,10 +74,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const logout = () => auth.signOut();
+  const login = async (email: string, pass: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (err: any) {
+      if (err.code === "auth/operation-not-allowed") {
+        throw new Error("El proveedor de Email/Password no está habilitado en Firebase Console. Por favor, actívelo.");
+      }
+      throw err;
+    }
+  };
+  
+  const register = async (email: string, pass: string, name: string) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    
+    // Send verification email
+    await sendEmailVerification(userCredential.user);
+
+    const isAdmin = email === "solier.elijah@gmail.com";
+    const profileData: UserProfile = {
+      uid: userCredential.user.uid,
+      email,
+      role: isAdmin ? "admin" : "seller",
+      name
+    };
+    
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      ...profileData,
+      createdAt: new Date().toISOString()
+    });
+    setProfile(profileData);
+  };
+
+  const sendVerification = async () => {
+    if (auth.currentUser) {
+      await sendEmailVerification(auth.currentUser);
+    }
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
+  const refreshUser = async () => {
+    if (auth.currentUser) {
+      await auth.currentUser.reload();
+      setUser({...auth.currentUser});
+    }
+  };
+
+  const logout = () => signOut(auth);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      loading, 
+      login, 
+      register, 
+      sendVerification, 
+      sendPasswordReset,
+      refreshUser, 
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

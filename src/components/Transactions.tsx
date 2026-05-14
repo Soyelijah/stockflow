@@ -71,10 +71,12 @@ export function Transactions() {
                       "inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase border",
                       tx.type === 'in' 
                         ? "bg-green-50 text-green-700 border-green-100" 
+                        : tx.type === 'sale'
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-100"
                         : "bg-blue-50 text-blue-700 border-blue-100"
                     )}>
                       {tx.type === 'in' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      <span>{tx.type === 'in' ? 'Entrada' : 'Salida'}</span>
+                      <span>{tx.type === 'in' ? 'Entrada' : tx.type === 'sale' ? 'Venta' : 'Salida'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
