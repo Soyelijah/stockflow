@@ -6,7 +6,7 @@ import {
   orderBy, 
   limit 
 } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
   History, 
   TrendingUp, 
