@@ -19,19 +19,20 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
     function isAdmin() {
       return isSignedIn() && (
-        getUserRole() == 'admin' || 
-        request.auth.token.email == 'solier.elijah@gmail.com'
+        request.auth.token.email == 'solier.elijah@gmail.com' || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
     }
 
     function isSeller() {
-      return isSignedIn() && (getUserRole() == 'seller' || isAdmin());
+      return isSignedIn() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller')
+      );
     }
 
     function incoming() {
@@ -62,19 +63,34 @@ service cloud.firestore {
         return data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
                data.price is number && data.price >= 0 &&
                data.stock is number &&
-               data.minThreshold is number && data.minThreshold >= 0;
+               data.minThreshold is number && data.minThreshold >= 0 &&
+               (data.category == null || data.category is string) &&
+               (data.sku == null || data.sku is string) &&
+               (data.barcode == null || data.barcode is string) &&
+               (data.categoryId == null || data.categoryId is string);
       }
 
       allow read: if isSignedIn();
       allow create: if isAdmin() && isValidProduct(incoming()) && isValidId(productId);
       allow update: if (isAdmin() && isValidProduct(incoming())) || (
         isSeller() &&
-        // Sellers can ONLY update stock and it must be a decrease
-        incoming().stock < existing().stock &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'updatedAt']) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'updatedAt', 'updatedBy']) &&
         incoming().updatedAt == request.time
       );
       allow delete: if isAdmin();
+    }
+
+    match /categories/{catId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /stockMovements/{moveId} {
+      allow read: if isSignedIn();
+      allow create: if isSeller() && 
+        incoming().userId == request.auth.uid &&
+        incoming().timestamp == request.time;
+      allow update, delete: if false;
     }
 
     match /transactions/{txId} {
@@ -83,13 +99,52 @@ service cloud.firestore {
                data.type in ['in', 'out', 'sale'] &&
                data.quantity is number && data.quantity > 0 &&
                data.userId == request.auth.uid &&
-               data.timestamp == request.time;
+               data.timestamp == request.time &&
+               (data.cost == null || data.cost is number) &&
+               (data.profit == null || data.profit is number);
       }
 
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidTransaction(incoming()) && 
         exists(/databases/$(database)/documents/products/$(incoming().productId));
       allow update, delete: if false; // Transactions are immutable
+    }
+
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /suppliers/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    match /expenses/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && 
+        incoming().amount is number && 
+        incoming().amount > 0 &&
+        incoming().createdBy == request.auth.uid;
+      allow update: if isAdmin() && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['description', 'amount', 'category', 'date']);
+      allow delete: if isAdmin();
+    }
+
+    match /cashRegisters/{regId} {
+      allow read: if isSignedIn();
+      allow create: if isSeller() &&
+        incoming().status == 'open' &&
+        incoming().openedBy == request.auth.uid &&
+        incoming().openedAt == request.time;
+      allow update: if isSeller() &&
+        existing().status == 'open' &&
+        (
+          (incoming().status == 'closed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'closedAt', 'closedBy', 'expectedAmount', 'finalAmount', 'difference']))
+          ||
+          isAdmin()
+        );
+      allow delete: if isAdmin();
     }
 
     match /test/connection {

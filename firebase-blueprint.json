@@ -21,15 +21,52 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "sku": { "type": "string" },
+        "barcode": { "type": "string" },
         "description": { "type": "string" },
+        "costPrice": { "type": "number" },
         "price": { "type": "number" },
         "stock": { "type": "number" },
         "minThreshold": { "type": "number" },
         "category": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "isArchived": { "type": "boolean" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "updatedBy": { "type": "string" }
       },
       "required": ["name", "price", "stock", "minThreshold"]
+    },
+    "Category": {
+      "title": "Product Category",
+      "description": "Organizational category for products",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "color": { "type": "string" },
+        "icon": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "StockMovement": {
+      "title": "Stock Movement Record",
+      "description": "Audit trail for all stock changes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "type": { "type": "string", "enum": ["purchase", "sale", "adjustment", "loss", "return"] },
+        "quantity": { "type": "number" },
+        "previousStock": { "type": "number" },
+        "newStock": { "type": "number" },
+        "reason": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "source": { "type": "string", "enum": ["web", "mobile"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "type", "quantity", "userId", "timestamp"]
     },
     "Transaction": {
       "title": "Stock Transaction",
@@ -58,6 +95,69 @@
         "note": { "type": "string" }
       },
       "required": ["productId", "type", "quantity", "userId", "timestamp"]
+    },
+    "Setting": {
+      "title": "Global Settings",
+      "description": "Business configuration and feature toggles",
+      "type": "object",
+      "properties": {
+        "businessName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "currency": { "type": "string" },
+        "taxEnabled": { "type": "boolean" },
+        "taxRate": { "type": "number" },
+        "aiEnabled": { "type": "boolean" },
+        "notificationsEnabled": { "type": "boolean" }
+      }
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Product provider information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contactName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "category": { "type": "string" },
+        "address": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Expense": {
+      "title": "General Expense",
+      "description": "Business operational costs (rent, utilities, salaries, etc.)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "timestamp": { "type": "string" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["description", "amount", "category", "date"]
+    },
+    "CashRegister": {
+      "title": "Cash Register Session",
+      "description": "Session for opening and closing cash register",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "openedAt": { "type": "string" },
+        "closedAt": { "type": "string" },
+        "openedBy": { "type": "string" },
+        "closedBy": { "type": "string" },
+        "initialAmount": { "type": "number" },
+        "expectedAmount": { "type": "number" },
+        "finalAmount": { "type": "number" },
+        "difference": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "closed"] }
+      },
+      "required": ["openedAt", "openedBy", "initialAmount", "status"]
     }
   },
   "firestore": {
@@ -72,6 +172,30 @@
     "transactions": {
       "schema": "Transaction",
       "description": "Immutable log of all stock movements"
+    },
+    "settings": {
+      "schema": "Setting",
+      "description": "Global application configuration"
+    },
+    "suppliers": {
+      "schema": "Supplier",
+      "description": "Directory of business providers"
+    },
+    "expenses": {
+      "schema": "Expense",
+      "description": "Operational business expenses"
+    },
+    "categories": {
+      "schema": "Category",
+      "description": "Product hierarchy"
+    },
+    "stockMovements": {
+      "schema": "StockMovement",
+      "description": "Audit trail of inventory changes"
+    },
+    "cashRegisters": {
+      "schema": "CashRegister",
+      "description": "History of cash register sessions"
     }
   }
 }

@@ -10,9 +10,14 @@ import {
   ChevronLeft,
   Bell,
   Search,
-  Zap
+  Zap,
+  Users,
+  CreditCard,
+  ArrowRightLeft,
+  Settings as SettingsIcon
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
 
 interface LayoutProps {
@@ -23,14 +28,20 @@ interface LayoutProps {
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { profile, logout } = useAuth();
+  const { settings } = useSettings();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "seller"] },
-    { id: "inventory", label: "Inventario", icon: Package, roles: ["admin"] },
-    { id: "pos", label: "Ventas", icon: ShoppingCart, roles: ["admin", "seller"] },
-    { id: "transactions", label: "Historial", icon: History, roles: ["admin", "seller"] },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "seller", "logistics"] },
+    { id: "pos", label: "Ventas POS", icon: ShoppingCart, roles: ["admin", "manager", "seller"] },
+    { id: "inventory", label: "Inventario", icon: Package, roles: ["admin", "manager", "logistics"] },
+    { id: "logistics", label: "Logística", icon: ArrowRightLeft, roles: ["admin", "manager", "logistics"] },
+    { id: "suppliers", label: "Proveedores", icon: Users, roles: ["admin", "manager"] },
+    { id: "expenses", label: "Gastos", icon: CreditCard, roles: ["admin", "manager"] },
+    { id: "kardex", label: "Kardex", icon: History, roles: ["admin", "manager", "logistics"] },
+    { id: "transactions", label: "Historial", icon: History, roles: ["admin", "manager", "seller"] },
+    { id: "settings", label: "Configuración", icon: SettingsIcon, roles: ["admin"] },
   ];
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(profile?.role || ""));
@@ -50,7 +61,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
                 <Zap size={18} className="text-white fill-white" />
               </div>
-              <span className="font-black text-slate-800 text-xl tracking-tight">StockFlow</span>
+              <span className="font-black text-slate-800 text-xl tracking-tight truncate max-w-[140px]">
+                {settings.businessName}
+              </span>
             </div>
           )}
           {isSidebarCollapsed && (
@@ -125,7 +138,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
             <Zap size={18} className="text-white fill-white" />
           </div>
-          <span className="font-black text-slate-800 text-xl tracking-tight">StockFlow</span>
+          <span className="font-black text-slate-800 text-xl tracking-tight truncate max-w-[180px]">
+            {settings.businessName}
+          </span>
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

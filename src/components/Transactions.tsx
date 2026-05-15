@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   collection, 
   query, 
@@ -15,16 +15,28 @@ import {
   Download,
   Calendar,
   User as UserIcon,
-  Tag
+  Tag,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  Search,
+  ShoppingCart,
+  ArrowUpRight,
+  ArrowDownRight,
+  Printer
 } from "lucide-react";
 import { cn, formatCurrency, formatDate } from "../lib/utils";
+import { motion, AnimatePresence } from "motion/react";
+import { useSettings } from "../contexts/SettingsContext";
 
 export function Transactions() {
+  const { settings } = useSettings();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const q = query(collection(db, "transactions"), orderBy("timestamp", "desc"), limit(50));
+    const q = query(collection(db, "transactions"), orderBy("timestamp", "desc"), limit(100));
     const unsub = onSnapshot(q, (snapshot) => {
       const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTransactions(txs);
@@ -35,88 +47,336 @@ export function Transactions() {
     return unsub;
   }, []);
 
+  const stats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return transactions.reduce((acc, tx) => {
+      const txDate = tx.timestamp?.toDate ? tx.timestamp.toDate() : new Date(tx.timestamp);
+      const isToday = txDate >= today;
+
+      if (tx.type === "sale") {
+        acc.totalSales += Number(tx.amount) || 0;
+        if (isToday) acc.todaySales += Number(tx.amount) || 0;
+      }
+      return acc;
+    }, { totalSales: 0, todaySales: 0 });
+  }, [transactions]);
+
+  const filteredTransactions = transactions.filter(tx => 
+    tx.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tx.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tx.orderId?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handlePrint = (tx: any) => {
+    // Find all items in this order
+    const orderItems = transactions.filter(t => t.orderId === tx.orderId);
+    
+    // Create hidden iframe for printing
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Ticket de Venta - ${tx.orderId}</title>
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              padding: 10px; 
+              width: 75mm; 
+              color: #000; 
+              margin: 0;
+              font-size: 12px;
+            }
+            .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+            .item { display: flex; justify-content: space-between; margin: 3px 0; }
+            .total { margin-top: 10px; border-top: 1px solid #000; padding-top: 8px; font-weight: bold; font-size: 14px; }
+            .footer { text-align: center; margin-top: 25px; font-size: 10px; border-top: 1px dashed #ccc; pt: 10px; }
+            .payment { font-size: 10px; margin-top: 8px; color: #333; }
+            .business-name { font-size: 16px; font-weight: 900; margin: 0 0 5px 0; }
+            .separator { border-bottom: 1px dashed #000; margin: 10px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="business-name">${settings.businessName.toUpperCase()}</h1>
+            <p>${settings.address || ""}</p>
+            <p>Ticket No: ${tx.orderId?.slice(0, 8)}</p>
+            <p>${tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString("es-CL") : new Date().toLocaleString("es-CL")}</p>
+          </div>
+          <div class="items">
+            ${orderItems.map((item: any) => `
+              <div class="item">
+                <span>${item.productName} x${item.quantity}</span>
+                <span>$ ${Math.round(item.amount).toLocaleString("es-CL")}</span>
+              </div>
+            `).join("")}
+          </div>
+          <div class="total item">
+            <span>TOTAL</span>
+            <span>$ ${Math.round(orderItems.reduce((acc, i) => acc + i.amount, 0)).toLocaleString("es-CL")}</span>
+          </div>
+          <div class="separator"></div>
+          <div class="payment">
+            ${tx.paymentBreakdown?.efectivo > 0 ? `<div>Efectivo: $ ${Math.round(tx.paymentBreakdown.efectivo).toLocaleString("es-CL")}</div>` : ""}
+            ${tx.paymentBreakdown?.tarjeta > 0 ? `<div>Tarjeta: $ ${Math.round(tx.paymentBreakdown.tarjeta).toLocaleString("es-CL")}</div>` : ""}
+            ${tx.paymentBreakdown?.digital > 0 ? `<div>Transferencia/Digital: $ ${Math.round(tx.paymentBreakdown.digital).toLocaleString("es-CL")}</div>` : ""}
+          </div>
+          <div class="footer">
+            <p>¡Gracias por su compra!</p>
+            <p>RE-IMPRESIÓN DE COMPROBANTE</p>
+            <p>SISTEMA DE GESTIÓN STOCKFLOW</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(receiptHtml);
+      doc.close();
+
+      setTimeout(() => {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }
+      }, 500);
+    }
+  };
+
+  const exportToCSV = () => {
+    const headers = ["ID Orden", "Fecha", "Tipo", "Producto", "Monto", "Efectivo", "Tarjeta", "Digital", "Cajero", "Notas"];
+    const rows = filteredTransactions.map(tx => [
+      tx.orderId || tx.id,
+      tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString() : "",
+      tx.type === "sale" ? "Venta" : tx.type === "in" ? "Entrada" : "Salida",
+      tx.productName,
+      tx.amount || 0,
+      tx.paymentBreakdown?.efectivo || 0,
+      tx.paymentBreakdown?.tarjeta || 0,
+      tx.paymentBreakdown?.digital || 0,
+      tx.userName || "Sistema",
+      tx.note || ""
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers, ...rows].map(e => e.join(",")).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `transacciones_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Historial de Movimientos</h2>
-          <p className="text-gray-500 text-sm">Registro inmutable de todas las entradas y salidas.</p>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Historial Financiero</h1>
+          <p className="text-slate-500 font-medium text-sm">Registro detallado de ventas y movimientos de stock.</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={exportToCSV}
+            className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2 text-sm"
+          >
+            <Download size={18} />
+            <span>Exportar CSV</span>
+          </button>
+          <button className="bg-white text-slate-700 font-bold px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center space-x-2 text-sm">
+            <Filter size={18} />
+            <span>Filtros Avanzados</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Sales Summaries */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-indigo-600 rounded-[2.5rem] p-8 text-white flex items-center justify-between relative overflow-hidden group shadow-xl shadow-indigo-100"
+        >
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Ventas de Hoy</p>
+            <h3 className="text-4xl font-black">{formatCurrency(stats.todaySales)}</h3>
+            <div className="flex items-center mt-2 text-indigo-200 text-xs font-bold">
+              <ArrowUpRight size={14} className="mr-1" />
+              <span>Sincronizado</span>
+            </div>
+          </div>
+          <div className="w-24 h-24 bg-white/10 rounded-[2.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
+            <TrendingUp size={48} className="text-white/20" />
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-[2.5rem] p-8 border border-slate-200 flex items-center justify-between relative overflow-hidden group shadow-sm"
+        >
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Historial Acumulado (Muestra)</p>
+            <h3 className="text-4xl font-black text-slate-800">{formatCurrency(stats.totalSales)}</h3>
+            <p className="text-slate-400 text-xs font-medium mt-2">Últimos 100 movimientos</p>
+          </div>
+          <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
+            <ShoppingCart size={48} className="text-slate-200" />
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white p-4 rounded-3xl border border-slate-200 flex items-center shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input 
+            type="text" 
+            placeholder="Buscar por producto, cajero o ID de orden..."
+            className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all text-slate-700"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 border-b">
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha y Hora</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipo</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Producto</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Cantidad</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Usuario</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Monto</th>
+              <tr className="bg-slate-50/50">
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Fecha / Orden</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Tipo</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Producto</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Método</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Cajero</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] text-right">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {transactions.map(tx => (
-                <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <Calendar size={14} className="text-gray-400" />
-                      <span>{formatDate(tx.timestamp?.toDate ? tx.timestamp.toDate() : tx.timestamp)}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className={cn(
-                      "inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase border",
-                      tx.type === 'in' 
-                        ? "bg-green-50 text-green-700 border-green-100" 
-                        : tx.type === 'sale'
-                        ? "bg-indigo-50 text-indigo-700 border-indigo-100"
-                        : "bg-blue-50 text-blue-700 border-blue-100"
-                    )}>
-                      {tx.type === 'in' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      <span>{tx.type === 'in' ? 'Entrada' : tx.type === 'sale' ? 'Venta' : 'Salida'}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      <Tag size={14} className="text-gray-400" />
-                      <span className="font-semibold text-gray-900 text-sm">{tx.productName}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="font-bold text-gray-900 text-sm">
-                      {tx.quantity}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <UserIcon size={14} className="text-gray-400" />
-                      <span>{tx.userName}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right whitespace-nowrap">
-                    <span className={cn(
-                      "font-bold text-sm",
-                      tx.type === 'in' ? "text-gray-400" : "text-blue-600"
-                    )}>
-                      {tx.totalAmount ? formatCurrency(tx.totalAmount) : '-'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-slate-100">
+              <AnimatePresence mode="popLayout">
+                {filteredTransactions.map((tx, idx) => (
+                  <motion.tr 
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    key={tx.id} 
+                    className="group hover:bg-indigo-50/20 transition-colors"
+                  >
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-800">
+                          {tx.timestamp?.toDate ? formatDate(tx.timestamp.toDate()) : "Pendiente"}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-black tracking-widest mt-1">
+                          #{tx.orderId?.slice(-6).toUpperCase() || tx.id.slice(-6).toUpperCase()}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className={cn(
+                        "inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
+                        tx.type === 'in' 
+                          ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                          : tx.type === 'sale'
+                          ? "bg-indigo-50 text-indigo-600 border-indigo-100"
+                          : "bg-rose-50 text-rose-600 border-rose-100"
+                      )}>
+                        {tx.type === 'in' ? <TrendingUp size={12} /> : tx.type === 'sale' ? <ShoppingCart size={12} /> : <TrendingDown size={12} />}
+                        <span>{tx.type === 'in' ? 'Entrada' : tx.type === 'sale' ? 'Venta' : 'Salida'}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 skeleton-bg bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
+                          <Tag size={16} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 text-xs">{tx.productName}</span>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">x{tx.quantity} Unidades</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      {tx.type === 'sale' ? (
+                        <div className="flex items-center space-x-1.5">
+                          {tx.paymentBreakdown?.efectivo > 0 && <Banknote size={14} className="text-emerald-500" title="Efectivo" />}
+                          {tx.paymentBreakdown?.tarjeta > 0 && <CreditCard size={14} className="text-blue-500" title="Tarjeta" />}
+                          {tx.paymentBreakdown?.digital > 0 && <Smartphone size={14} className="text-purple-500" title="Digital" />}
+                          {!tx.paymentBreakdown && <div className="text-[10px] font-black text-slate-300">N/D</div>}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-black text-slate-300 uppercase italic">Ajuste Stock</span>
+                      )}
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
+                          <UserIcon size={12} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">{tx.userName || "Sistema"}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex items-center justify-end space-x-3">
+                        <div className="flex flex-col items-end">
+                          <span className={cn(
+                            "font-black text-sm",
+                            tx.type === 'in' ? "text-slate-300" : "text-slate-800"
+                          )}>
+                            {tx.amount ? formatCurrency(tx.amount) : '-'}
+                          </span>
+                          {tx.note && <span className="text-[9px] text-slate-400 font-medium italic mt-0.5 truncate max-w-[120px]">{tx.note}</span>}
+                        </div>
+                        {tx.type === 'sale' && (
+                          <button 
+                            onClick={() => handlePrint(tx)}
+                            className="p-2 hover:bg-indigo-50 rounded-xl text-slate-300 hover:text-indigo-600 transition-all shadow-sm border border-slate-50 flex items-center justify-center"
+                            title="Reimprimir Ticket"
+                          >
+                            <Printer size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
             </tbody>
           </table>
-          {loading ? (
-             <div className="p-12 text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mb-4"></div>
-              <p className="text-gray-500 animate-pulse">Cargando historial...</p>
+
+          {loading && (
+            <div className="py-20 flex flex-col items-center justify-center">
+              <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Sincronizando Historial...</p>
             </div>
-          ) : transactions.length === 0 && (
-            <div className="p-12 text-center">
-              <History className="mx-auto text-gray-300 mb-4 opacity-50" size={48} />
-              <p className="text-gray-500 italic">No hay movimientos registrados.</p>
+          )}
+
+          {!loading && filteredTransactions.length === 0 && (
+            <div className="py-24 text-center">
+              <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-slate-200 mx-auto mb-6">
+                <History size={40} />
+              </div>
+              <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sin registros que mostrar</p>
             </div>
           )}
         </div>

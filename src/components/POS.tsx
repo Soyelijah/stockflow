@@ -31,12 +31,17 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
 import { cn, formatCurrency } from "../lib/utils";
+import confetti from "canvas-confetti";
+import { CashRegisterManagement } from "./CashRegister";
+import { MercadoPagoWallet } from "./MercadoPagoWallet";
 
 interface CartItem {
   id: string;
   name: string;
   price: number;
+  costPrice: number;
   quantity: number;
   maxStock: number;
 }
@@ -49,11 +54,13 @@ interface PaymentBreakdown {
 
 export function POS() {
   const { profile } = useAuth();
+  const { settings } = useSettings();
   const [products, setProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   
   // Payment States
   const [payments, setPayments] = useState<PaymentBreakdown>({
@@ -73,6 +80,10 @@ export function POS() {
   // NFC / Contactless Sim State
   const [showNFCSim, setShowNFCSim] = useState(false);
   const [nfcState, setNfcState] = useState<"waiting" | "processing" | "success">("waiting");
+
+  // Cash Register State
+  const [isCashRegisterOpen, setIsCashRegisterOpen] = useState(false);
+  const [currentSession, setCurrentSession] = useState<any>(null);
 
   useEffect(() => {
     let interval: any;
@@ -111,13 +122,51 @@ export function POS() {
     return unsub;
   }, []);
 
+  const categories = useMemo(() => {
+    const cats = new Set(products.map(p => p.category).filter(Boolean));
+    return ["Todos", ...Array.from(cats)];
+  }, [products]);
+
   const filteredProducts = useMemo(() => products.filter(p => {
     if (!p.name) return false;
     const searchLower = searchTerm.toLowerCase();
     const nameMatch = p.name.toLowerCase().includes(searchLower);
     const skuMatch = p.sku && p.sku.toLowerCase().includes(searchLower);
-    return Number(p.stock) > 0 && (nameMatch || skuMatch);
-  }), [products, searchTerm]);
+    const categoryMatch = selectedCategory === "Todos" || p.category === selectedCategory;
+    return Number(p.stock) > 0 && (nameMatch || skuMatch) && categoryMatch;
+  }), [products, searchTerm, selectedCategory]);
+
+  useEffect(() => {
+    let barcode = "";
+    let lastKeyTime = Date.now();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const currentTime = Date.now();
+      
+      // Typical scanners send characters with very small delay
+      if (currentTime - lastKeyTime > 50) {
+        barcode = "";
+      }
+      
+      if (e.key === "Enter") {
+        if (barcode.length > 2) {
+          const product = products.find(p => p.barcode === barcode);
+          if (product) {
+            addToCart(product);
+            // Play a small beep or visual feedback if desired
+          }
+          barcode = "";
+        }
+      } else if (e.key.length === 1) {
+        barcode += e.key;
+      }
+      
+      lastKeyTime = currentTime;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [products]);
 
   const addToCart = (product: any) => {
     setCart(prev => {
@@ -132,6 +181,7 @@ export function POS() {
         id: product.id, 
         name: product.name, 
         price: Number(product.price) || 0, 
+        costPrice: Number(product.costPrice) || 0,
         quantity: 1, 
         maxStock: product.stock 
       }];
@@ -164,6 +214,15 @@ export function POS() {
     setPayments(prev => ({ ...prev, [key]: num }));
   };
 
+  const handleNumpadClick = (val: string) => {
+    setCashReceived(prev => {
+      if (val === "C") return "";
+      if (val === "⌫") return prev.slice(0, -1);
+      if (val === "." && prev.includes(".")) return prev;
+      return prev + val;
+    });
+  };
+
   const quickPay = () => {
     setPayments({
       efectivo: cartTotal,
@@ -174,38 +233,60 @@ export function POS() {
   };
 
   const handlePrint = (order: any) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    // Create hidden iframe for printing
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
 
     const receiptHtml = `
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Ticket de Venta - ${order.id}</title>
           <style>
-            body { font-family: 'Courier New', Courier, monospace; padding: 20px; width: 300px; color: #000; }
-            .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
-            .item { display: flex; justify-content: space-between; margin: 5px 0; font-size: 14px; }
-            .total { margin-top: 15px; border-top: 1px solid #000; padding-top: 10px; font-weight: bold; }
-            .footer { text-align: center; margin-top: 30px; font-size: 12px; }
-            .payment { font-size: 12px; margin-top: 10px; color: #555; }
+            @page { size: 80mm auto; margin: 0; }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              padding: 10px; 
+              width: 75mm; 
+              color: #000; 
+              margin: 0;
+              font-size: 12px;
+            }
+            .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+            .item { display: flex; justify-content: space-between; margin: 3px 0; }
+            .total { margin-top: 10px; border-top: 1px solid #000; padding-top: 8px; font-weight: bold; font-size: 14px; }
+            .footer { text-align: center; margin-top: 25px; font-size: 10px; border-top: 1px dashed #ccc; pt: 10px; }
+            .payment { font-size: 10px; margin-top: 8px; color: #333; }
+            .business-name { font-size: 16px; font-weight: 900; margin: 0 0 5px 0; }
+            .separator { border-bottom: 1px dashed #000; margin: 10px 0; }
           </style>
         </head>
         <body>
           <div class="header">
-            <h3>STOCKFLOW</h3>
+            <h1 class="business-name">${settings.businessName.toUpperCase()}</h1>
+            <p>${settings.address || ""}</p>
             <p>Ticket No: ${order.id.slice(0, 8)}</p>
             <p>${new Date().toLocaleDateString("es-CL")} ${new Date().toLocaleTimeString("es-CL")}</p>
           </div>
-          ${order.items.map((item: any) => `
-            <div class="item">
-              <span>${item.name} x${item.quantity}</span>
-              <span>$ ${Math.round(item.price * item.quantity).toLocaleString("es-CL")}</span>
-            </div>
-          `).join("")}
+          <div class="items">
+            ${order.items.map((item: any) => `
+              <div class="item">
+                <span>${item.name} x${item.quantity}</span>
+                <span>$ ${Math.round(item.price * item.quantity).toLocaleString("es-CL")}</span>
+              </div>
+            `).join("")}
+          </div>
           <div class="total item">
             <span>TOTAL</span>
             <span>$ ${Math.round(order.total).toLocaleString("es-CL")}</span>
           </div>
+          <div class="separator"></div>
           <div class="payment">
             ${order.payments.efectivo > 0 ? `<div>Efectivo: $ ${Math.round(order.payments.efectivo).toLocaleString("es-CL")}</div>` : ""}
             ${order.payments.tarjeta > 0 ? `<div>Tarjeta: $ ${Math.round(order.payments.tarjeta).toLocaleString("es-CL")}</div>` : ""}
@@ -213,14 +294,31 @@ export function POS() {
           </div>
           <div class="footer">
             <p>¡Gracias por su compra!</p>
-            <p>Conserve su comprobante</p>
+            <p>SISTEMA DE GESTIÓN STOCKFLOW</p>
           </div>
-          <script>window.print(); window.close();</script>
         </body>
       </html>
     `;
-    printWindow.document.write(receiptHtml);
-    printWindow.document.close();
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(receiptHtml);
+      doc.close();
+
+      // Small delay to ensure content is layouted
+      setTimeout(() => {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          
+          // Cleanup
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }
+      }, 500);
+    }
   };
 
   const handleCheckout = async () => {
@@ -232,6 +330,10 @@ export function POS() {
 
     // Handle Flow QR Payment if there's digital portion
     if (payments.digital > 0) {
+      if (payments.digital < 350) {
+        alert("El monto mínimo para pagos digitales (Flow) es de $350 CLP por transacción.");
+        return;
+      }
       setShowNFCSim(true);
       setNfcState("waiting");
       return;
@@ -241,6 +343,10 @@ export function POS() {
   };
 
   const startFlowQR = async () => {
+    if (payments.digital < 350) {
+      alert("El monto mínimo para cobrar con Flow es de $350 CLP.");
+      return;
+    }
     try {
       setIsProcessing(true);
       const baseUrl = window.location.origin;
@@ -273,17 +379,6 @@ export function POS() {
     }
   };
 
-  const handleNFCSimulateSuccess = async () => {
-    setNfcState("processing");
-    setTimeout(async () => {
-      setNfcState("success");
-      setTimeout(async () => {
-        setShowNFCSim(false);
-        await finishOrder("nfc_simulated");
-      }, 1500);
-    }, 2000);
-  };
-
   const finishOrder = async (token?: string) => {
     setIsProcessing(true);
     try {
@@ -299,18 +394,36 @@ export function POS() {
           updatedAt: serverTimestamp()
         });
         
+        const moveRef = doc(collection(db, "stockMovements"));
+        batch.set(moveRef, {
+          productId: item.id,
+          productName: item.name,
+          type: "sale",
+          quantity: item.quantity,
+          previousStock: item.maxStock,
+          newStock: item.maxStock - item.quantity,
+          reason: `Venta POS #${orderId}`,
+          userId: profile?.uid,
+          userName: profile?.name,
+          source: "web",
+          timestamp: serverTimestamp()
+        });
+        
         batch.set(transactionRef, {
           productId: item.id,
           productName: item.name,
           type: "sale" as const,
           quantity: item.quantity,
           amount: item.price * item.quantity,
+          cost: item.costPrice * item.quantity,
+          profit: (item.price - item.costPrice) * item.quantity,
           userId: profile?.uid,
           userName: profile?.name,
           paymentBreakdown: payments,
           timestamp: serverTimestamp(),
           orderId: orderId,
-          note: token === "nfc_simulated" ? "Pago Simulado Sin Contacto" : token ? `Pago Flow QR (Token: ${token})` : `Venta Directa`
+          cashRegisterId: currentSession?.id,
+          note: token?.startsWith("mercadopago") ? `Pago Contactless (MP: ${token})` : token ? `Pago Flow QR (Token: ${token})` : `Venta Directa`
         });
       });
 
@@ -328,6 +441,13 @@ export function POS() {
       setPayments({ efectivo: 0, tarjeta: 0, digital: 0 });
       setCashReceived("");
       
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#4f46e5', '#10b981', '#3b82f6']
+      });
+
       if (!showFlowModal) {
         setShowSuccess(true);
       }
@@ -340,6 +460,12 @@ export function POS() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full max-w-7xl mx-auto">
+      <CashRegisterManagement 
+        onStatusChange={(isOpen, sess) => {
+          setIsCashRegisterOpen(isOpen);
+          setCurrentSession(sess);
+        }} 
+      />
       {/* Product Selection Area */}
       <div className="lg:col-span-7 flex flex-col space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -359,7 +485,25 @@ export function POS() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-10 max-h-[calc(100vh-250px)]">
+        {/* Category Rail */}
+        <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={cn(
+                "px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all border",
+                selectedCategory === cat 
+                  ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200" 
+                  : "bg-white text-slate-400 border-slate-100 hover:border-slate-300"
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-10 max-h-[calc(100vh-320px)]">
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((product) => (
               <motion.div
@@ -471,34 +615,58 @@ export function POS() {
               ))}
             </div>
 
-            {/* Change Calculator */}
-            <div className="bg-slate-900 rounded-3xl p-5 text-white space-y-4 shadow-xl">
-              <div className="flex items-center justify-between">
+            {/* Change Calculator & Numpad */}
+            <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-6 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
+              
+              <div className="flex items-center justify-between relative z-10">
                 <div>
-                  <p className="text-[10px] text-white/40 font-black uppercase tracking-widest">Monto Recibido</p>
-                  <input 
-                    type="number" 
-                    className="bg-transparent border-none text-2xl font-black p-0 w-32 focus:ring-0 placeholder:text-white/10"
-                    placeholder="0.00"
-                    value={cashReceived}
-                    onChange={(e) => setCashReceived(e.target.value)}
-                  />
+                  <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-1">Monto Recibido</p>
+                  <div className="flex items-baseline space-x-1">
+                    <span className="text-xl font-black text-white/20">$</span>
+                    <input 
+                      type="text" 
+                      readOnly
+                      className="bg-transparent border-none text-3xl font-black p-0 w-32 focus:ring-0 placeholder:text-white/10"
+                      placeholder="0"
+                      value={cashReceived}
+                    />
+                  </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] text-white/40 font-black uppercase tracking-widest">Vuelto</p>
-                  <p className="text-2xl font-black text-emerald-400">{formatCurrency(change)}</p>
+                  <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-1">Vuelto</p>
+                  <p className="text-3xl font-black text-emerald-400">{formatCurrency(change)}</p>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/5 space-y-2">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-white/40">Total Venta</span>
-                  <span>{formatCurrency(cartTotal)}</span>
+              {/* Touch Numpad */}
+              <div className="grid grid-cols-3 gap-2 relative z-10">
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map((btn) => (
+                  <button
+                    key={btn}
+                    onClick={() => handleNumpadClick(btn)}
+                    className="h-12 bg-white/5 hover:bg-white/10 rounded-xl font-black text-sm transition-all active:scale-95"
+                  >
+                    {btn}
+                  </button>
+                ))}
+                <button
+                  onClick={() => handleNumpadClick("C")}
+                  className="col-span-3 h-10 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                >
+                  Limpiar monto
+                </button>
+              </div>
+
+              <div className="pt-4 border-t border-white/5 space-y-3 relative z-10">
+                <div className="flex justify-between text-xs font-bold text-white/60">
+                  <span>Total Venta</span>
+                  <span className="text-white">{formatCurrency(cartTotal)}</span>
                 </div>
                 <div className="flex justify-between items-end">
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Restante por pagar</span>
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Saldo Restante</span>
                   <span className={cn("text-xl font-black", remaining > 0 ? "text-amber-400" : "text-emerald-400 animate-pulse")}>
-                    {remaining > 0 ? formatCurrency(remaining) : "PAGADO"}
+                    {remaining > 0 ? formatCurrency(remaining) : "FULL PAGADO"}
                   </span>
                 </div>
               </div>
@@ -506,9 +674,9 @@ export function POS() {
               <button
                 onClick={handleCheckout}
                 disabled={isProcessing || cart.length === 0 || remaining > 0}
-                className="w-full h-14 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-50 hover:scale-[1.02] transition-all disabled:opacity-20 disabled:scale-100 flex items-center justify-center space-x-2"
+                className="w-full h-16 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-50 hover:scale-[1.02] transition-all disabled:opacity-20 disabled:scale-100 flex items-center justify-center space-x-2 shadow-xl shadow-black/20"
               >
-                {isProcessing ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-900/20 border-t-slate-900" /> : "Confirmar Venta"}
+                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : "Finalizar y Emitir Ticket"}
               </button>
             </div>
           </div>
@@ -548,7 +716,7 @@ export function POS() {
         </div>
       </div>
 
-      {/* NFC / Contactless Simulation Modal */}
+      {/* Contactless Payment Modal */}
       <AnimatePresence>
         {showNFCSim && (
           <motion.div
@@ -569,55 +737,36 @@ export function POS() {
                 <X size={24} />
               </button>
 
-              {nfcState === "waiting" && (
-                <>
-                  <div className="w-24 h-24 bg-indigo-50 text-indigo-500 rounded-3xl flex items-center justify-center mb-8 animate-bounce">
-                    <Cpu size={48} />
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-800 mb-4">Acerque el Dispositivo</h3>
-                  <p className="text-slate-500 mb-8 font-medium">Acerque la tarjeta o el celular del cliente a la parte posterior de este dispositivo.</p>
-                  
-                  <div className="flex flex-col w-full gap-4">
-                    <button 
-                      onClick={handleNFCSimulateSuccess}
-                      className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2"
-                    >
-                      <CheckCircle2 size={18} />
-                      <span>Simular "Tap" con Tarjeta</span>
-                    </button>
-                    
-                    <button 
-                      onClick={startFlowQR}
-                      className="w-full h-16 bg-slate-50 text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2 border border-indigo-100"
-                    >
-                      <Smartphone size={18} />
-                      <span>Usar Flow QR (Respaldo)</span>
-                    </button>
-                  </div>
-                </>
-              )}
+              <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-[2rem] flex items-center justify-center mb-8">
+                <Cpu size={40} className="animate-pulse" />
+              </div>
+              
+              <h3 className="text-2xl font-black text-slate-800 mb-2">Pago Sin Contacto</h3>
+              <p className="text-slate-500 mb-8 font-medium">Billetera Digital y Wallets (Google Pay / Apple Pay)</p>
+              
+              <MercadoPagoWallet 
+                amount={payments.digital}
+                onSuccess={(paymentId) => {
+                  setNfcState("success");
+                  setTimeout(async () => {
+                    setShowNFCSim(false);
+                    await finishOrder(`mercadopago_${paymentId}`);
+                  }, 1500);
+                }}
+                onError={(err) => {
+                  alert("Error en el pago: " + err);
+                }}
+              />
 
-              {nfcState === "processing" && (
-                <div className="py-20 flex flex-col items-center text-center">
-                  <div className="w-20 h-20 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-8" />
-                  <h3 className="text-xl font-black text-slate-800">Procesando Tarjeta...</h3>
-                  <p className="text-slate-400 text-sm font-bold mt-2 uppercase tracking-tight">Comunicando con Procesador EMV</p>
-                </div>
-              )}
-
-              {nfcState === "success" && (
-                <div className="py-20 flex flex-col items-center text-center">
-                  <motion.div 
-                    initial={{ scale: 0.5 }}
-                    animate={{ scale: 1 }}
-                    className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-8"
-                  >
-                    <CheckCircle2 size={50} />
-                  </motion.div>
-                  <h3 className="text-2xl font-black text-slate-800">¡Pago Aprobado!</h3>
-                  <p className="text-slate-500 font-medium mt-2">Transacción autorizada exitosamente.</p>
-                </div>
-              )}
+              <div className="mt-8 pt-8 border-t border-slate-50 w-full">
+                <button 
+                  onClick={startFlowQR}
+                  className="w-full h-14 bg-slate-50 text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center space-x-2 border border-indigo-100 hover:bg-slate-100 transition-all"
+                >
+                  <Smartphone size={16} />
+                  <span>Cambiar a Flow QR</span>
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

@@ -11,11 +11,17 @@ import { Dashboard } from "./components/Dashboard";
 import { Inventory } from "./components/Inventory";
 import { POS } from "./components/POS";
 import { Transactions } from "./components/Transactions";
+import { Suppliers } from "./components/Suppliers";
+import { Expenses } from "./components/Expenses";
+import { Settings } from "./components/Settings";
 import { Layout } from "./components/Layout";
 import { FlowResult } from "./components/FlowResult";
+import { StockLedger } from "./components/StockLedger";
+import { Logistics } from "./components/Logistics";
+import { SettingsProvider } from "./contexts/SettingsContext";
 import { motion, AnimatePresence } from "motion/react";
 
-type Page = "dashboard" | "inventory" | "pos" | "transactions";
+type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
@@ -45,13 +51,23 @@ function AppContent() {
   const renderPage = () => {
     switch (currentPage) {
       case "dashboard":
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentPage} />;
       case "inventory":
         return <Inventory />;
+      case "logistics":
+        return <Logistics />;
       case "pos":
         return <POS />;
       case "transactions":
         return <Transactions />;
+      case "suppliers":
+        return <Suppliers />;
+      case "expenses":
+        return <Expenses />;
+      case "settings":
+        return <Settings />;
+      case "kardex":
+        return <StockLedger />;
       default:
         return <Dashboard />;
     }
@@ -78,7 +94,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <SettingsProvider>
+        <AppContent />
+      </SettingsProvider>
     </AuthProvider>
   );
 }

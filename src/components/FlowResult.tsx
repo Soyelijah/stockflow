@@ -55,6 +55,21 @@ export function FlowResult() {
               stock: increment(-item.quantity),
               updatedAt: serverTimestamp()
             });
+
+            const moveRef = doc(collection(db, "stockMovements"));
+            batch.set(moveRef, {
+              productId: item.id,
+              productName: item.name,
+              type: "sale",
+              quantity: item.quantity,
+              previousStock: Number(item.stock || item.maxStock) || 0,
+              newStock: (Number(item.stock || item.maxStock) || 0) - item.quantity,
+              reason: `Venta Flow #${orderId}`,
+              userId: profile?.uid || "system",
+              userName: profile?.name || "Auto System",
+              source: "mobile",
+              timestamp: serverTimestamp()
+            });
             
             batch.set(transactionRef, {
               productId: item.id,

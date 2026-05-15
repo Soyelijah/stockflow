@@ -3,12 +3,14 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import Stripe from "stripe";
+import { MercadoPagoConfig, Payment } from 'mercadopago';
 
 dotenv.config();
 
-// STRIPE CONFIG
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+// Mercado Pago Config
+const mpClient = process.env.MERCADOPAGO_ACCESS_TOKEN 
+  ? new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN, options: { timeout: 5000 } })
+  : null;
 
 async function startServer() {
   const app = express();
@@ -47,6 +49,44 @@ async function startServer() {
   // API ROUTES
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", flowEnv: FLOW_ENVIRONMENT });
+  });
+
+  // Mercado Pago Payment Processing (Wallets/Google Pay/Apple Pay)
+  app.post("/api/mercadopago/process-payment", async (req, res) => {
+    try {
+      if (!mpClient) {
+        throw new Error("Mercado Pago no está configurado en el servidor.");
+      }
+
+      const { token, issuer_id, payment_method_id, transaction_amount, installments, description, payer } = req.body;
+      
+      const payment = new Payment(mpClient);
+      const result = await payment.create({
+        body: {
+          transaction_amount: Number(transaction_amount),
+          token,
+          description,
+          installments: Number(installments),
+          payment_method_id,
+          issuer_id,
+          payer,
+          notification_url: `${req.protocol}://${req.get('host')}/api/mercadopago/webhook`
+        }
+      });
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      console.error("Mercado Pago Error:", err);
+      res.status(500).json({ error: err.message || "Error al procesar el pago" });
+    }
+  });
+
+  app.post("/api/mercadopago/webhook", async (req, res) => {
+    const { action, data } = req.body;
+    if (action === "payment.created" || action === "payment.updated") {
+      console.log("Mercado Pago Notification:", data.id);
+    }
+    res.sendStatus(200);
   });
 
   // Create Flow Payment
@@ -147,27 +187,6 @@ async function startServer() {
 
       res.json(statusData);
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Stripe Payment Intent (Apple Pay / Google Pay Support)
-  app.post("/api/stripe/create-payment-intent", async (req, res) => {
-    try {
-      if (!stripe) {
-        throw new Error("Stripe no está configurado en el servidor.");
-      }
-
-      const { amount } = req.body;
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(Number(amount)), // Stripe uses smallest currency unit (cents in most, but keep integer for others)
-        currency: "clp",
-        automatic_payment_methods: { enabled: true },
-      });
-
-      res.json({ clientSecret: paymentIntent.client_secret });
-    } catch (err: any) {
-      console.error("Stripe Error:", err);
       res.status(500).json({ error: err.message });
     }
   });

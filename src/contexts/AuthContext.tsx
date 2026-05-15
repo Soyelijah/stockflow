@@ -14,7 +14,7 @@ import { auth, db } from "../lib/firebase";
 interface UserProfile {
   uid: string;
   email: string | null;
-  role: "admin" | "seller";
+  role: "admin" | "manager" | "seller" | "logistics";
   name: string;
 }
 
