@@ -20,12 +20,15 @@ import { StockLedger } from "./components/StockLedger";
 import { Logistics } from "./components/Logistics";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { motion, AnimatePresence } from "motion/react";
+import { MobilePOS } from "./components/MobilePOS";
 
 type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+
+  const isMobilePath = window.location.pathname === "/mobile";
 
   // Handle Flow Result Path
   if (window.location.pathname === "/flow-result") {
@@ -46,6 +49,11 @@ function AppContent() {
 
   if (!user.emailVerified) {
     return <VerifyEmail />;
+  }
+
+  // Pure Mobile POS Route (no sidebar/layout)
+  if (isMobilePath) {
+    return <MobilePOS />;
   }
 
   const renderPage = () => {

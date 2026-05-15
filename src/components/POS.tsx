@@ -132,8 +132,9 @@ export function POS() {
     const searchLower = searchTerm.toLowerCase();
     const nameMatch = p.name.toLowerCase().includes(searchLower);
     const skuMatch = p.sku && p.sku.toLowerCase().includes(searchLower);
+    const barcodeMatch = (p.barcode && p.barcode.includes(searchTerm)) || (p.barcodes && p.barcodes.some((bc: string) => bc.includes(searchTerm)));
     const categoryMatch = selectedCategory === "Todos" || p.category === selectedCategory;
-    return Number(p.stock) > 0 && (nameMatch || skuMatch) && categoryMatch;
+    return Number(p.stock) > 0 && (nameMatch || skuMatch || barcodeMatch) && categoryMatch;
   }), [products, searchTerm, selectedCategory]);
 
   useEffect(() => {
@@ -150,7 +151,7 @@ export function POS() {
       
       if (e.key === "Enter") {
         if (barcode.length > 2) {
-          const product = products.find(p => p.barcode === barcode);
+          const product = products.find(p => p.barcode === barcode || (p.barcodes && p.barcodes.includes(barcode)));
           if (product) {
             addToCart(product);
             // Play a small beep or visual feedback if desired

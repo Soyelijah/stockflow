@@ -45,6 +45,7 @@ export function Inventory() {
     name: "",
     sku: "",
     barcode: "",
+    barcodes: [] as string[],
     costPrice: 0,
     price: 0,
     stock: 0,
@@ -90,6 +91,7 @@ export function Inventory() {
         name: product.name,
         sku: product.sku || "",
         barcode: product.barcode || "",
+        barcodes: product.barcodes || (product.barcode ? [product.barcode] : []),
         costPrice: product.costPrice || 0,
         price: product.price,
         stock: product.stock,
@@ -105,6 +107,7 @@ export function Inventory() {
         name: "",
         sku: "",
         barcode: "",
+        barcodes: [],
         costPrice: 0,
         price: 0,
         stock: 0,
@@ -121,11 +124,19 @@ export function Inventory() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate barcode uniqueness (if provided)
-    if (formData.barcode) {
-      const duplicate = products.find(p => p.barcode === formData.barcode && p.id !== editingProduct?.id);
+    // Validate barcode uniqueness (across primary and array)
+    const allFormBarcodes = [...formData.barcodes];
+    if (formData.barcode && !allFormBarcodes.includes(formData.barcode)) {
+      allFormBarcodes.push(formData.barcode);
+    }
+
+    for (const bc of allFormBarcodes) {
+      const duplicate = products.find(p => 
+        (p.barcode === bc || (p.barcodes && p.barcodes.includes(bc))) && 
+        p.id !== editingProduct?.id
+      );
       if (duplicate) {
-        alert(`Error: El código de barras "${formData.barcode}" ya existe en el producto "${duplicate.name}". No se permiten duplicados.`);
+        alert(`Error: El código de barras "${bc}" ya existe en el producto "${duplicate.name}". No se permiten duplicados.`);
         return;
       }
     }
@@ -134,14 +145,19 @@ export function Inventory() {
       const selectedCategory = categories.find(c => c.id === formData.categoryId);
       const finalCategoryName = selectedCategory ? selectedCategory.name : formData.category;
 
+      const finalData = {
+        ...formData,
+        barcodes: allFormBarcodes, // Keep synced
+        category: finalCategoryName,
+      };
+
       if (editingProduct) {
         const stockDiff = formData.stock - editingProduct.stock;
         const batch = writeBatch(db);
         const prodRef = doc(db, "products", editingProduct.id);
         
         batch.update(prodRef, {
-          ...formData,
-          category: finalCategoryName,
+          ...finalData,
           updatedAt: serverTimestamp(),
           updatedBy: profile?.name
         });
@@ -165,8 +181,7 @@ export function Inventory() {
         await batch.commit();
       } else {
         const prodRef = await addDoc(collection(db, "products"), {
-          ...formData,
-          category: finalCategoryName,
+          ...finalData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           updatedBy: profile?.name
@@ -232,7 +247,9 @@ export function Inventory() {
   const filteredProducts = products.filter(p => 
     (p.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (p.sku?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (p.category?.toLowerCase().includes(searchTerm.toLowerCase()))
+    (p.category?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (p.barcodes?.some((bc: string) => bc.includes(searchTerm))) ||
+    (p.barcode?.includes(searchTerm))
   );
 
   return (
@@ -340,7 +357,10 @@ export function Inventory() {
                       <div>
                         <p className="font-bold text-slate-800 text-sm">{product.name || "Sin nombre"}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">{product.sku || "N/A"}</p>
+                          <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
+                            {product.barcode || (product.barcodes && product.barcodes[0]) || "Sin código"}
+                            {product.barcodes && product.barcodes.length > 1 && ` (+${product.barcodes.length - 1})`}
+                          </p>
                           {product.categoryId && (
                             <span className={cn(
                               "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border",
@@ -487,16 +507,38 @@ export function Inventory() {
                       onChange={e => setFormData({...formData, name: e.target.value})}
                     />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Código de Barras (EAN/UPC)</label>
+                  <div className="sm:col-span-2 space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Códigos de Barra (Escriba y presione Enter para múltiples)</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {formData.barcodes.map((bc, idx) => (
+                        <span key={idx} className="inline-flex items-center space-x-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight">
+                          <span>{bc}</span>
+                          <button 
+                            type="button"
+                            onClick={() => setFormData({...formData, barcodes: formData.barcodes.filter((_, i) => i !== idx)})}
+                            className="hover:text-indigo-900"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                     <div className="relative">
                       <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
                         type="text" 
-                        placeholder="Escanea o escribe..."
+                        placeholder="Escanee o escriba un código y presione Enter..."
                         className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
-                        value={formData.barcode}
-                        onChange={e => setFormData({...formData, barcode: e.target.value})}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const val = e.currentTarget.value.trim();
+                            if (val && !formData.barcodes.includes(val)) {
+                              setFormData({...formData, barcodes: [...formData.barcodes, val]});
+                              e.currentTarget.value = "";
+                            }
+                          }
+                        }}
                       />
                     </div>
                   </div>

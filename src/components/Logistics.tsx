@@ -5,6 +5,7 @@ import {
   onSnapshot, 
   writeBatch, 
   doc, 
+  addDoc,
   serverTimestamp,
   increment,
   orderBy
@@ -22,7 +23,8 @@ import {
   Save,
   Truck,
   AlertCircle,
-  History
+  History,
+  RefreshCw
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
@@ -32,8 +34,11 @@ export function Logistics() {
   const { profile } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [unrecognizedBarcode, setUnrecognizedBarcode] = useState<string | null>(null);
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   const [mode, setMode] = useState<"reception" | "dispatch">("reception");
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -44,6 +49,13 @@ export function Logistics() {
     reference: "" // Invoice number etc
   });
 
+  const [quickCreateData, setQuickCreateData] = useState({
+    name: "",
+    price: 0,
+    costPrice: 0,
+    categoryId: ""
+  });
+
   useEffect(() => {
     const unsubProds = onSnapshot(query(collection(db, "products"), orderBy("name")), (snap) => {
       setProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -51,7 +63,10 @@ export function Logistics() {
     const unsubSupps = onSnapshot(query(collection(db, "suppliers"), orderBy("name")), (snap) => {
       setSuppliers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    return () => { unsubProds(); unsubSupps(); };
+    const unsubCats = onSnapshot(query(collection(db, "categories"), orderBy("name")), (snap) => {
+      setCategories(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => { unsubProds(); unsubSupps(); unsubCats(); };
   }, []);
 
   // Barcode Scanner Listener
@@ -70,9 +85,15 @@ export function Logistics() {
       
       if (e.key === "Enter") {
         if (barcode.length > 2) {
-          const product = products.find(p => p.barcode === barcode);
+          const product = products.find(p => p.barcode === barcode || (p.barcodes && p.barcodes.includes(barcode)));
           if (product) {
             setSelectedProduct(product);
+            setUnrecognizedBarcode(null);
+          } else {
+            // Unrecognized barcode
+            setUnrecognizedBarcode(barcode);
+            setSelectedProduct(null);
+            setSearchTerm(""); // Clear search to show the prompt better
           }
           barcode = "";
         }
@@ -89,8 +110,46 @@ export function Logistics() {
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.barcode?.includes(searchTerm) ||
+    p.barcodes?.some((bc: string) => bc.includes(searchTerm)) ||
     p.sku?.toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 5);
+
+  const handleQuickCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!unrecognizedBarcode || isProcessing) return;
+    setIsProcessing(true);
+
+    try {
+      const cat = categories.find(c => c.id === quickCreateData.categoryId);
+      const prodRef = await addDoc(collection(db, "products"), {
+        ...quickCreateData,
+        barcode: unrecognizedBarcode,
+        barcodes: [unrecognizedBarcode],
+        category: cat?.name || "Sin Categoría",
+        stock: 0,
+        minThreshold: 5,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        updatedBy: profile?.name
+      });
+
+      // After creation, select it
+      setSelectedProduct({
+        id: prodRef.id,
+        ...quickCreateData,
+        barcode: unrecognizedBarcode,
+        barcodes: [unrecognizedBarcode],
+        category: cat?.name || "Sin Categoría",
+        stock: 0
+      });
+      setIsQuickCreateOpen(false);
+      setUnrecognizedBarcode(null);
+    } catch (err) {
+      alert("Error al crear producto rápido");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,15 +163,25 @@ export function Logistics() {
       
       const qtyChange = mode === "reception" ? formData.quantity : -formData.quantity;
 
-      batch.update(productRef, {
+      const productUpdates: any = {
         stock: increment(qtyChange),
         updatedAt: serverTimestamp()
-      });
+      };
+
+      // If we linked an unrecognized barcode, add it to the array
+      if (mode === "reception" && unrecognizedBarcode) {
+        const currentBarcodes = selectedProduct.barcodes || (selectedProduct.barcode ? [selectedProduct.barcode] : []);
+        if (!currentBarcodes.includes(unrecognizedBarcode)) {
+          productUpdates.barcodes = [...currentBarcodes, unrecognizedBarcode];
+        }
+      }
+
+      batch.update(productRef, productUpdates);
 
       batch.set(movementRef, {
         productId: selectedProduct.id,
         productName: selectedProduct.name,
-        type: mode === "reception" ? "adjustment" : "loss", // Standard types or custom ones
+        type: mode === "reception" ? "adjustment" : "loss", 
         subType: mode === "reception" ? "reception" : "dispatch",
         quantity: formData.quantity,
         previousStock: selectedProduct.stock || 0,
@@ -123,13 +192,15 @@ export function Logistics() {
         userId: profile?.uid,
         userName: profile?.name,
         timestamp: serverTimestamp(),
-        source: "logistics"
+        source: "logistics",
+        updatedBarcode: unrecognizedBarcode || null
       });
 
       await batch.commit();
       
       // Reset
       setSelectedProduct(null);
+      setUnrecognizedBarcode(null);
       setSearchTerm("");
       setFormData({ quantity: 1, reason: "", supplierId: "", reference: "" });
       alert(mode === "reception" ? "Stock cargado correctamente" : "Stock rebajado correctamente");
@@ -192,11 +263,47 @@ export function Logistics() {
                   <input 
                     type="text"
                     placeholder="Escanear o buscar..."
-                    className="w-full h-20 bg-slate-50 border border-slate-100 rounded-[2rem] pl-16 pr-8 text-lg font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all"
+                    className="w-full h-20 bg-slate-50 border border-slate-100 rounded-[2rem] pl-16 pr-8 text-lg font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
+
+                {unrecognizedBarcode && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="mt-6 p-6 bg-amber-50 border border-amber-200 rounded-[2rem] text-left flex items-start space-x-4"
+                  >
+                    <div className="p-3 bg-white rounded-2xl text-amber-600 shadow-sm">
+                      <Tag size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-black text-amber-900 uppercase tracking-tight">Código no reconocido</p>
+                      <p className="text-lg font-bold text-slate-700">[{unrecognizedBarcode}]</p>
+                      <p className="text-xs font-medium text-amber-700 mt-1">
+                        Este código no pertenece a ningún producto.
+                      </p>
+                      <div className="flex gap-2 mt-4">
+                        <button 
+                          onClick={() => setIsQuickCreateOpen(true)}
+                          className="px-4 py-2 bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-amber-700 transition-colors"
+                        >
+                          Crear Nuevo Perfil
+                        </button>
+                        <p className="text-[10px] text-amber-600 font-bold self-center">
+                          O busca abajo para vincularlo a uno existente
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setUnrecognizedBarcode(null)}
+                      className="p-2 hover:bg-white/50 rounded-lg text-amber-400"
+                    >
+                      <X size={16} />
+                    </button>
+                  </motion.div>
+                )}
 
                 {searchTerm.length > 0 && (
                   <div className="mt-6 space-y-3">
@@ -241,6 +348,11 @@ export function Logistics() {
                   </div>
                   <div>
                     <h3 className="text-xl font-black tracking-tight">{selectedProduct.name}</h3>
+                    {unrecognizedBarcode && (
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mt-0.5">
+                        Este producto se reconocerá con el nuevo código: {unrecognizedBarcode}
+                      </p>
+                    )}
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
                       Stock Actual: {selectedProduct.stock || 0} {selectedProduct.unit || 'unidades'}
                     </p>
@@ -270,6 +382,7 @@ export function Logistics() {
                       </button>
                       <input 
                         type="number"
+                        inputMode="numeric"
                         min="1"
                         className="flex-1 h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-center text-xl font-black text-slate-800"
                         value={formData.quantity}
@@ -328,9 +441,16 @@ export function Logistics() {
                 <div className="md:col-span-2 pt-6 border-t border-slate-50 flex items-center justify-between gap-6">
                   <div className="flex items-center space-x-4 text-slate-400">
                     <AlertCircle size={20} />
-                    <p className="text-xs font-bold leading-relaxed max-w-md">
-                      Esta acción {mode === "reception" ? 'incrementará' : 'descontará'} {formData.quantity} unidades del inventario maestro y quedará registrada en el historial.
-                    </p>
+                    <div className="text-left">
+                      <p className="text-xs font-bold leading-relaxed max-w-md">
+                        Esta acción {mode === "reception" ? 'incrementará' : 'descontará'} {formData.quantity} unidades del inventario maestro.
+                      </p>
+                      {unrecognizedBarcode && (
+                        <p className="text-[10px] text-amber-600 font-black uppercase mt-1">
+                          ⚠️ Se agregará este nuevo código a la lista de códigos del producto.
+                        </p>
+                      )}
+                    </div>
                   </div>
                   
                   <button 
@@ -347,6 +467,105 @@ export function Logistics() {
               </form>
             </motion.div>
           )}
+
+          {/* Quick Create Modal */}
+          <AnimatePresence>
+            {isQuickCreateOpen && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsQuickCreateOpen(false)}
+                  className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                />
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative z-10 overflow-hidden"
+                >
+                  <div className="p-8 border-b border-slate-100 bg-amber-50/50 flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-amber-600">
+                      <Plus className="bg-white p-1.5 rounded-xl shadow-sm" size={32} />
+                      <div>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none">Alta de Producto</h3>
+                        <p className="text-[10px] font-black uppercase tracking-widest mt-1 opacity-60">Creación rápida en logística</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleQuickCreate} className="p-8 space-y-6">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre</label>
+                      <input 
+                        required
+                        type="text" 
+                        placeholder="Ej: Corona 330ml"
+                        className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 focus:bg-white transition-all text-slate-800"
+                        value={quickCreateData.name}
+                        onChange={e => setQuickCreateData({...quickCreateData, name: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Costo</label>
+                        <input 
+                          required
+                          type="number" 
+                          className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 focus:bg-white transition-all text-slate-800"
+                          value={quickCreateData.costPrice}
+                          onChange={e => setQuickCreateData({...quickCreateData, costPrice: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Venta</label>
+                        <input 
+                          required
+                          type="number" 
+                          className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 focus:bg-white transition-all text-slate-800"
+                          value={quickCreateData.price}
+                          onChange={e => setQuickCreateData({...quickCreateData, price: Number(e.target.value)})}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Categoría</label>
+                      <select 
+                        required
+                        className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 focus:bg-white transition-all text-slate-800"
+                        value={quickCreateData.categoryId}
+                        onChange={e => setQuickCreateData({...quickCreateData, categoryId: e.target.value})}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {categories.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="pt-4 flex gap-4">
+                      <button 
+                        type="button"
+                        onClick={() => setIsQuickCreateOpen(false)}
+                        className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest text-[10px]"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        type="submit"
+                        className="flex-[2] py-4 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-amber-100"
+                      >
+                        Registrar e Ingresar
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

@@ -12,7 +12,10 @@ import {
   Settings as SettingsIcon,
   CreditCard,
   Target,
-  RefreshCw
+  RefreshCw,
+  Users,
+  AlertCircle,
+  Smartphone
 } from "lucide-react";
 import { collection, getDoc, getDocs, doc, setDoc, query, orderBy } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -269,14 +272,26 @@ export function Settings() {
               ))}
             </div>
             <div className="bg-indigo-50 p-6 rounded-2xl mt-4">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="text-indigo-600 mt-1" size={20} />
-                <div>
-                  <p className="text-xs font-black text-indigo-900 uppercase tracking-widest">Nota de Seguridad</p>
-                  <p className="text-[10px] text-indigo-700 font-medium mt-1 leading-relaxed">
-                    Solo los administradores pueden cambiar roles. Los cambios surten efecto de inmediato. 
-                    Recomendamos tener solo un Administrador Maestro y Gerentes para operaciones diarias.
+              <div className="flex items-start space-x-3 text-indigo-600">
+                <Smartphone size={20} className="mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest">URL Acceso Vendedores (Móvil)</p>
+                  <p className="text-xs font-bold text-slate-800 mt-1 break-all bg-white/50 px-2 py-1 rounded">
+                    {window.location.origin}/mobile
                   </p>
+                  <p className="text-[10px] text-indigo-700 font-medium mt-2 leading-relaxed">
+                    Comparte este enlace con tus vendedores para que puedan operar desde sus celulares con la interfaz simplificada.
+                  </p>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/mobile`);
+                      alert("Copiado al portapapeles");
+                    }}
+                    className="mt-3 text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white px-3 py-1.5 rounded-lg shadow-sm"
+                  >
+                    Copiar Enlace
+                  </button>
                 </div>
               </div>
             </div>

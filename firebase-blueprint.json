@@ -21,7 +21,11 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "sku": { "type": "string" },
-        "barcode": { "type": "string" },
+        "barcodes": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "barcode": { "type": "string", "description": "Primary barcode (legacy compatibility)" },
         "description": { "type": "string" },
         "costPrice": { "type": "number" },
         "price": { "type": "number" },

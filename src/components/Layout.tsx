@@ -14,6 +14,7 @@ import {
   Users,
   CreditCard,
   ArrowRightLeft,
+  Smartphone,
   Settings as SettingsIcon
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
@@ -120,6 +121,17 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           >
             <LogOut size={20} />
             {!isSidebarCollapsed && <span className="font-semibold text-sm">Cerrar Sesión</span>}
+          </button>
+          
+          <button
+            onClick={() => window.open("/mobile", "_blank")}
+            className={cn(
+              "w-full flex items-center p-3 mt-2 rounded-xl text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all",
+              isSidebarCollapsed ? "justify-center" : "space-x-3"
+            )}
+          >
+            <Smartphone size={20} />
+            {!isSidebarCollapsed && <span className="font-semibold text-sm">App Vendedores</span>}
           </button>
         </div>
         
