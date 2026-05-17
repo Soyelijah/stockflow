@@ -23,7 +23,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
-import { collection, query, onSnapshot, where } from "firebase/firestore";
+import { collection, query, onSnapshot, where, getDocs, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -85,6 +85,75 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
     return () => unsubscribe();
   }, [settings.notificationsEnabled]);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ id: string; type: 'product' | 'customer'; name: string; detail: string }[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) {
+      setSearchResults([]);
+      setIsSearchOpen(false);
+      return;
+    }
+
+    const performSearch = async () => {
+      try {
+        const productsQ = query(collection(db, "products"), limit(50));
+        const customersQ = query(collection(db, "customers"), limit(50));
+
+        const [prodSnap, custSnap] = await Promise.all([
+          getDocs(productsQ),
+          getDocs(customersQ)
+        ]);
+
+        const productMatches = prodSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as any))
+          .filter(p => 
+            p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            p.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+          .map(p => ({
+            id: p.id,
+            type: 'product' as const,
+            name: p.name,
+            detail: `SKU: ${p.sku} | Stock: ${p.stock}`
+          }));
+
+        const customerMatches = custSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as any))
+          .filter(c => 
+            c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            c.rut?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.email?.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+          .map(c => ({
+            id: c.id,
+            type: 'customer' as const,
+            name: c.name,
+            detail: `RUT: ${c.rut} | ${c.email || ''}`
+          }));
+
+        setSearchResults([...productMatches, ...customerMatches].slice(0, 10));
+        setIsSearchOpen(true);
+      } catch (error) {
+        console.error("Search error:", error);
+      }
+    };
+
+    const timeoutId = setTimeout(performSearch, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const handleResultClick = (result: any) => {
+    setSearchQuery("");
+    setIsSearchOpen(false);
+    if (result.type === 'product') {
+      onNavigate('inventory');
+    } else {
+      onNavigate('customers');
+    }
+  };
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "seller", "logistics"] },
@@ -324,8 +393,52 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <input 
                 type="text" 
                 placeholder="Busqueda rápida..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-slate-50 border-none rounded-full py-2 pl-10 pr-4 text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 w-64 transition-all"
               />
+              
+              <AnimatePresence>
+                {isSearchOpen && searchResults.length > 0 && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setIsSearchOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden"
+                    >
+                      <div className="p-3 bg-slate-50 border-b border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resultados rápidos</p>
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                        {searchResults.map((result) => (
+                          <button
+                            key={`${result.type}-${result.id}`}
+                            onClick={() => handleResultClick(result)}
+                            className="w-full p-4 flex items-center space-x-3 hover:bg-indigo-50 transition-colors text-left border-b border-slate-50 last:border-b-0 group"
+                          >
+                            <div className={cn(
+                              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                              result.type === 'product' ? "bg-emerald-50 text-emerald-600" : "bg-purple-50 text-purple-600"
+                            )}>
+                              {result.type === 'product' ? <Package size={16} /> : <Users size={16} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{result.name}</p>
+                              <p className="text-[10px] text-slate-400 font-medium truncate">{result.detail}</p>
+                            </div>
+                            <ArrowRightLeft size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-all" />
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
             <div className="relative">
               <button 

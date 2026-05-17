@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { 
   User, 
@@ -7,7 +7,8 @@ import {
   Calendar, 
   Camera,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  Phone
 } from "lucide-react";
 import { motion } from "motion/react";
 import { doc, updateDoc } from "firebase/firestore";
@@ -19,14 +20,60 @@ export function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({
-    name: profile?.name || "",
-    photoURL: profile?.photoURL || "",
-    phone: profile?.phone || "",
-    rut: profile?.rut || "",
-    birthday: profile?.birthday || "",
-    address: profile?.address || "",
+    name: "",
+    photoURL: "",
+    phone: "",
+    rut: "",
+    birthday: "",
+    address: "",
   });
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync formData with profile when it loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name || "",
+        photoURL: profile.photoURL || "",
+        phone: profile.phone || "",
+        rut: profile.rut || "",
+        birthday: profile.birthday || "",
+        address: profile.address || "",
+      });
+    }
+  }, [profile]);
+
+  const formatRUT = (value: string) => {
+    const clean = value.replace(/[^0-9kK]/g, "");
+    if (!clean) return "";
+    let result = "";
+    const body = clean.slice(0, -1);
+    const dv = clean.slice(-1).toLowerCase();
+    
+    // Reverse for easier dot placement
+    const revBody = body.split("").reverse().join("");
+    let revResult = "";
+    for (let i = 0; i < revBody.length; i++) {
+      if (i > 0 && i % 3 === 0) revResult += ".";
+      revResult += revBody[i];
+    }
+    result = revResult.split("").reverse().join("");
+    if (dv) result += "-" + dv;
+    return result;
+  };
+
+  const formatPhone = (value: string) => {
+    const clean = value.replace(/\D/g, "");
+    if (!clean) return "";
+    let result = "";
+    // Target: 9 1234 5678
+    for (let i = 0; i < clean.length; i++) {
+      if (i === 1 || i === 5) result += " ";
+      result += clean[i];
+      if (result.length >= 11) break; // Max length for 9 digits + spaces
+    }
+    return result;
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -152,9 +199,9 @@ export function Profile() {
                   <input
                     type="text"
                     value={formData.rut}
-                    onChange={(e) => setFormData({ ...formData, rut: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, rut: formatRUT(e.target.value) })}
                     className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    placeholder="12.345.678-9"
+                    placeholder="11.111.111-k"
                   />
                 </div>
               </div>
@@ -162,12 +209,15 @@ export function Profile() {
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Teléfono</label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">+56</div>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs flex items-center space-x-1">
+                    <Phone size={14} />
+                    <span>+56</span>
+                  </div>
                   <input
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                    onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-16 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                     placeholder="9 1234 5678"
                   />
                 </div>
@@ -205,7 +255,7 @@ export function Profile() {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
                     type="email"
-                    value={profile?.email}
+                    value={profile?.email || ""}
                     disabled
                     className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-slate-700"
                   />
@@ -214,7 +264,7 @@ export function Profile() {
               </div>
             </div>
 
-            <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
+            <div className="pt-6 border-t border-slate-50 flex items-center justify-between gap-6">
               <div className="flex items-center space-x-2">
                 {showSuccess && (
                   <motion.div 

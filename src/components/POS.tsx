@@ -818,8 +818,9 @@ export function POS() {
                 { id: "digital", label: "Virtual (QR/MP)", icon: Smartphone, color: "text-purple-500" }
               ].map((m) => {
                 const currentVal = payments[m.id as keyof PaymentBreakdown] || 0;
-                const totalPaid = Object.values(payments).reduce((a, b) => a + b, 0);
-                const remaining = total - totalPaid + currentVal;
+                const values = Object.values(payments) as number[];
+                const totalPaid = values.reduce((a, b) => a + b, 0);
+                const remaining = cartTotal - totalPaid + currentVal;
 
                 return (
                   <div key={m.id} className="space-y-1.5">
@@ -830,7 +831,8 @@ export function POS() {
                       </div>
                       <button 
                         onClick={() => {
-                          const balance = total - Object.values(payments).reduce((a, b) => a + (b || 0), 0);
+                          const pValues = Object.values(payments) as number[];
+                          const balance = cartTotal - pValues.reduce((a, b) => a + (b || 0), 0);
                           if (balance > 0) {
                             handlePaymentChange(m.id as keyof PaymentBreakdown, (currentVal + balance).toString());
                           }

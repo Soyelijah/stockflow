@@ -8,7 +8,7 @@ import {
   sendPasswordResetEmail,
   signOut
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 
 interface UserProfile {
@@ -16,6 +16,12 @@ interface UserProfile {
   email: string | null;
   role: "admin" | "manager" | "seller" | "logistics";
   name: string;
+  photoURL?: string;
+  phone?: string;
+  rut?: string;
+  birthday?: string;
+  address?: string;
+  createdAt?: string;
 }
 
 interface AuthContextType {
@@ -38,22 +44,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      try {
-        setUser(user);
-        if (user) {
-          const docRef = doc(db, "users", user.uid);
-          const docSnap = await getDoc(docRef);
+    let unsubscribeProfile: (() => void) | null = null;
 
+    const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
+      setUser(authUser);
+      
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
+      if (authUser) {
+        const docRef = doc(db, "users", authUser.uid);
+        
+        unsubscribeProfile = onSnapshot(docRef, async (docSnap) => {
           if (docSnap.exists()) {
             setProfile(docSnap.data() as UserProfile);
           } else {
-            // This is a safety check: profile should be created at register
             const newProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email,
-              role: user.email === "solier.elijah@gmail.com" ? "admin" : "seller",
-              name: user.displayName || "Usuario",
+              uid: authUser.uid,
+              email: authUser.email,
+              role: authUser.email === "solier.elijah@gmail.com" ? "admin" : "seller",
+              name: authUser.displayName || "Usuario",
             };
             await setDoc(docRef, {
               ...newProfile,
@@ -61,17 +73,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
             setProfile(newProfile);
           }
-        } else {
-          setProfile(null);
-        }
-      } catch (error) {
-        console.error("Auth status change error:", error);
-      } finally {
+          setLoading(false);
+        }, (error) => {
+          console.error("Profile listener error:", error);
+          setLoading(false);
+        });
+      } else {
+        setProfile(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   const login = async (email: string, pass: string) => {

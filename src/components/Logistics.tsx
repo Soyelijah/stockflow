@@ -37,17 +37,22 @@ export function Logistics() {
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [unrecognizedBarcode, setUnrecognizedBarcode] = useState<string | null>(null);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   const [mode, setMode] = useState<"reception" | "dispatch">("reception");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     quantity: 1,
     reason: "",
     supplierId: "",
+    customerId: "",
+    targetSucursal: "",
     reference: "",
     movementType: "" as string, 
   });
@@ -69,7 +74,10 @@ export function Logistics() {
     const unsubCats = onSnapshot(query(collection(db, "categories"), orderBy("name")), (snap) => {
       setCategories(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    return () => { unsubProds(); unsubSupps(); unsubCats(); };
+    const unsubCusts = onSnapshot(query(collection(db, "customers"), orderBy("name")), (snap) => {
+      setCustomers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => { unsubProds(); unsubSupps(); unsubCats(); unsubCusts(); };
   }, []);
 
   // Barcode Scanner Listener
@@ -117,6 +125,12 @@ export function Logistics() {
     p.sku?.toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 5);
 
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.rut?.includes(customerSearch) ||
+    c.email?.toLowerCase().includes(customerSearch.toLowerCase())
+  ).slice(0, 5);
+
   const handleQuickCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!unrecognizedBarcode || isProcessing) return;
@@ -157,6 +171,29 @@ export function Logistics() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
+    setFormError(null);
+
+    const isEntry = mode === "reception";
+    const actualType = formData.movementType || (isEntry ? "adjustment" : "loss");
+
+    // Validation: Mandatory reason for loss or adjustment in dispatch
+    if (!isEntry && (actualType === "loss" || actualType === "adjustment") && !formData.reason.trim()) {
+      setFormError("Para Pérdida/Merma o Ajuste/Error, es obligatorio detallar el motivo en Observaciones.");
+      return;
+    }
+
+    // Validation: Client for wholesale sale
+    if (!isEntry && actualType === "sale" && !formData.customerId) {
+        setFormError("Para Venta por Mayor/Directa, debe elegir un cliente.");
+        return;
+    }
+
+    // Validation: Sucursal for internal withdrawal
+    if (!isEntry && actualType === "withdrawal" && !formData.targetSucursal.trim()) {
+        setFormError("Para Retiro Interno, debe especificar la sucursal de destino.");
+        return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -179,8 +216,9 @@ export function Logistics() {
         }
       }
 
-      const isEntry = mode === "reception";
-      const actualType = formData.movementType || (isEntry ? "adjustment" : "loss");
+      batch.update(productRef, productUpdates);
+
+      const customer = customers.find(c => c.id === formData.customerId);
 
       batch.set(movementRef, {
         productId: selectedProduct.id,
@@ -193,6 +231,9 @@ export function Logistics() {
         reason: formData.reason || (mode === "reception" ? "Recepción de Mercadería" : "Despacho / Salida"),
         reference: formData.reference,
         supplierId: mode === "reception" ? formData.supplierId : null,
+        customerId: formData.customerId || null,
+        customerName: customer?.name || null,
+        targetSucursal: formData.targetSucursal || null,
         userId: profile?.uid,
         userName: profile?.name,
         timestamp: serverTimestamp(),
@@ -206,7 +247,16 @@ export function Logistics() {
       setSelectedProduct(null);
       setUnrecognizedBarcode(null);
       setSearchTerm("");
-      setFormData({ quantity: 1, reason: "", supplierId: "", reference: "" });
+      setCustomerSearch("");
+      setFormData({ 
+        quantity: 1, 
+        reason: "", 
+        supplierId: "", 
+        reference: "", 
+        movementType: "",
+        customerId: "",
+        targetSucursal: "" 
+      });
       alert(mode === "reception" ? "Stock cargado correctamente" : "Despacho registrado correctamente");
 
     } catch (error) {
@@ -453,35 +503,110 @@ export function Logistics() {
                     <div className="relative group">
                       <input 
                         type="text"
-                        placeholder="Ej: Factura #1234, Guía de Despacho"
+                        placeholder={
+                          formData.movementType === "sale" 
+                            ? "Ej: Boleta #123, Factura #456" 
+                            : "Ej: Guía de Despacho #789"
+                        }
                         className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 pr-32"
                         value={formData.reference}
                         onChange={(e) => setFormData({...formData, reference: e.target.value})}
                       />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            const num = Math.floor(100000 + Math.random() * 900000);
-                            setFormData({...formData, reference: `GUIA-${num}`});
-                          }}
-                          className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
-                        >
-                          GUIA
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            const num = Math.floor(100000 + Math.random() * 900000);
-                            setFormData({...formData, reference: `FACT-${num}`});
-                          }}
-                          className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-emerald-600 hover:border-emerald-100 transition-all shadow-sm"
-                        >
-                          FACT
-                        </button>
+                        {formData.movementType === "sale" ? (
+                          <>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const num = Math.floor(100000 + Math.random() * 900000);
+                                setFormData({...formData, reference: `BOL-${num}`});
+                              }}
+                              className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
+                            >
+                              BOL
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const num = Math.floor(100000 + Math.random() * 900000);
+                                setFormData({...formData, reference: `FACT-${num}`});
+                              }}
+                              className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-emerald-600 hover:border-emerald-100 transition-all shadow-sm"
+                            >
+                              FACT
+                            </button>
+                          </>
+                        ) : (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const num = Math.floor(100000 + Math.random() * 900000);
+                              setFormData({...formData, reference: `GUIA-${num}`});
+                            }}
+                            className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
+                          >
+                            GUIA
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {mode === "dispatch" && formData.movementType === "sale" && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Cliente (Mayorista/Directo)</label>
+                      <div className="relative mb-3">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input 
+                          type="text"
+                          placeholder="Buscar cliente por nombre o RUT..."
+                          className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20"
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 gap-2">
+                        {filteredCustomers.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData({...formData, customerId: c.id});
+                              setCustomerSearch(c.name);
+                            }}
+                            className={cn(
+                              "text-left p-3 rounded-xl border transition-all flex items-center justify-between",
+                              formData.customerId === c.id 
+                                ? "bg-indigo-50 border-indigo-200" 
+                                : "bg-white border-slate-100 hover:border-slate-200"
+                            )}
+                          >
+                            <div>
+                                <p className="text-[11px] font-bold text-slate-700">{c.name}</p>
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{c.rut}</p>
+                            </div>
+                            {formData.customerId === c.id && <PackageCheck size={14} className="text-indigo-600" />}
+                          </button>
+                        ))}
+                        {customerSearch.length > 0 && filteredCustomers.length === 0 && (
+                          <p className="text-[10px] text-slate-400 font-bold text-center py-2 italic">Sin resultados. Se requiere registro previo en CRM.</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {mode === "dispatch" && formData.movementType === "withdrawal" && (
+                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Sucursal de Destino</label>
+                        <input 
+                            type="text"
+                            placeholder="Ej: Sucursal Centro, Bodega 2, Concon..."
+                            className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500"
+                            value={formData.targetSucursal}
+                            onChange={(e) => setFormData({...formData, targetSucursal: e.target.value})}
+                        />
+                     </motion.div>
+                  )}
 
                   {mode === "dispatch" && (
                     <div className={cn(
@@ -539,6 +664,20 @@ export function Logistics() {
                     />
                   </div>
                 </div>
+
+                <AnimatePresence>
+                  {formError && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="md:col-span-2 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center space-x-3 text-rose-800"
+                    >
+                      <AlertTriangle className="shrink-0" size={20} />
+                      <p className="text-xs font-bold">{formError}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <div className="md:col-span-2 pt-6 border-t border-slate-50 flex items-center justify-between gap-6">
                   <div className="flex items-center space-x-4 text-slate-400">
