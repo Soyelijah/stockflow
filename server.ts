@@ -191,6 +191,27 @@ async function startServer() {
     }
   });
 
+  // Mock Receipt Email Route
+  app.post("/api/send-receipt", async (req, res) => {
+    try {
+      const { customerEmail, orderDetails, businessName } = req.body;
+      
+      console.log(`[RECEIPT] Sending email to ${customerEmail} for order from ${businessName}`);
+      console.log(`[RECEIPT] Details:`, JSON.stringify(orderDetails, null, 2));
+
+      // Simulate a small delay for email processing
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      res.json({ 
+        success: true, 
+        message: "Receipt email sent to the customer queue.",
+        preview: `Email sent to ${customerEmail}`
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

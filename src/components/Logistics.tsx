@@ -181,7 +181,7 @@ export function Logistics() {
       batch.set(movementRef, {
         productId: selectedProduct.id,
         productName: selectedProduct.name,
-        type: mode === "reception" ? "adjustment" : "loss", 
+        type: mode === "reception" ? "adjustment" : (formData.reason === "Venta No Presencial" ? "sale" : "loss"), 
         subType: mode === "reception" ? "reception" : "dispatch",
         quantity: formData.quantity,
         previousStock: selectedProduct.stock || 0,
@@ -203,7 +203,7 @@ export function Logistics() {
       setUnrecognizedBarcode(null);
       setSearchTerm("");
       setFormData({ quantity: 1, reason: "", supplierId: "", reference: "" });
-      alert(mode === "reception" ? "Stock cargado correctamente" : "Stock rebajado correctamente");
+      alert(mode === "reception" ? "Stock cargado correctamente" : "Despacho registrado correctamente");
 
     } catch (error) {
       console.error(error);
@@ -215,6 +215,22 @@ export function Logistics() {
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
+      {/* Informational Banner about Non-Face-to-Face Sales */}
+      <div className="bg-slate-900 text-white rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 border-b-4 border-indigo-500/30">
+        <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center shrink-0">
+          <Truck className="text-indigo-400" size={32} />
+        </div>
+        <div className="flex-1">
+          <h4 className="text-sm font-black uppercase tracking-tight text-indigo-400 mb-1">¿Ventas no presenciales?</h4>
+          <p className="text-xs text-slate-300 font-medium leading-relaxed">
+            Si vendes por WhatsApp, Redes Sociales o Teléfono, realiza la venta primero en el <strong className="text-white">PDV (Punto de Venta)</strong> para registrar el pago, y luego usa este panel (<strong>Despacho</strong>) para registrar la salida física del producto cuando el repartidor lo retire.
+          </p>
+        </div>
+        <div className="px-5 py-2 bg-indigo-500/20 border border-indigo-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest text-indigo-300">
+          Proceso Logístico
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>

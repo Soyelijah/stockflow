@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Login } from "./components/Login";
 import { VerifyEmail } from "./components/VerifyEmail";
@@ -18,15 +18,22 @@ import { Layout } from "./components/Layout";
 import { FlowResult } from "./components/FlowResult";
 import { StockLedger } from "./components/StockLedger";
 import { Logistics } from "./components/Logistics";
+import { Customers } from "./components/Customers";
+import { Profile } from "./components/Profile";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { motion, AnimatePresence } from "motion/react";
 import { MobilePOS } from "./components/MobilePOS";
 
-type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics";
+type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "customers" | "profile";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+
+  // Force reset page on login/logout or role change to avoid "getting stuck" on restricted pages
+  useEffect(() => {
+    setCurrentPage("dashboard");
+  }, [user?.uid, profile?.role]);
 
   const isMobilePath = window.location.pathname === "/mobile";
 
@@ -76,6 +83,10 @@ function AppContent() {
         return <Settings />;
       case "kardex":
         return <StockLedger />;
+      case "customers":
+        return <Customers />;
+      case "profile":
+        return <Profile />;
       default:
         return <Dashboard />;
     }

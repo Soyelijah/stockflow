@@ -81,10 +81,17 @@
         "productId": { "type": "string" },
         "productName": { "type": "string" },
         "type": { "type": "string", "enum": ["in", "out", "sale"] },
+        "documentType": { "type": "string", "enum": ["boleta", "factura", "ticket"] },
         "quantity": { "type": "number" },
         "amount": { "type": "number" },
+        "cost": { "type": "number" },
+        "profit": { "type": "number" },
+        "pixel": { "type": "number", "description": "Unit profit" },
         "userId": { "type": "string" },
         "userName": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerTaxId": { "type": "string" },
         "paymentMethod": { "type": "string" },
         "paymentBreakdown": {
           "type": "object",
@@ -99,6 +106,21 @@
         "note": { "type": "string" }
       },
       "required": ["productId", "type", "quantity", "userId", "timestamp"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer information for invoicing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "taxId": { "type": "string", "description": "RUC, NIT, VAT ID" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
     },
     "Setting": {
       "title": "Global Settings",
@@ -192,6 +214,10 @@
     "categories": {
       "schema": "Category",
       "description": "Product hierarchy"
+    },
+    "customers": {
+      "schema": "Customer",
+      "description": "Registered customers for invoicing"
     },
     "stockMovements": {
       "schema": "StockMovement",

@@ -40,6 +40,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isOpening, setIsOpening] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [initialAmount, setInitialAmount] = useState("");
   const [isClosing, setIsClosing] = useState(false);
   const [finalCash, setFinalCash] = useState("");
@@ -66,6 +67,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
         setSession(docData);
         onStatusChange(true, docData);
         fetchSessionStats(docData);
+        setIsMinimized(false);
       } else {
         setSession(null);
         onStatusChange(false, null);
@@ -172,17 +174,26 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
   return (
     <>
       <AnimatePresence>
-        {!session && (
+        {!session && !isMinimized && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm"
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white max-w-md w-full rounded-[2.5rem] shadow-2xl p-10 text-center"
+              className="bg-white max-w-md w-full rounded-[2.5rem] shadow-2xl p-10 text-center relative"
             >
+              <button 
+                onClick={() => setIsMinimized(true)}
+                className="absolute top-8 right-8 text-slate-300 hover:text-slate-600 transition-colors"
+                title="Explorar sistema (solo lectura)"
+              >
+                <X size={24} />
+              </button>
+
               <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
                 <Lock size={40} />
               </div>
@@ -205,15 +216,44 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                 </div>
               </div>
 
-              <button 
-                onClick={handleOpenRegister}
-                disabled={!initialAmount || loading}
-                className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-2 disabled:opacity-30"
-              >
-                <Unlock size={18} />
-                <span>Abrir Caja y Comenzar</span>
-              </button>
+              <div className="space-y-4">
+                <button 
+                  onClick={handleOpenRegister}
+                  disabled={!initialAmount || loading}
+                  className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-2 disabled:opacity-30"
+                >
+                  <Unlock size={18} />
+                  <span>Abrir Caja y Comenzar</span>
+                </button>
+
+                <button 
+                  onClick={() => setIsMinimized(true)}
+                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+                >
+                  O quizás más tarde, solo quiero revisar
+                </button>
+              </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {!session && isMinimized && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-bounce-slow"
+          >
+            <button 
+              onClick={() => setIsMinimized(false)}
+              className="bg-rose-600 text-white px-8 py-4 rounded-full font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-rose-200 flex items-center space-x-3 group"
+            >
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform">
+                <Lock size={14} />
+              </div>
+              <span>Modo Lectura - Haz clic para Abrir Caja</span>
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

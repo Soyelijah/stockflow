@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { collection, query, onSnapshot, limit, orderBy } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
@@ -13,7 +13,8 @@ import {
   Box,
   DollarSign,
   BarChart3,
-  Zap
+  Zap,
+  Users
 } from "lucide-react";
 import { formatCurrency, cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -58,28 +59,44 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     lowStockCount: 0,
     avgTicket: 0,
     totalProfit: 0,
-    totalExpenses: 0
+    totalExpenses: 0,
+    activeCustomers: 0,
+    salesVelocity: 0,
+    avgLifetimeValue: 0
   });
   const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [topCustomers, setTopCustomers] = useState<any[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
   const [expenseChartData, setExpenseChartData] = useState<any[]>([]);
   
   const [isMounted, setIsMounted] = useState(false);
+  const allProductsRef = React.useRef<any[]>([]);
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
   
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [aiInsight, setAiInsight] = useState<StockInsight | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
 
   useEffect(() => {
-    setIsMounted(true);
+    const timer = setTimeout(() => setIsMounted(true), 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
+    // Listen to customers
+    const qCust = query(collection(db, "customers"));
+    const unsubCust = onSnapshot(qCust, (snapshot) => {
+      const custData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCustomers(custData);
+      setStats(prev => ({ ...prev, activeCustomers: snapshot.size }));
+    });
+
     // Listen to products for stats
     const qProducts = query(collection(db, "products"));
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
@@ -103,6 +120,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       });
 
       setAllProducts(prods);
+      allProductsRef.current = prods;
       setStats(prev => ({
         ...prev,
         totalProducts: snapshot.size,
@@ -118,7 +136,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     const qTransactions = query(
       collection(db, "transactions"), 
       orderBy("timestamp", "desc"), 
-      limit(100)
+      limit(200)
     );
     const unsubTransactions = onSnapshot(qTransactions, (snapshot) => {
       let salesCount = 0;
@@ -127,6 +145,8 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       const salesByDate: Record<string, number> = {};
       const profitByDate: Record<string, number> = {};
       const productCounts: Record<string, { count: number, name: string }> = {};
+      const customerSales: Record<string, { id: string, name: string, total: number, visits: number }> = {};
+      const categoriesProfit: Record<string, number> = {};
       
       const txs = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -148,14 +168,36 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
               name: data.productName
             };
           }
+
+          if (data.customerName && data.customerName !== "VENTA GENERAL") {
+            const cId = data.customerId || data.customerName;
+            if (!customerSales[cId]) {
+              customerSales[cId] = { id: cId, name: data.customerName, total: 0, visits: 0 };
+            }
+            customerSales[cId].total += amount;
+            customerSales[cId].visits += 1;
+          }
+
+          // Use the ref to avoid dependency cycle
+          const prod = allProductsRef.current.find(p => p.id === data.productId || p.name === data.productName);
+          const cat = prod?.category || "Otros";
+          categoriesProfit[cat] = (categoriesProfit[cat] || 0) + profit;
         }
-        return { id: doc.id, ...data };
+        return { id: doc.id, ...data } as any;
       });
 
-      // Prepare top products
+      // VIP Customers
+      const sortedCustomers = Object.values(customerSales)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+
+      // Top Products
       const sortedProducts = Object.values(productCounts)
         .sort((a, b) => b.count - a.count)
-        .slice(0, 4);
+        .slice(0, 5);
+
+      // Category Profitability
+      const catChart = Object.entries(categoriesProfit).map(([name, profit]) => ({ name, profit }));
 
       // Prepare chart data for last 7 days
       const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -169,14 +211,22 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
         };
       }).reverse();
 
-      setRecentTransactions(txs.slice(0, 7));
+      setRecentTransactions(txs.slice(0, 10));
       setTopProducts(sortedProducts);
+      setTopCustomers(sortedCustomers);
+      setCategoryData(catChart);
       setChartData(last7Days);
+      
+      const totalSalesAllTime = txs.reduce((acc: number, current: any) => acc + (current.type === 'sale' ? (Number(current.amount) || 0) : 0), 0);
+      const uniqueCustomersCount = Object.keys(customerSales).length;
+
       setStats(prev => ({ 
         ...prev, 
         recentSales: salesCount,
         totalProfit: totalProfitAmount,
-        avgTicket: salesCount > 0 ? totalSalesAmount / salesCount : 0
+        avgTicket: salesCount > 0 ? totalSalesAmount / salesCount : 0,
+        salesVelocity: salesCount / (snapshot.size || 1), // Sales per transaction density
+        avgLifetimeValue: uniqueCustomersCount > 0 ? totalSalesAllTime / uniqueCustomersCount : 0
       }));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, "transactions (Dashboard)");
@@ -207,6 +257,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     });
 
     return () => {
+      unsubCust();
       unsubProducts();
       unsubTransactions();
       unsubExpenses();
@@ -230,13 +281,127 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     }
   };
 
+  const predictiveStockAlerts = useMemo(() => {
+    return allProducts
+      .map(p => {
+        const salesInPeriod = topProducts.find(tp => tp.name === p.name)?.count || 0;
+        const velocity = salesInPeriod / 7; // rough 7 day velocity
+        const daysRemaining = velocity > 0 ? Math.floor(p.stock / velocity) : 999;
+        return { ...p, velocity, daysRemaining };
+      })
+      .filter(p => Number(p.stock) <= Number(p.minThreshold) || p.daysRemaining < 30)
+      .sort((a, b) => a.daysRemaining - b.daysRemaining)
+      .slice(0, 4);
+  }, [allProducts, topProducts]);
+
+  const forecastSales7Days = useMemo(() => {
+    const totalLast7 = chartData.reduce((acc, curr) => acc + curr.sales, 0);
+    const avgDaily = totalLast7 / (chartData.length || 7);
+    return avgDaily * 7;
+  }, [chartData]);
+
+  const churnRiskStats = useMemo(() => {
+    return customers.reduce((acc, c) => {
+      if (c.churnRisk === "crítico") acc.highRisk++;
+      else if (c.churnRisk === "advertencia") acc.mediumRisk++;
+      return acc;
+    }, { highRisk: 0, mediumRisk: 0 });
+  }, [customers]);
+
   const isAdmin = profile?.role === "admin" || profile?.role === "manager";
+  const isLogistics = profile?.role === "logistics";
+
+  if (isLogistics) {
+    return (
+      <div className="space-y-10 max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-black text-slate-800 tracking-tight">Panel de Bodega</h1>
+            <p className="text-slate-500 font-medium mt-1">Niveles de stock y alertas de reposición.</p>
+          </div>
+          <div className="flex items-center space-x-2 bg-amber-50 border border-amber-100 px-4 py-3 rounded-2xl">
+            <div className="w-2 h-2 bg-amber-600 rounded-full animate-pulse" />
+            <span className="text-xs font-black text-amber-700 uppercase tracking-widest">
+              Rol: Logística
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { label: "Stock Total", value: `${stats.totalProducts} SKU`, icon: Box, color: "bg-indigo-600" },
+            { label: "Bajo Stock", value: stats.lowStockCount, icon: AlertTriangle, color: "bg-amber-500" },
+            { label: "Salud Inventario", value: `${Math.round(((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100) || 0}%`, icon: Activity, color: "bg-emerald-500" },
+            { label: "Movimientos Hoy", value: recentTransactions.length, icon: RefreshCw, color: "bg-slate-800" },
+          ].map((stat, i) => (
+            <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+              <div className="flex items-start justify-between mb-4">
+                <div className={cn("p-4 rounded-3xl text-white shadow-lg", stat.color)}>
+                  <stat.icon size={24} />
+                </div>
+              </div>
+              <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-1">{stat.label}</p>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">{stat.value}</h3>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+              <AlertTriangle className="text-amber-500" />
+              Prioridad de Reposición
+            </h2>
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
+              {predictiveStockAlerts.map((product) => (
+                <div key={product.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black text-slate-800">{product.name}</p>
+                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">Stock Actual: {product.stock}</p>
+                  </div>
+                  <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-lg uppercase">
+                    {product.daysRemaining < 30 ? `~${product.daysRemaining} días` : "CRÍTICO"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="space-y-6">
+             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+              <Activity className="text-indigo-600" />
+              Últimos Movimientos
+            </h2>
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
+              {recentTransactions.slice(0, 6).map((tx) => (
+                <div key={tx.id} className="p-4 flex items-center justify-between">
+                   <div className="flex items-center space-x-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center",
+                        tx.type === "in" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                      )}>
+                        {tx.type === "in" ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">{tx.productName}</p>
+                        <p className="text-[9px] text-slate-400 uppercase font-black">{tx.type === 'sale' ? 'Venta' : tx.type === 'in' ? 'Entrada' : 'Salida'}</p>
+                      </div>
+                   </div>
+                   <p className="text-xs font-black text-slate-700">{tx.quantity} uds</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const topStats = isAdmin ? [
     { label: "Ventas Totales", value: formatCurrency(chartData.reduce((a, b) => a + b.sales, 0)), icon: ShoppingCart, color: "bg-indigo-600", trend: "+12.4%", up: true },
+    { label: "Forecast (7d)", value: formatCurrency(forecastSales7Days), icon: Sparkles, color: "bg-fuchsia-600", trend: "Proyección IA", up: true },
     { label: "Utilidad Neta", value: formatCurrency(stats.totalProfit - stats.totalExpenses), icon: TrendingUp, color: "bg-emerald-500", trend: "+8.2%", up: true },
-    { label: "Gastos (Egresos)", value: formatCurrency(stats.totalExpenses), icon: CreditCard, color: "bg-rose-500", trend: "+15%", up: false },
-    { label: "Alertas de Stock", value: stats.lowStockCount, icon: AlertTriangle, color: "bg-amber-500", trend: "-2%", up: false },
+    { label: "Riesgo Fuga", value: churnRiskStats.highRisk, icon: AlertTriangle, color: "bg-rose-500", trend: "Crítico", up: false },
   ] : [
     { label: "Ventas Hoy", value: formatCurrency(chartData[chartData.length - 1]?.sales || 0), icon: ShoppingCart, color: "bg-indigo-600", trend: "Hoy", up: true },
     { label: "Transacciones", value: stats.recentSales, icon: Activity, color: "bg-emerald-500", trend: "Total", up: true },
@@ -414,9 +579,9 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
               </div>
             </div>
             
-            <div className="h-[300px] w-full">
-              {isMounted && (
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[300px] w-full relative overflow-hidden" style={{ minHeight: '300px' }}>
+              {isMounted && chartData.length > 0 && chartData[0]?.sales !== undefined && (
+                <ResponsiveContainer width="100%" height={300} minWidth={0}>
                   <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
@@ -489,9 +654,9 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 </div>
               </div>
               
-              <div className="flex-1 min-h-[250px] relative">
+              <div className="h-[250px] relative w-full overflow-hidden" style={{ minHeight: '250px' }}>
                 {isMounted && expenseChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={250} minWidth={0}>
                     <PieChart>
                       <Pie
                         data={expenseChartData}
@@ -540,114 +705,188 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
           </div>
         )}
         
-        {/* Main Activity Feed */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-slate-900 rounded-2xl text-white">
-                <Activity size={20} />
+      {/* Main Activity Feed */}
+        <div className="lg:col-span-8 space-y-10">
+          {/* VIP Customers Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-emerald-600 rounded-2xl text-white shadow-lg shadow-emerald-100">
+                  <Users size={20} />
+                </div>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">Clientes VIP</h2>
               </div>
-              <h2 className="text-xl font-black text-slate-800 tracking-tight">Actividad del Sistema</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mayores Compradores</p>
             </div>
-            <button 
-              onClick={() => onNavigate?.("transactions")}
-              className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-400 transition-colors"
-            >
-              Ver Registro Completo
-            </button>
-          </div>
-
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-2">
-            <div className="divide-y divide-slate-50">
-              {recentTransactions.map((tx, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  key={tx.id} 
-                  className="flex items-center justify-between p-5 hover:bg-slate-50/80 transition-all rounded-3xl group"
-                >
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {topCustomers.map((cust, i) => (
+                <div key={cust.id || i} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between hover:border-emerald-200 transition-all group">
                   <div className="flex items-center space-x-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110",
-                      tx.type === "sale" || tx.type === "out" ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
-                    )}>
-                      {tx.type === "sale" ? <ShoppingCart size={22} /> : 
-                       tx.type === "in" ? <ArrowDownRight size={22} /> : <ArrowUpRight size={22} />}
+                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-lg">
+                      {cust.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-800 text-sm">{tx.productName}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Clock size={12} className="text-slate-400" />
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                          {tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleTimeString() : "Reciente"}
-                        </p>
-                      </div>
+                      <h4 className="font-bold text-slate-800 text-sm truncate max-w-[150px]">{cust.name}</h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{cust.visits} compras totales</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={cn(
-                      "font-black text-sm",
-                      tx.type === "sale" || tx.type === "out" ? "text-rose-600" : "text-emerald-600"
-                    )}>
-                      {tx.type === "sale" || tx.type === "out" ? "-" : "+"}{tx.quantity}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{tx.userName || "Sistema"}</p>
+                    <p className="font-black text-emerald-600 text-sm">{formatCurrency(cust.total)}</p>
+                    <div className="flex items-center justify-end space-x-1 mt-1">
+                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Frecuente</span>
+                    </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-              {recentTransactions.length === 0 && (
-                <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
-                  Sin actividad registrada
+              {topCustomers.length === 0 && (
+                <div className="col-span-2 p-12 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Sin clientes registrados aún</p>
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-slate-900 rounded-2xl text-white">
+                  <Activity size={20} />
+                </div>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">Actividad del Sistema</h2>
+              </div>
+              <button 
+                onClick={() => onNavigate?.("transactions")}
+                className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-400 transition-colors"
+              >
+                Ver Registro Completo
+              </button>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-2">
+              <div className="divide-y divide-slate-50">
+                {recentTransactions.map((tx, i) => (
+                  <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    key={tx.id} 
+                    className="flex items-center justify-between p-5 hover:bg-slate-50/80 transition-all rounded-3xl group"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110",
+                        tx.type === "sale" || tx.type === "out" ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
+                      )}>
+                        {tx.type === "sale" ? <ShoppingCart size={22} /> : 
+                         tx.type === "in" ? <ArrowDownRight size={22} /> : <ArrowUpRight size={22} />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-800 text-sm truncate">{tx.productName}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Clock size={12} className="text-slate-400" />
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            {tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleTimeString() : "Reciente"} • {tx.customerName || "General"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={cn(
+                        "font-black text-sm",
+                        tx.type === "sale" || tx.type === "out" ? "text-rose-600" : "text-emerald-600"
+                      )}>
+                        {tx.type === "sale" || tx.type === "out" ? "-" : "+"}{tx.quantity}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{tx.userName || "Sistema"}</p>
+                    </div>
+                  </motion.div>
+                ))}
+                {recentTransactions.length === 0 && (
+                  <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                    Sin actividad registrada
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Status Side Panel */}
-        <div className="lg:col-span-4 space-y-6">
-          {isAdmin && (
-            <div className="flex items-center space-x-3 mt-10">
-              <div className="p-3 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-100">
-                <AlertTriangle size={20} />
+        <div className="lg:col-span-4 space-y-10">
+          {/* Stock Health KPI */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Salud del Inventario</h3>
+              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">
+                {Math.round(((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100) || 0}% Optimo
+              </span>
+            </div>
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex">
+                <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100}%` }} />
+                <div className="bg-amber-400 h-full transition-all duration-1000" style={{ width: `${(stats.lowStockCount / stats.totalProducts) * 100}%` }} />
               </div>
-              <h2 className="text-xl font-black text-slate-800 tracking-tight">Alertas Rápidas</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Items OK</p>
+                   <p className="text-lg font-black text-slate-800">{stats.totalProducts - stats.lowStockCount}</p>
+                </div>
+                <div>
+                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Críticos</p>
+                   <p className="text-lg font-black text-amber-600">{stats.lowStockCount}</p>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
 
-          {isAdmin && (
-            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
-              {lowStockProducts.map((product) => (
-                <div key={product.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-transparent hover:border-amber-200 transition-all group">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 group-hover:text-amber-500 transition-colors">
-                      <Package size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black text-slate-800 leading-tight">{product.name}</p>
-                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">{product.stock} restantes</p>
-                    </div>
-                  </div>
-                  <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping" />
-                </div>
-              ))}
-              {lowStockProducts.length === 0 && (
-                <div className="text-center py-10">
-                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-4">
-                    <TrendingUp size={32} />
-                  </div>
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Nivel de stock óptimo</p>
-                </div>
-              )}
-              <button 
-                onClick={() => onNavigate?.("inventory")}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
-              >
-                Ver Inventario Completo
-              </button>
-            </div>
-          )}
+          <div>
+             <div className="flex items-center justify-between mb-6">
+               <div className="flex items-center space-x-3">
+                 <div className="p-3 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-100">
+                   <AlertTriangle size={20} />
+                 </div>
+                 <h2 className="text-xl font-black text-slate-800 tracking-tight">Stock Inteligente</h2>
+               </div>
+               <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-2 py-1 rounded-lg uppercase">Predicción</span>
+             </div>
+
+             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
+               {predictiveStockAlerts.map((product) => (
+                 <div key={product.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-transparent hover:border-amber-200 transition-all group">
+                   <div className="flex-1 min-w-0 pr-4">
+                     <p className="text-xs font-black text-slate-800 leading-tight truncate">{product.name}</p>
+                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
+                       Stock: {product.stock} | ~{Math.round(product.velocity * 7)} vtas/sem
+                     </p>
+                   </div>
+                   <div className="text-right">
+                     <p className={cn(
+                       "text-[9px] font-black uppercase tracking-tighter",
+                       product.daysRemaining < 5 ? "text-rose-600" : "text-amber-500"
+                     )}>
+                       {product.daysRemaining < 30 ? `Agotado en ~${product.daysRemaining}d` : "Stock Crítico"}
+                     </p>
+                   </div>
+                 </div>
+               ))}
+               {predictiveStockAlerts.length === 0 && (
+                 <div className="text-center py-10">
+                   <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-4">
+                     <TrendingUp size={32} />
+                   </div>
+                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Nivel de stock óptimo</p>
+                 </div>
+               )}
+               <button 
+                 onClick={() => onNavigate?.("inventory")}
+                 className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+               >
+                 Abastecer Inventario
+               </button>
+             </div>
+          </div>
 
           {/* Trending Products */}
           <div className="flex items-center space-x-3 mt-10">
@@ -674,6 +913,30 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 Pendiente de datos
               </p>
             )}
+          </div>
+
+          {/* High Margin Analysis */}
+          <div className="space-y-4 pt-4">
+            <div className="flex items-center justify-between px-1">
+               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Alta Rentabilidad</h3>
+               <span className="text-[9px] font-bold text-emerald-500 uppercase">Margen Jefe</span>
+            </div>
+            <div className="space-y-3">
+               {allProducts.sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice))).slice(0, 3).map((p) => (
+                 <div key={p.id} className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-800">{p.name}</p>
+                      <p className="text-[9px] font-bold text-emerald-600 uppercase mt-0.5">
+                        +{Math.round(((Number(p.price) - Number(p.costPrice)) / Number(p.price)) * 100) || 0}% margen
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Utilidad</p>
+                      <p className="text-xs font-black text-emerald-600">{formatCurrency(p.price - p.costPrice)}</p>
+                    </div>
+                 </div>
+               ))}
+            </div>
           </div>
         </div>
       </div>

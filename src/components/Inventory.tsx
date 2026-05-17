@@ -8,8 +8,11 @@ import {
   doc, 
   query, 
   orderBy,
+  where,
+  limit,
   writeBatch,
-  serverTimestamp
+  serverTimestamp,
+  Timestamp
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
@@ -26,7 +29,9 @@ import {
   DollarSign,
   TrendingUp,
   ArrowRightLeft,
-  Tag
+  Tag,
+  Truck,
+  Zap
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn, formatCurrency } from "../lib/utils";
@@ -56,6 +61,44 @@ export function Inventory() {
     supplierId: ""
   });
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [salesVelocity, setSalesVelocity] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    // Calculate sales velocity for all products (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const qSales = query(
+      collection(db, "transactions"),
+      where("type", "==", "sale"),
+      where("timestamp", ">=", Timestamp.fromDate(thirtyDaysAgo))
+    );
+
+    const unsubSales = onSnapshot(qSales, (snapshot) => {
+      const velocityMap: Record<string, number> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        // Handle both single product transactions and multi-item orders
+        if (data.items) {
+          data.items.forEach((item: any) => {
+            if (item.id) {
+              velocityMap[item.id] = (velocityMap[item.id] || 0) + (Number(item.quantity) || 0);
+            }
+          });
+        } else if (data.productId) {
+          velocityMap[data.productId] = (velocityMap[data.productId] || 0) + (Number(data.quantity) || 0);
+        }
+      });
+      
+      // Convert to daily velocity
+      Object.keys(velocityMap).forEach(id => {
+        velocityMap[id] = velocityMap[id] / 30;
+      });
+      setSalesVelocity(velocityMap);
+    });
+
+    return unsubSales;
+  }, []);
 
   useEffect(() => {
     const qCats = query(collection(db, "categories"), orderBy("name"));
@@ -233,27 +276,89 @@ export function Inventory() {
     }
   };
 
+  const isAdmin = profile?.role === "admin" || profile?.role === "manager";
+  const isLogistics = profile?.role === "logistics";
+
   const inventorySummary = useMemo(() => {
     return products.reduce((acc, p) => {
-      acc.totalItems += Number(p.stock) || 0;
-      acc.totalValue += (Number(p.stock) || 0) * (Number(p.price) || 0);
-      acc.totalCost += (Number(p.stock) || 0) * (Number(p.costPrice) || 0);
+      const stock = Number(p.stock) || 0;
+      const price = Number(p.price) || 0;
+      const cost = Number(p.costPrice) || 0;
+      const threshold = Number(p.minThreshold) || 5;
+
+      acc.totalItems += stock;
+      acc.totalValue += stock * price;
+      acc.totalCost += stock * cost;
+      if (stock <= threshold && stock > 0) acc.lowStock++;
+      if (stock === 0) acc.outOfStock++;
       return acc;
-    }, { totalItems: 0, totalValue: 0, totalCost: 0 });
+    }, { totalItems: 0, totalValue: 0, totalCost: 0, lowStock: 0, outOfStock: 0 });
   }, [products]);
 
   const potentialProfit = inventorySummary.totalValue - inventorySummary.totalCost;
+  const [activeTab, setActiveTab] = useState<"all" | "low" | "smart">("all");
 
-  const filteredProducts = products.filter(p => 
-    (p.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (p.sku?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (p.category?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (p.barcodes?.some((bc: string) => bc.includes(searchTerm))) ||
-    (p.barcode?.includes(searchTerm))
-  );
+  const smartActions = useMemo(() => {
+    return products.map(p => {
+      const stock = Number(p.stock) || 0;
+      const velocity = salesVelocity[p.id] || 0;
+      const daysLeft = velocity > 0 ? stock / velocity : Infinity;
+      
+      if (daysLeft < 7 && velocity > 0) {
+        return {
+          id: p.id,
+          type: "reorder",
+          severity: "high",
+          title: "Reabastecimiento Urgente",
+          message: `${p.name} se agota en ~${Math.round(daysLeft)} días.`,
+          action: "Pedir Stock",
+          icon: Truck
+        };
+      }
+
+      if (stock > 20 && velocity === 0 && p.createdAt && (Date.now() - (p.createdAt as any).toDate().getTime() > 1000 * 60 * 60 * 24 * 30)) {
+        return {
+          id: p.id,
+          type: "promotion",
+          severity: "medium",
+          title: "Optimización de Capital",
+          message: `${p.name} sin rotación en 30 días (${formatCurrency(stock * (p.price || 0))} inmovilizados).`,
+          action: "Crear Promo",
+          icon: Zap
+        };
+      }
+
+      return null;
+    }).filter(Boolean);
+  }, [products, salesVelocity]);
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = (p.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.sku?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.category?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.barcodes?.some((bc: string) => bc.includes(searchTerm))) ||
+      (p.barcode?.includes(searchTerm));
+    
+    if (!matchesSearch) return false;
+
+    if (activeTab === "low") {
+      const stock = Number(p.stock) || 0;
+      const threshold = Number(p.minThreshold) || 5;
+      return stock <= threshold;
+    }
+
+    if (activeTab === "smart") {
+      const velocity = salesVelocity[p.id] || 0;
+      if (velocity === 0) return false;
+      const daysLeft = p.stock / velocity;
+      return daysLeft < 15;
+    }
+
+    return true;
+  });
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-8 max-w-[1600px] mx-auto p-4 md:p-8">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Inventario Global</h1>
@@ -268,12 +373,69 @@ export function Inventory() {
         </button>
       </header>
 
+      {/* Smart Actions Panel */}
+      {smartActions.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Sugerencias de la IA</h3>
+            <span className="bg-indigo-100 text-indigo-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Beta</span>
+          </div>
+          <div className="flex overflow-x-auto gap-4 pb-2 scrollbar-hide">
+            {smartActions.map((action, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className={cn(
+                  "min-w-[300px] p-5 rounded-[2rem] border flex items-start space-x-4 shadow-sm",
+                  action.severity === "high" ? "bg-rose-50 border-rose-100" : "bg-indigo-50 border-indigo-100"
+                )}
+              >
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                  action.severity === "high" ? "bg-rose-100 text-rose-600" : "bg-indigo-100 text-indigo-600"
+                )}>
+                  <action.icon size={24} />
+                </div>
+                <div className="flex-1">
+                  <p className={cn(
+                    "text-[10px] font-black uppercase tracking-widest mb-1",
+                    action.severity === "high" ? "text-rose-600" : "text-indigo-600"
+                  )}>
+                    {action.title}
+                  </p>
+                  <p className="text-xs font-bold text-slate-700 leading-relaxed mb-3">
+                    {action.message}
+                  </p>
+                  <button 
+                    onClick={() => {
+                      if (action.type === "reorder") {
+                        setSearchTerm(products.find(p => p.id === action.id)?.name || "");
+                      } else {
+                        openModal(products.find(p => p.id === action.id));
+                      }
+                    }}
+                    className={cn(
+                      "text-[9px] font-black uppercase tracking-tighter px-4 py-2 rounded-xl transition-all",
+                      action.severity === "high" ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-indigo-600 text-white hover:bg-indigo-700"
+                    )}
+                  >
+                    {action.action}
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats Summary Area */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white flex items-center justify-between overflow-hidden relative group">
           <div className="relative z-10">
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Valor Venta Stock</p>
-            <h3 className="text-3xl font-black">{formatCurrency(inventorySummary.totalValue)}</h3>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Inversión (Costo)</p>
+            <h3 className="text-3xl font-black">{formatCurrency(inventorySummary.totalCost)}</h3>
           </div>
           <div className="w-16 h-16 bg-white/5 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
             <DollarSign size={32} className="text-white/20" />
@@ -282,9 +444,9 @@ export function Inventory() {
 
         <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 flex items-center justify-between overflow-hidden relative group shadow-sm">
           <div className="relative z-10">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Margen Potencial Bruto</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Margen Potencial</p>
             <h3 className="text-3xl font-black text-emerald-600">{formatCurrency(potentialProfit)}</h3>
-            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Costo: {formatCurrency(inventorySummary.totalCost)}</p>
+            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">ROI: {inventorySummary.totalCost > 0 ? ((potentialProfit / inventorySummary.totalCost) * 100).toFixed(0) : 0}%</p>
           </div>
           <div className="w-16 h-16 bg-emerald-50 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
             <TrendingUp size={32} className="text-emerald-200" />
@@ -293,8 +455,20 @@ export function Inventory() {
 
         <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 flex items-center justify-between overflow-hidden relative group shadow-sm">
           <div className="relative z-10">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Unidades en Stock</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Alertas de Stock</p>
+            <h3 className="text-3xl font-black text-rose-600">{inventorySummary.lowStock} <span className="text-slate-300">/</span> {inventorySummary.outOfStock}</h3>
+            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Crítico / Agotado</p>
+          </div>
+          <div className="w-16 h-16 bg-rose-50 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
+            <ArrowRightLeft size={32} className="text-rose-200" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 flex items-center justify-between overflow-hidden relative group shadow-sm">
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Unidades</p>
             <h3 className="text-3xl font-black text-slate-800">{inventorySummary.totalItems}</h3>
+            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Catálogo: {products.length} SKU</p>
           </div>
           <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
             <Layers size={32} className="text-slate-200" />
@@ -302,8 +476,39 @@ export function Inventory() {
         </div>
       </div>
 
-      {/* Control Bar */}
-      <div className="bg-white p-4 rounded-3xl border border-slate-200 flex flex-col sm:flex-row gap-4 items-center shadow-sm">
+      {/* Control Bar & Tabs */}
+      <div className="bg-white p-4 rounded-3xl border border-slate-200 flex flex-col lg:flex-row gap-6 items-center shadow-sm">
+        <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full lg:w-auto">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={cn(
+              "flex-1 lg:flex-none px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+              activeTab === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => setActiveTab("low")}
+            className={cn(
+              "flex-1 lg:flex-none px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+              activeTab === "low" ? "bg-rose-50 text-rose-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            Faltantes
+          </button>
+          <button
+            onClick={() => setActiveTab("smart")}
+            className={cn(
+              "flex-1 lg:flex-none px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center space-x-2",
+              activeTab === "smart" ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            <TrendingUp size={12} />
+            <span>Sugerencias IA</span>
+          </button>
+        </div>
+
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
@@ -314,19 +519,6 @@ export function Inventory() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center space-x-2 w-full sm:w-auto">
-          <button className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-slate-50 text-slate-600 px-4 py-3 rounded-2xl text-sm font-bold border border-transparent hover:border-slate-200 transition-all">
-            <Filter size={16} />
-            <span>Filtros</span>
-          </button>
-          <button 
-            onClick={() => setIsCategoryModalOpen(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-slate-50 text-slate-600 px-4 py-3 rounded-2xl text-sm font-bold border border-transparent hover:border-slate-200 transition-all"
-          >
-            <Tag size={16} />
-            <span>Categorías</span>
-          </button>
-        </div>
       </div>
 
       {/* Products Grid/Table */}
@@ -336,8 +528,9 @@ export function Inventory() {
             <thead>
               <tr className="bg-slate-50/50">
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Producto y SKU</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Valor Unitario</th>
+                {isAdmin && <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Valor Unitario</th>}
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Disponibilidad</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Proyección (IA)</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Estado</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] text-right">Acciones</th>
               </tr>
@@ -375,12 +568,14 @@ export function Inventory() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="flex items-center space-x-1 font-black text-slate-700">
-                      <span className="text-slate-300 text-xs">$</span>
-                      <span>{formatCurrency(product.price || 0).replace(/[$\s]/g, "")}</span>
-                    </div>
-                  </td>
+                  {isAdmin && (
+                    <td className="px-8 py-5">
+                      <div className="flex items-center space-x-1 font-black text-slate-700">
+                        <span className="text-slate-300 text-xs">$</span>
+                        <span>{formatCurrency(product.price || 0).replace(/[$\s]/g, "")}</span>
+                      </div>
+                    </td>
+                  )}
                   <td className="px-8 py-5">
                     <div className="flex flex-col">
                       <span className={cn(
@@ -399,6 +594,23 @@ export function Inventory() {
                         />
                       </div>
                     </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    {salesVelocity[product.id] > 0 ? (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Días restantes</span>
+                        <span className={cn(
+                          "text-sm font-black",
+                          (product.stock / salesVelocity[product.id]) < 7 ? "text-rose-600" : 
+                          (product.stock / salesVelocity[product.id]) < 15 ? "text-orange-600" : "text-emerald-600"
+                        )}>
+                          ~{Math.round(product.stock / salesVelocity[product.id])} días
+                        </span>
+                        <p className="text-[9px] font-bold text-slate-300 uppercase mt-0.5">Venta: {salesVelocity[product.id].toFixed(2)}/día</p>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-300 uppercase italic">Sin rotación</span>
+                    )}
                   </td>
                   <td className="px-8 py-5">
                     {Number(product.stock) <= 0 ? (

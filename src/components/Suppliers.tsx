@@ -23,7 +23,7 @@ import {
   doc 
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
-import { cn } from "../lib/utils";
+import { cn, formatChileanPhone } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
 export function Suppliers() {
@@ -78,7 +78,7 @@ export function Suppliers() {
       name: supplier.name,
       contactName: supplier.contactName || "",
       email: supplier.email || "",
-      phone: supplier.phone || "",
+      phone: formatChileanPhone(supplier.phone || ""),
       category: supplier.category || "",
       address: supplier.address || ""
     });
@@ -111,7 +111,7 @@ export function Suppliers() {
         <button 
           onClick={() => {
             setEditingSupplier(null);
-            setFormData({ name: "", contactName: "", email: "", phone: "", category: "", address: "" });
+            setFormData({ name: "", contactName: "", email: "", phone: "+56 ", category: "", address: "" });
             setIsModalOpen(true);
           }}
           className="bg-indigo-600 text-white font-bold px-6 py-4 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2"
@@ -184,7 +184,7 @@ export function Suppliers() {
                     <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center">
                       <Phone size={14} />
                     </div>
-                    <span className="text-[10px] font-black">{supplier.phone || "N/A"}</span>
+                    <span className="text-[10px] font-black">{formatChileanPhone(supplier.phone || "") || "N/A"}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-slate-500">
                     <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center">
@@ -287,11 +287,11 @@ export function Suppliers() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
                     <input 
-                      type="text" 
+                      type="tel" 
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
-                      placeholder="+56 9..."
+                      placeholder="+56 9 XXXX XXXX"
                       value={formData.phone}
-                      onChange={e => setFormData({...formData, phone: e.target.value})}
+                      onChange={e => setFormData({...formData, phone: formatChileanPhone(e.target.value)})}
                     />
                   </div>
                   <div className="space-y-2">

@@ -1,6 +1,6 @@
 {
   "name": "StockFlow",
-  "description": "Sistema integral de gestión de inventarios y logística con control de stock en tiempo real, alertas de nivel crítico y roles diferenciados para administrador y vendedores.",
+  "description": "Sistema integral de gestión de inventarios, POS y CRM con programa de lealtad automatizado, control de stock en tiempo real y análisis de salud del cliente.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

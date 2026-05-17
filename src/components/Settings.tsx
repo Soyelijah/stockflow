@@ -19,10 +19,13 @@ import {
 } from "lucide-react";
 import { collection, getDoc, getDocs, doc, setDoc, query, orderBy } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
-import { cn } from "../lib/utils";
+import { cn, formatChileanPhone } from "../lib/utils";
 import { motion } from "motion/react";
 
+import { useAuth } from "../contexts/AuthContext";
+
 export function Settings() {
+  const { profile } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
@@ -44,7 +47,11 @@ export function Settings() {
         const docRef = doc(db, "settings", "global");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setSettings(docSnap.data() as any);
+          const data = docSnap.data();
+          setSettings({
+            ...data,
+            phone: formatChileanPhone(data.phone || "")
+          } as any);
         }
       } catch (err) {
         console.error("Error fetching settings:", err);
@@ -53,6 +60,7 @@ export function Settings() {
     fetchSettings();
 
     const fetchUsers = async () => {
+      if (profile?.role !== "admin") return;
       try {
         const q = query(collection(db, "users"));
         const snap = await getDocs(q);
@@ -62,7 +70,7 @@ export function Settings() {
       }
     };
     fetchUsers();
-  }, []);
+  }, [profile?.role]);
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
@@ -140,10 +148,11 @@ export function Settings() {
               <div className="relative">
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                 <input 
-                  type="text" 
+                  type="tel" 
+                  placeholder="+56 9 XXXX XXXX"
                   className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                   value={settings.phone}
-                  onChange={e => setSettings({...settings, phone: e.target.value})}
+                  onChange={e => setSettings({...settings, phone: formatChileanPhone(e.target.value)})}
                 />
               </div>
             </div>

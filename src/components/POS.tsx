@@ -5,6 +5,7 @@ import {
   onSnapshot, 
   writeBatch, 
   doc, 
+  addDoc,
   serverTimestamp,
   increment,
   orderBy
@@ -27,12 +28,17 @@ import {
   X,
   Loader2,
   RefreshCw,
-  Cpu
+  Cpu,
+  Users,
+  FileText,
+  Ticket,
+  ChevronRight,
+  Store
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
-import { cn, formatCurrency } from "../lib/utils";
+import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, getCustomerTier, calculatePoints } from "../lib/utils";
 import confetti from "canvas-confetti";
 import { CashRegisterManagement } from "./CashRegister";
 import { MercadoPagoWallet } from "./MercadoPagoWallet";
@@ -49,6 +55,7 @@ interface CartItem {
 interface PaymentBreakdown {
   efectivo: number;
   tarjeta: number;
+  transferencia: number;
   digital: number;
 }
 
@@ -56,16 +63,32 @@ export function POS() {
   const { profile } = useAuth();
   const { settings } = useSettings();
   const [products, setProducts] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   
+  // Invoicing States
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [documentType, setDocumentType] = useState<"boleta" | "factura">("boleta");
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [isNewCustomerMode, setIsNewCustomerMode] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    taxId: "",
+    email: "",
+    phone: "",
+    address: ""
+  });
+  
   // Payment States
   const [payments, setPayments] = useState<PaymentBreakdown>({
     efectivo: 0,
     tarjeta: 0,
+    transferencia: 0,
     digital: 0
   });
   const [cashReceived, setCashReceived] = useState<string>("");
@@ -119,7 +142,18 @@ export function POS() {
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, "products (POS)");
     });
-    return unsub;
+
+    const qCust = query(collection(db, "customers"), orderBy("name"));
+    const unsubCust = onSnapshot(qCust, (snapshot) => {
+      setCustomers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "customers (POS)");
+    });
+
+    return () => {
+      unsub();
+      unsubCust();
+    };
   }, []);
 
   const categories = useMemo(() => {
@@ -136,6 +170,27 @@ export function POS() {
     const categoryMatch = selectedCategory === "Todos" || p.category === selectedCategory;
     return Number(p.stock) > 0 && (nameMatch || skuMatch || barcodeMatch) && categoryMatch;
   }), [products, searchTerm, selectedCategory]);
+
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
+    c.taxId?.includes(customerSearch)
+  ).slice(0, 5);
+
+  const handleCreateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const docRef = await addDoc(collection(db, "customers"), {
+        ...newCustomer,
+        createdAt: serverTimestamp()
+      });
+      setSelectedCustomer({ id: docRef.id, ...newCustomer });
+      setShowCustomerModal(false);
+      setIsNewCustomerMode(false);
+      setNewCustomer({ name: "", taxId: "", email: "", phone: "", address: "" });
+    } catch (err) {
+      alert("Error al crear cliente");
+    }
+  };
 
   useEffect(() => {
     let barcode = "";
@@ -206,7 +261,7 @@ export function POS() {
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const paidTotal = payments.efectivo + payments.tarjeta + payments.digital;
+  const paidTotal = payments.efectivo + payments.tarjeta + payments.transferencia + payments.digital;
   const remaining = Math.max(0, cartTotal - paidTotal);
   const change = Math.max(0, Number(cashReceived) - payments.efectivo);
 
@@ -228,6 +283,7 @@ export function POS() {
     setPayments({
       efectivo: cartTotal,
       tarjeta: 0,
+      transferencia: 0,
       digital: 0
     });
     setCashReceived(cartTotal.toString());
@@ -272,27 +328,39 @@ export function POS() {
           <div class="header">
             <h1 class="business-name">${settings.businessName.toUpperCase()}</h1>
             <p>${settings.address || ""}</p>
-            <p>Ticket No: ${order.id.slice(0, 8)}</p>
+            <div class="separator"></div>
+            <p style="font-weight: black; font-size: 14px; margin: 5px 0;">${order.documentType?.toUpperCase() || "TICKET"} ELECTRÓNICO</p>
+            <p>No: ${order.id.slice(0, 8)}</p>
             <p>${new Date().toLocaleDateString("es-CL")} ${new Date().toLocaleTimeString("es-CL")}</p>
           </div>
+          
+          ${order.customer ? `
+            <div style="font-size: 10px; margin-bottom: 10px; border: 1px solid #000; padding: 5px;">
+              <p style="margin: 2px 0;"><strong>CLIENTE:</strong> ${order.customer.name}</p>
+              <p style="margin: 2px 0;"><strong>ID/RUC:</strong> ${formatRUT(order.customer.taxId)}</p>
+              ${order.customer.address ? `<p style="margin: 2px 0;"><strong>DIR:</strong> ${order.customer.address}</p>` : ""}
+            </div>
+          ` : ""}
+
           <div class="items">
             ${order.items.map((item: any) => `
               <div class="item">
                 <span>${item.name} x${item.quantity}</span>
-                <span>$ ${Math.round(item.price * item.quantity).toLocaleString("es-CL")}</span>
+                <span>$ ${formatNumber(item.price * item.quantity)}</span>
               </div>
             `).join("")}
           </div>
           <div class="total item">
             <span>TOTAL</span>
-            <span>$ ${Math.round(order.total).toLocaleString("es-CL")}</span>
+            <span>$ ${formatNumber(order.total)}</span>
           </div>
           <div class="separator"></div>
-          <div class="payment">
-            ${order.payments.efectivo > 0 ? `<div>Efectivo: $ ${Math.round(order.payments.efectivo).toLocaleString("es-CL")}</div>` : ""}
-            ${order.payments.tarjeta > 0 ? `<div>Tarjeta: $ ${Math.round(order.payments.tarjeta).toLocaleString("es-CL")}</div>` : ""}
-            ${order.payments.digital > 0 ? `<div>Transferencia/Digital: $ ${Math.round(order.payments.digital).toLocaleString("es-CL")}</div>` : ""}
-          </div>
+            <div class="payment">
+              ${order.payments.efectivo > 0 ? `<div>Efectivo: $ ${formatNumber(order.payments.efectivo)}</div>` : ""}
+              ${order.payments.tarjeta > 0 ? `<div>Tarjeta: $ ${formatNumber(order.payments.tarjeta)}</div>` : ""}
+              ${order.payments.transferencia > 0 ? `<div>Transferencia: $ ${formatNumber(order.payments.transferencia)}</div>` : ""}
+              ${order.payments.digital > 0 ? `<div>Pago Virtual: $ ${formatNumber(order.payments.digital)}</div>` : ""}
+            </div>
           <div class="footer">
             <p>¡Gracias por su compra!</p>
             <p>SISTEMA DE GESTIÓN STOCKFLOW</p>
@@ -414,12 +482,16 @@ export function POS() {
           productId: item.id,
           productName: item.name,
           type: "sale" as const,
+          documentType,
           quantity: item.quantity,
           amount: item.price * item.quantity,
           cost: item.costPrice * item.quantity,
           profit: (item.price - item.costPrice) * item.quantity,
           userId: profile?.uid,
           userName: profile?.name,
+          customerId: selectedCustomer?.id || null,
+          customerName: selectedCustomer?.name || "VENTA GENERAL",
+          customerTaxId: selectedCustomer?.taxId || null,
           paymentBreakdown: payments,
           timestamp: serverTimestamp(),
           orderId: orderId,
@@ -428,18 +500,60 @@ export function POS() {
         });
       });
 
+      // Award loyalty points and update stats automatically
+      if (selectedCustomer?.id) {
+        const pointsAwarded = calculatePoints(cartTotal);
+        const currentPoints = (selectedCustomer.points || 0) + pointsAwarded;
+        const newTier = getCustomerTier(currentPoints);
+        
+        const customerRef = doc(db, "customers", selectedCustomer.id);
+        batch.update(customerRef, {
+          points: increment(pointsAwarded),
+          totalSpent: increment(cartTotal),
+          segment: newTier.segment,
+          lastPurchaseAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+
       await batch.commit();
       
       const orderData = {
         id: orderId,
         items: cart,
         total: cartTotal,
-        payments: payments
+        payments: payments,
+        customer: selectedCustomer,
+        documentType,
+        timestamp: new Date().toISOString()
       };
       
       setLastOrder(orderData);
+      
+      // If customer has email, send receipt
+      if (selectedCustomer?.email) {
+        try {
+          await fetch("/api/send-receipt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customerEmail: selectedCustomer.email,
+              orderDetails: {
+                ...orderData,
+                customerName: selectedCustomer.name
+              },
+              businessName: settings.businessName
+            })
+          });
+        } catch (err) {
+          console.error("Error calling send-receipt API:", err);
+        }
+      }
+
       setCart([]);
-      setPayments({ efectivo: 0, tarjeta: 0, digital: 0 });
+      setSelectedCustomer(null);
+      setDocumentType("boleta");
+      setPayments({ efectivo: 0, tarjeta: 0, transferencia: 0, digital: 0 });
       setCashReceived("");
       
       confetti({
@@ -504,37 +618,79 @@ export function POS() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-10 max-h-[calc(100vh-320px)]">
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.05
+              }
+            }
+          }}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pr-2 pb-10 max-h-[calc(100vh-320px)]"
+        >
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((product) => (
               <motion.div
                 layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  show: { opacity: 1, y: 0 }
+                }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 key={product.id}
                 onClick={() => addToCart(product)}
-                className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm cursor-pointer hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all group relative overflow-hidden"
+                className="group bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1.5 transition-all relative overflow-hidden flex flex-col items-center text-center"
               >
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors shrink-0">
-                    <Package size={24} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-slate-800 text-sm truncate">{product.name}</h4>
-                    <p className="text-xs font-black text-indigo-600 mt-1">{formatCurrency(product.price)}</p>
-                  </div>
+                {/* Product Icon/Image Placeholder */}
+                <div className="w-20 h-20 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-all mb-4 relative overflow-hidden capitalize font-black text-3xl">
+                   {product.name.charAt(0)}
+                   <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                
+                <div className="space-y-1">
+                  <h4 className="font-black text-slate-800 text-xs leading-tight line-clamp-2 min-h-[2rem]">
+                    {product.name}
+                  </h4>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    SKU: {product.sku || 'N/A'}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-50 w-full flex items-center justify-between">
+                  <span className="text-sm font-black text-indigo-600">
+                    {formatCurrency(product.price)}
+                  </span>
                   <div className={cn(
-                    "px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
-                    Number(product.stock) <= Number(product.minThreshold) ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"
+                    "px-2 py-1 rounded-lg text-[10px] font-black tabular-nums",
+                    Number(product.stock) <= Number(product.minThreshold) 
+                      ? "bg-rose-50 text-rose-600" 
+                      : "bg-emerald-50 text-emerald-600"
                   )}>
                     {product.stock}
+                  </div>
+                </div>
+
+                {/* Hover Add Indicator */}
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                  <div className="bg-indigo-600 text-white rounded-xl p-2 shadow-lg shadow-indigo-200">
+                    <Plus size={14} />
                   </div>
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
-        </div>
+          
+          {filteredProducts.length === 0 && (
+            <div className="col-span-full py-20 text-center space-y-4 opacity-30">
+              <Package size={48} className="mx-auto text-slate-300" />
+              <p className="font-black uppercase tracking-widest text-sm">Sin productos encontrados</p>
+            </div>
+          )}
+        </motion.div>
       </div>
 
       {/* Checkout Area */}
@@ -542,11 +698,9 @@ export function POS() {
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl flex flex-col p-8 relative overflow-hidden">
           
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600">
-                <ShoppingCart size={20} />
-              </div>
-              <h2 className="text-xl font-black text-slate-800 tracking-tight">Checkout</h2>
+            <div className="flex items-center space-x-3 text-slate-800">
+              <ShoppingCart size={20} />
+              <h2 className="text-xl font-black tracking-tight">Checkout</h2>
             </div>
             <button 
               onClick={() => setCart([])}
@@ -555,6 +709,68 @@ export function POS() {
               Vaciar
             </button>
           </div>
+
+          {/* Type of Document */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button 
+              onClick={() => setDocumentType("boleta")}
+              className={cn(
+                "flex items-center justify-center space-x-2 py-3 rounded-2xl border transition-all",
+                documentType === "boleta" ? "bg-slate-900 border-slate-900 text-white shadow-lg" : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
+              )}
+            >
+              <Ticket size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Boleta / Ticket</span>
+            </button>
+            <button 
+              onClick={() => setDocumentType("factura")}
+              className={cn(
+                "flex items-center justify-center space-x-2 py-3 rounded-2xl border transition-all",
+                documentType === "factura" ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100" : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
+              )}
+            >
+              <FileText size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Factura</span>
+            </button>
+          </div>
+
+          {/* Customer Selection */}
+          <button 
+            onClick={() => setShowCustomerModal(true)}
+            className={cn(
+              "mb-6 p-4 rounded-2xl border flex items-center justify-between transition-all group",
+              selectedCustomer ? "bg-indigo-50 border-indigo-200 text-indigo-900" : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
+            )}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", selectedCustomer ? "bg-white text-indigo-600" : "bg-slate-50 text-slate-300")}>
+                <Users size={20} />
+              </div>
+              <div className="text-left">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                  {documentType === "factura" ? "Entidad de Facturación *" : "Cliente (Opcional)"}
+                </p>
+                <p className="font-bold text-sm truncate max-w-[200px]">
+                  {selectedCustomer ? selectedCustomer.name : "Venta General (Boleta/Ticket)"}
+                </p>
+                {selectedCustomer && (
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter", getCustomerTier(selectedCustomer.points).bg, getCustomerTier(selectedCustomer.points).color)}>
+                      {getCustomerTier(selectedCustomer.points).name}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded tracking-tighter">
+                      {selectedCustomer.points || 0} PTS
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+            {selectedCustomer ? (
+              <X size={16} className="text-indigo-400 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); setSelectedCustomer(null); }} />
+            ) : (
+              <Plus size={16} className="group-hover:text-indigo-500" />
+            )}
+          </button>
 
           {/* Cart Items */}
           <div className="space-y-3 mb-6 max-h-[160px] overflow-y-auto pr-2">
@@ -594,11 +810,12 @@ export function POS() {
               </button>
             </div>
             
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {[
                 { id: "efectivo", label: "Efectivo", icon: Banknote, color: "text-emerald-500" },
                 { id: "tarjeta", label: "Tarjeta", icon: CreditCard, color: "text-blue-500" },
-                { id: "digital", label: "Transf./Dig.", icon: Smartphone, color: "text-purple-500" }
+                { id: "transferencia", label: "Transferencia", icon: RefreshCw, color: "text-amber-500" },
+                { id: "digital", label: "Virtual (QR/MP)", icon: Smartphone, color: "text-purple-500" }
               ].map((m) => (
                 <div key={m.id} className="space-y-1.5">
                   <div className="flex items-center space-x-1.5 text-[10px] font-bold text-slate-500 uppercase px-1">
@@ -674,11 +891,26 @@ export function POS() {
 
               <button
                 onClick={handleCheckout}
-                disabled={isProcessing || cart.length === 0 || remaining > 0}
-                className="w-full h-16 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-50 hover:scale-[1.02] transition-all disabled:opacity-20 disabled:scale-100 flex items-center justify-center space-x-2 shadow-xl shadow-black/20"
+                disabled={isProcessing || cart.length === 0 || remaining > 0 || (documentType === "factura" && !selectedCustomer) || !isCashRegisterOpen}
+                className={cn(
+                  "w-full h-16 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center space-x-2 shadow-xl",
+                  (isProcessing || cart.length === 0 || remaining > 0 || (documentType === "factura" && !selectedCustomer) || !isCashRegisterOpen)
+                    ? "bg-slate-800 text-slate-500 shadow-none cursor-not-allowed"
+                    : "bg-white text-slate-900 hover:bg-indigo-50 hover:scale-[1.02] shadow-black/20"
+                )}
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={20} /> : "Finalizar y Emitir Ticket"}
               </button>
+              {!isCashRegisterOpen && (
+                <p className="text-center text-[10px] font-black text-rose-400 uppercase tracking-widest mt-4">
+                   ⚠ Debe abrir la caja para realizar ventas
+                </p>
+              )}
+              {documentType === "factura" && !selectedCustomer && isCashRegisterOpen && (
+                <p className="text-center text-[10px] font-black text-rose-400 uppercase tracking-widest mt-4">
+                   ⚠ Se requiere cliente para Factura
+                </p>
+              )}
             </div>
           </div>
 
@@ -858,6 +1090,141 @@ export function POS() {
               )}
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Customer Selection Modal */}
+      <AnimatePresence>
+        {showCustomerModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCustomerModal(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white rounded-[3rem] shadow-2xl max-w-2xl w-full overflow-hidden relative z-10 flex flex-col max-h-[85vh]"
+            >
+              <div className="p-10 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-indigo-600">
+                    <Users size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-800 tracking-tight leading-none">Gestión de Clientes</h3>
+                    <p className="text-[10px] font-black uppercase tracking-widest mt-2 text-slate-400">Selección para venta y facturación</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsNewCustomerMode(!isNewCustomerMode)}
+                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors"
+                >
+                  {isNewCustomerMode ? "Volver al Listado" : "Registrar Nuevo"}
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-10">
+                {isNewCustomerMode ? (
+                  <form onSubmit={handleCreateCustomer} className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre / Razón Social</label>
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="Ej: Inversiones Globales S.A."
+                          className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                          value={newCustomer.name}
+                          onChange={e => setNewCustomer({...newCustomer, name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">ID Tributario (RUC/NIT/DNI)</label>
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="11.111.111-K"
+                          className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                          value={newCustomer.taxId}
+                          onChange={e => setNewCustomer({...newCustomer, taxId: formatRUT(e.target.value)})}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Teléfono</label>
+                        <input 
+                          type="tel" 
+                          placeholder="+56 9 XXXX XXXX"
+                          className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                          value={newCustomer.phone}
+                          onChange={e => setNewCustomer({...newCustomer, phone: formatChileanPhone(e.target.value)})}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Dirección Facturación</label>
+                        <input 
+                          type="text" 
+                          placeholder="Avenida Principal #123, Oficina 401"
+                          className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                          value={newCustomer.address}
+                          onChange={e => setNewCustomer({...newCustomer, address: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    <button className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs mt-4 shadow-xl">
+                      Registrar y Seleccionar
+                    </button>
+                  </form>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="relative">
+                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                      <input 
+                        type="text"
+                        placeholder="Buscar por nombre, empresa o identificación..."
+                        className="w-full h-16 bg-slate-50 border border-slate-100 rounded-3xl pl-16 pr-6 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                        value={customerSearch}
+                        onChange={e => setCustomerSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      {filteredCustomers.map(c => (
+                        <button 
+                          key={c.id}
+                          onClick={() => { setSelectedCustomer(c); setShowCustomerModal(false); }}
+                          className="w-full p-6 bg-white border border-slate-100 rounded-[2rem] flex items-center justify-between hover:border-indigo-200 hover:bg-indigo-50/30 transition-all"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+                              <Store size={24} />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-bold text-slate-800">{c.name}</p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className="text-[10px] font-black uppercase tracking-tight text-slate-400">ID TAX:</span>
+                                <span className="text-[10px] font-black uppercase tracking-tight text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{formatRUT(c.taxId)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <ChevronRight className="text-slate-200" size={20} />
+                        </button>
+                      ))}
+                      {filteredCustomers.length === 0 && (
+                        <div className="text-center py-20 opacity-20">
+                          <Users size={64} className="mx-auto mb-4" />
+                          <p className="text-sm font-black uppercase tracking-widest">No hay resultados</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

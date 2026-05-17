@@ -25,7 +25,7 @@ import {
   ArrowDownRight,
   Printer
 } from "lucide-react";
-import { cn, formatCurrency, formatDate } from "../lib/utils";
+import { cn, formatCurrency, formatDate, formatNumber } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { useSettings } from "../contexts/SettingsContext";
 
@@ -112,25 +112,25 @@ export function Transactions() {
             <h1 class="business-name">${settings.businessName.toUpperCase()}</h1>
             <p>${settings.address || ""}</p>
             <p>Ticket No: ${tx.orderId?.slice(0, 8)}</p>
-            <p>${tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString("es-CL") : new Date().toLocaleString("es-CL")}</p>
+            <p>${tx.timestamp?.toDate ? formatDate(tx.timestamp.toDate()) : formatDate(new Date())}</p>
           </div>
           <div class="items">
             ${orderItems.map((item: any) => `
               <div class="item">
                 <span>${item.productName} x${item.quantity}</span>
-                <span>$ ${Math.round(item.amount).toLocaleString("es-CL")}</span>
+                <span>$ ${formatNumber(item.amount)}</span>
               </div>
             `).join("")}
           </div>
           <div class="total item">
             <span>TOTAL</span>
-            <span>$ ${Math.round(orderItems.reduce((acc, i) => acc + i.amount, 0)).toLocaleString("es-CL")}</span>
+            <span>$ ${formatNumber(orderItems.reduce((acc, i) => acc + i.amount, 0))}</span>
           </div>
           <div class="separator"></div>
           <div class="payment">
-            ${tx.paymentBreakdown?.efectivo > 0 ? `<div>Efectivo: $ ${Math.round(tx.paymentBreakdown.efectivo).toLocaleString("es-CL")}</div>` : ""}
-            ${tx.paymentBreakdown?.tarjeta > 0 ? `<div>Tarjeta: $ ${Math.round(tx.paymentBreakdown.tarjeta).toLocaleString("es-CL")}</div>` : ""}
-            ${tx.paymentBreakdown?.digital > 0 ? `<div>Transferencia/Digital: $ ${Math.round(tx.paymentBreakdown.digital).toLocaleString("es-CL")}</div>` : ""}
+            ${tx.paymentBreakdown?.efectivo > 0 ? `<div>Efectivo: $ ${formatNumber(tx.paymentBreakdown.efectivo)}</div>` : ""}
+            ${tx.paymentBreakdown?.tarjeta > 0 ? `<div>Tarjeta: $ ${formatNumber(tx.paymentBreakdown.tarjeta)}</div>` : ""}
+            ${tx.paymentBreakdown?.digital > 0 ? `<div>Transferencia/Digital: $ ${formatNumber(tx.paymentBreakdown.digital)}</div>` : ""}
           </div>
           <div class="footer">
             <p>¡Gracias por su compra!</p>
@@ -163,7 +163,7 @@ export function Transactions() {
     const headers = ["ID Orden", "Fecha", "Tipo", "Producto", "Monto", "Efectivo", "Tarjeta", "Digital", "Cajero", "Notas"];
     const rows = filteredTransactions.map(tx => [
       tx.orderId || tx.id,
-      tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString() : "",
+      tx.timestamp?.toDate ? formatDate(tx.timestamp.toDate()) : "",
       tx.type === "sale" ? "Venta" : tx.type === "in" ? "Entrada" : "Salida",
       tx.productName,
       tx.amount || 0,
