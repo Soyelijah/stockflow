@@ -816,21 +816,50 @@ export function POS() {
                 { id: "tarjeta", label: "Tarjeta", icon: CreditCard, color: "text-blue-500" },
                 { id: "transferencia", label: "Transferencia", icon: RefreshCw, color: "text-amber-500" },
                 { id: "digital", label: "Virtual (QR/MP)", icon: Smartphone, color: "text-purple-500" }
-              ].map((m) => (
-                <div key={m.id} className="space-y-1.5">
-                  <div className="flex items-center space-x-1.5 text-[10px] font-bold text-slate-500 uppercase px-1">
-                    <m.icon size={12} className={m.color} />
-                    <span>{m.label}</span>
+              ].map((m) => {
+                const currentVal = payments[m.id as keyof PaymentBreakdown] || 0;
+                const totalPaid = Object.values(payments).reduce((a, b) => a + b, 0);
+                const remaining = total - totalPaid + currentVal;
+
+                return (
+                  <div key={m.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between px-1">
+                      <div className="flex items-center space-x-1.5 text-[10px] font-bold text-slate-500 uppercase">
+                        <m.icon size={12} className={m.color} />
+                        <span>{m.label}</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const balance = total - Object.values(payments).reduce((a, b) => a + (b || 0), 0);
+                          if (balance > 0) {
+                            handlePaymentChange(m.id as keyof PaymentBreakdown, (currentVal + balance).toString());
+                          }
+                        }}
+                        className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg hover:bg-indigo-100 transition-colors"
+                      >
+                        + TOTAL
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        placeholder="0"
+                        className="w-full bg-slate-50 border-none rounded-xl py-2 px-3 text-xs font-black text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all pr-8"
+                        value={payments[m.id as keyof PaymentBreakdown] || ""}
+                        onChange={(e) => handlePaymentChange(m.id as keyof PaymentBreakdown, e.target.value)}
+                      />
+                      {currentVal > 0 && (
+                        <button 
+                          onClick={() => handlePaymentChange(m.id as keyof PaymentBreakdown, "0")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <input 
-                    type="number" 
-                    placeholder="0"
-                    className="w-full bg-slate-50 border-none rounded-xl py-2 px-3 text-xs font-black text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    value={payments[m.id as keyof PaymentBreakdown] || ""}
-                    onChange={(e) => handlePaymentChange(m.id as keyof PaymentBreakdown, e.target.value)}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Change Calculator & Numpad */}

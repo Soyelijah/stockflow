@@ -61,9 +61,8 @@ service cloud.firestore {
         (incoming().role == 'seller' || incoming().role == 'logistics' || (incoming().role == 'admin' && incoming().email == 'solier.elijah@gmail.com')) &&
         incoming().uid == userId
       );
-      allow update: if isAdmin() && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['role', 'name'])
-      );
+      allow update: if (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'name', 'email', 'photoURL', 'phone', 'rut', 'birthday', 'address', 'updatedAt'])) ||
+                   (isSignedIn() && request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'phone', 'rut', 'birthday', 'address', 'updatedAt']));
     }
 
     match /products/{productId} {

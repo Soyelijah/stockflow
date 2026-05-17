@@ -20,7 +20,24 @@ export function Profile() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: profile?.name || "",
+    photoURL: profile?.photoURL || "",
+    phone: profile?.phone || "",
+    rut: profile?.rut || "",
+    birthday: profile?.birthday || "",
+    address: profile?.address || "",
   });
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, photoURL: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +47,11 @@ export function Profile() {
     try {
       await updateDoc(doc(db, "users", user.uid), {
         name: formData.name,
+        photoURL: formData.photoURL,
+        phone: formData.phone,
+        rut: formData.rut,
+        birthday: formData.birthday,
+        address: formData.address,
         updatedAt: new Date().toISOString()
       });
       setShowSuccess(true);
@@ -53,11 +75,26 @@ export function Profile() {
         {/* Left: Avatar & Role */}
         <div className="md:col-span-1 space-y-6">
           <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm text-center">
-            <div className="relative inline-block mb-6">
-              <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-indigo-200">
-                {profile?.name.charAt(0)}
+            <div className="relative inline-block mb-6 group">
+              <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-indigo-200 overflow-hidden">
+                {formData.photoURL ? (
+                  <img src={formData.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  profile?.name.charAt(0)
+                )}
               </div>
-              <button className="absolute -bottom-2 -right-2 p-3 bg-white rounded-2xl border border-slate-100 shadow-lg text-slate-400 hover:text-indigo-600 transition-colors">
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handlePhotoUpload}
+                className="hidden" 
+                accept="image/*"
+              />
+              <button 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-2 -right-2 p-3 bg-white rounded-2xl border border-slate-100 shadow-lg text-slate-400 hover:text-indigo-600 transition-colors group-hover:scale-110"
+              >
                 <Camera size={18} />
               </button>
             </div>
@@ -92,7 +129,7 @@ export function Profile() {
         {/* Right: Settings Form */}
         <div className="md:col-span-2">
           <form onSubmit={handleSave} className="bg-white rounded-[2.5rem] border border-slate-100 p-10 shadow-sm space-y-8">
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nombre Completo</label>
                 <div className="relative">
@@ -109,6 +146,60 @@ export function Profile() {
               </div>
 
               <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">RUT / Identificación</label>
+                <div className="relative">
+                  <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    value={formData.rut}
+                    onChange={(e) => setFormData({ ...formData, rut: e.target.value })}
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                    placeholder="12.345.678-9"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Teléfono</label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">+56</div>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                    placeholder="9 1234 5678"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Fecha de Nacimiento</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="date"
+                    value={formData.birthday}
+                    onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Dirección Particular</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                    placeholder="Calle #123, Comuna, Ciudad"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Correo Electrónico (Solo Lectura)</label>
                 <div className="relative opacity-60">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />

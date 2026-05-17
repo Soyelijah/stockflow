@@ -24,7 +24,9 @@ import {
   Truck,
   AlertCircle,
   History,
-  RefreshCw
+  RefreshCw,
+  PackageCheck,
+  AlertTriangle
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
@@ -46,7 +48,8 @@ export function Logistics() {
     quantity: 1,
     reason: "",
     supplierId: "",
-    reference: "" // Invoice number etc
+    reference: "",
+    movementType: "" as string, 
   });
 
   const [quickCreateData, setQuickCreateData] = useState({
@@ -176,12 +179,13 @@ export function Logistics() {
         }
       }
 
-      batch.update(productRef, productUpdates);
+      const isEntry = mode === "reception";
+      const actualType = formData.movementType || (isEntry ? "adjustment" : "loss");
 
       batch.set(movementRef, {
         productId: selectedProduct.id,
         productName: selectedProduct.name,
-        type: mode === "reception" ? "adjustment" : (formData.reason === "Venta No Presencial" ? "sale" : "loss"), 
+        type: actualType, 
         subType: mode === "reception" ? "reception" : "dispatch",
         quantity: formData.quantity,
         previousStock: selectedProduct.stock || 0,
@@ -385,6 +389,36 @@ export function Logistics() {
               <form onSubmit={handleSubmit} className="p-10 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Tipo de Movimiento</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(mode === "reception" ? [
+                        { id: "adjustment", label: "Ajuste / Ingreso", icon: RefreshCw },
+                        { id: "purchase", label: "Compra / Proveedor", icon: PackageCheck }
+                      ] : [
+                        { id: "sale", label: "Venta (Mayor/Directa)", icon: PackageCheck },
+                        { id: "loss", label: "Pérdida / Merma", icon: AlertTriangle },
+                        { id: "withdrawal", label: "Retiro Interno", icon: Truck },
+                        { id: "adjustment", label: "Ajuste / Error", icon: RefreshCw }
+                      ]).map((type) => (
+                        <button
+                          key={type.id}
+                          type="button"
+                          onClick={() => setFormData({...formData, movementType: type.id})}
+                          className={cn(
+                            "flex items-center space-x-2 px-3 py-3 rounded-xl border text-[10px] font-black uppercase tracking-tighter transition-all text-left",
+                            formData.movementType === type.id 
+                              ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100" 
+                              : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
+                          )}
+                        >
+                          <type.icon size={14} className={formData.movementType === type.id ? "text-white" : "text-slate-300"} />
+                          <span>{type.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Cantidad a {mode === "reception" ? "Ingresar" : "Retirar"}
                     </label>
@@ -416,14 +450,66 @@ export function Logistics() {
 
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Referencia / Documento</label>
-                    <input 
-                      type="text"
-                      placeholder="Ej: Factura #1234, Guía de Despacho"
-                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
-                      value={formData.reference}
-                      onChange={(e) => setFormData({...formData, reference: e.target.value})}
-                    />
+                    <div className="relative group">
+                      <input 
+                        type="text"
+                        placeholder="Ej: Factura #1234, Guía de Despacho"
+                        className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 pr-32"
+                        value={formData.reference}
+                        onChange={(e) => setFormData({...formData, reference: e.target.value})}
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const num = Math.floor(100000 + Math.random() * 900000);
+                            setFormData({...formData, reference: `GUIA-${num}`});
+                          }}
+                          className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
+                        >
+                          GUIA
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const num = Math.floor(100000 + Math.random() * 900000);
+                            setFormData({...formData, reference: `FACT-${num}`});
+                          }}
+                          className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-emerald-600 hover:border-emerald-100 transition-all shadow-sm"
+                        >
+                          FACT
+                        </button>
+                      </div>
+                    </div>
                   </div>
+
+                  {mode === "dispatch" && (
+                    <div className={cn(
+                      "p-4 rounded-2xl flex items-center space-x-3 transition-colors",
+                      (formData.reason === "Venta No Presencial" || formData.reference.trim() !== "")
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700"
+                    )}>
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                        (formData.reason === "Venta No Presencial" || formData.reference.trim() !== "")
+                          ? "bg-emerald-100"
+                          : "bg-amber-100"
+                      )}>
+                        {(formData.reason === "Venta No Presencial" || formData.reference.trim() !== "") ? <PackageCheck size={20} /> : <AlertTriangle size={20} />}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                          Identificación de Movimiento
+                        </p>
+                        <p className="text-xs font-bold">
+                          {(formData.reason === "Venta No Presencial" || formData.reference.trim() !== "") 
+                            ? "VENTA: Se descontará por salida comercial." 
+                            : "MERMA: Se registrará como pérdida/ajuste."}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-6">
