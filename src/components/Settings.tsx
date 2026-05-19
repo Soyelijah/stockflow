@@ -15,7 +15,8 @@ import {
   RefreshCw,
   Users,
   AlertCircle,
-  Smartphone
+  Smartphone,
+  Printer
 } from "lucide-react";
 import { collection, getDoc, getDocs, doc, setDoc, query, orderBy } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -38,7 +39,10 @@ export function Settings() {
     taxEnabled: true,
     taxRate: 19,
     aiEnabled: false,
-    notificationsEnabled: true
+    notificationsEnabled: true,
+    printerType: 'thermal',
+    printerInterface: 'system',
+    autoPrintInvoice: false
   });
 
   useEffect(() => {
@@ -174,6 +178,67 @@ export function Settings() {
 
         {/* Feature Toggles */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Printer Management */}
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                <Printer size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">Impresión y Tickets</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Configuración de comprobantes</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Impresora</label>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold"
+                  value={settings.printerType}
+                  onChange={e => setSettings({...settings, printerType: e.target.value as any})}
+                >
+                  <option value="thermal">Térmica (58mm/80mm)</option>
+                  <option value="regular">Inyección / Láser (A4/Carta)</option>
+                  <option value="none">Sin Impresora (Digital)</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interfaz de Conexión</label>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold"
+                  value={settings.printerInterface}
+                  onChange={e => setSettings({...settings, printerInterface: e.target.value as any})}
+                >
+                  <option value="system">Sistema (Windows/Android)</option>
+                  <option value="usb">USB Directo (Nativo)</option>
+                  <option value="bluetooth">Bluetooth (Nativo)</option>
+                  <option value="network">Red IP / Wireless</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-black text-slate-800">Impresión Automática</p>
+                  <p className="text-[10px] text-slate-400 font-bold">Imprimir ticket al cerrar la venta</p>
+                </div>
+                <div 
+                  className={cn(
+                    "w-10 h-5 rounded-full relative cursor-pointer transition-all",
+                    settings.autoPrintInvoice ? "bg-indigo-600" : "bg-slate-200"
+                  )}
+                  onClick={() => setSettings({...settings, autoPrintInvoice: !settings.autoPrintInvoice})}
+                >
+                  <div className={cn(
+                    "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all",
+                    settings.autoPrintInvoice ? "left-5.5" : "left-0.5"
+                  )} />
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* AI Settings */}
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
             <div className="flex items-center space-x-4">

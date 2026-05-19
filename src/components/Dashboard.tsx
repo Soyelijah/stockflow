@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { collection, query, onSnapshot, limit, orderBy } from "firebase/firestore";
+import { collection, query, onSnapshot, limit, orderBy, where } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
   Package, 
@@ -132,12 +132,26 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       handleFirestoreError(error, OperationType.LIST, "products (Dashboard)");
     });
 
+    const isAdminEffect = profile?.role === "admin" || profile?.role === "manager";
+    const isLogisticsEffect = profile?.role === "logistics";
+
     // Listen to recent transactions
-    const qTransactions = query(
+    let qTransactions = query(
       collection(db, "transactions"), 
       orderBy("timestamp", "desc"), 
       limit(200)
     );
+    
+    // Filter for sellers if not admin/manager/logistics
+    if (!isAdminEffect && !isLogisticsEffect) {
+      qTransactions = query(
+        collection(db, "transactions"),
+        where("userId", "==", profile?.uid),
+        orderBy("timestamp", "desc"),
+        limit(200)
+      );
+    }
+
     const unsubTransactions = onSnapshot(qTransactions, (snapshot) => {
       let salesCount = 0;
       let totalSalesAmount = 0;
@@ -704,49 +718,51 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             </div>
           </div>
         )}
-        
-      {/* Main Activity Feed */}
-        <div className="lg:col-span-8 space-y-10">
-          {/* VIP Customers Section */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-emerald-600 rounded-2xl text-white shadow-lg shadow-emerald-100">
-                  <Users size={20} />
+
+        {/* Main Activity Feed */}
+        <div className={cn(isAdmin ? "lg:col-span-8" : "lg:col-span-12", "space-y-10")}>
+          {/* VIP Customers Section - Admin Only */}
+          {isAdmin && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-emerald-600 rounded-2xl text-white shadow-lg shadow-emerald-100">
+                    <Users size={20} />
+                  </div>
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Clientes VIP</h2>
                 </div>
-                <h2 className="text-xl font-black text-slate-800 tracking-tight">Clientes VIP</h2>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mayores Compradores</p>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mayores Compradores</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {topCustomers.map((cust, i) => (
-                <div key={cust.id || i} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between hover:border-emerald-200 transition-all group">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-lg">
-                      {cust.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {topCustomers.map((cust, i) => (
+                  <div key={cust.id || i} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between hover:border-emerald-200 transition-all group">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-lg">
+                        {cust.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm truncate max-w-[150px]">{cust.name}</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{cust.visits} compras totales</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-slate-800 text-sm truncate max-w-[150px]">{cust.name}</h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{cust.visits} compras totales</p>
+                    <div className="text-right">
+                      <p className="font-black text-emerald-600 text-sm">{formatCurrency(cust.total)}</p>
+                      <div className="flex items-center justify-end space-x-1 mt-1">
+                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Frecuente</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-emerald-600 text-sm">{formatCurrency(cust.total)}</p>
-                    <div className="flex items-center justify-end space-x-1 mt-1">
-                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Frecuente</span>
-                    </div>
+                ))}
+                {topCustomers.length === 0 && (
+                  <div className="col-span-2 p-12 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Sin clientes registrados aún</p>
                   </div>
-                </div>
-              ))}
-              {topCustomers.length === 0 && (
-                <div className="col-span-2 p-12 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
-                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Sin clientes registrados aún</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -754,13 +770,15 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 <div className="p-3 bg-slate-900 rounded-2xl text-white">
                   <Activity size={20} />
                 </div>
-                <h2 className="text-xl font-black text-slate-800 tracking-tight">Actividad del Sistema</h2>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">
+                  {isAdmin ? "Actividad del Sistema" : "Mis Ventas Recientes"}
+                </h2>
               </div>
               <button 
                 onClick={() => onNavigate?.("transactions")}
                 className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-400 transition-colors"
               >
-                Ver Registro Completo
+                {isAdmin ? "Ver Registro Completo" : "Ver Mi Historial"}
               </button>
             </div>
 
@@ -813,132 +831,136 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
           </div>
         </div>
 
-        {/* Status Side Panel */}
-        <div className="lg:col-span-4 space-y-10">
-          {/* Stock Health KPI */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Salud del Inventario</h3>
-              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">
-                {Math.round(((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100) || 0}% Optimo
-              </span>
-            </div>
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex">
-                <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100}%` }} />
-                <div className="bg-amber-400 h-full transition-all duration-1000" style={{ width: `${(stats.lowStockCount / stats.totalProducts) * 100}%` }} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Items OK</p>
-                   <p className="text-lg font-black text-slate-800">{stats.totalProducts - stats.lowStockCount}</p>
+          {/* Status Side Panel - Restricted for Sellers */}
+          {(isAdmin || isLogistics) && (
+            <div className="lg:col-span-4 space-y-10">
+              {/* Stock Health KPI */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Salud del Inventario</h3>
+                  <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">
+                    {Math.round(((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100) || 0}% Optimo
+                  </span>
                 </div>
-                <div>
-                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Críticos</p>
-                   <p className="text-lg font-black text-amber-600">{stats.lowStockCount}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-             <div className="flex items-center justify-between mb-6">
-               <div className="flex items-center space-x-3">
-                 <div className="p-3 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-100">
-                   <AlertTriangle size={20} />
-                 </div>
-                 <h2 className="text-xl font-black text-slate-800 tracking-tight">Stock Inteligente</h2>
-               </div>
-               <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-2 py-1 rounded-lg uppercase">Predicción</span>
-             </div>
-
-             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
-               {predictiveStockAlerts.map((product) => (
-                 <div key={product.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-transparent hover:border-amber-200 transition-all group">
-                   <div className="flex-1 min-w-0 pr-4">
-                     <p className="text-xs font-black text-slate-800 leading-tight truncate">{product.name}</p>
-                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
-                       Stock: {product.stock} | ~{Math.round(product.velocity * 7)} vtas/sem
-                     </p>
-                   </div>
-                   <div className="text-right">
-                     <p className={cn(
-                       "text-[9px] font-black uppercase tracking-tighter",
-                       product.daysRemaining < 5 ? "text-rose-600" : "text-amber-500"
-                     )}>
-                       {product.daysRemaining < 30 ? `Agotado en ~${product.daysRemaining}d` : "Stock Crítico"}
-                     </p>
-                   </div>
-                 </div>
-               ))}
-               {predictiveStockAlerts.length === 0 && (
-                 <div className="text-center py-10">
-                   <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-4">
-                     <TrendingUp size={32} />
-                   </div>
-                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Nivel de stock óptimo</p>
-                 </div>
-               )}
-               <button 
-                 onClick={() => onNavigate?.("inventory")}
-                 className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
-               >
-                 Abastecer Inventario
-               </button>
-             </div>
-          </div>
-
-          {/* Trending Products */}
-          <div className="flex items-center space-x-3 mt-10">
-            <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-              <Zap size={20} />
-            </div>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">Más Vendidos</h2>
-          </div>
-          
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
-            {topProducts.map((p, idx) => (
-              <div key={p.name} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="text-xs font-black text-slate-200 w-4">0{idx + 1}</span>
-                  <p className="text-xs font-black text-slate-800">{p.name}</p>
-                </div>
-                <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
-                  {p.count} vtas
-                </span>
-              </div>
-            ))}
-            {topProducts.length === 0 && (
-              <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest py-4">
-                Pendiente de datos
-              </p>
-            )}
-          </div>
-
-          {/* High Margin Analysis */}
-          <div className="space-y-4 pt-4">
-            <div className="flex items-center justify-between px-1">
-               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Alta Rentabilidad</h3>
-               <span className="text-[9px] font-bold text-emerald-500 uppercase">Margen Jefe</span>
-            </div>
-            <div className="space-y-3">
-               {allProducts.sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice))).slice(0, 3).map((p) => (
-                 <div key={p.id} className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+                  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex">
+                    <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100}%` }} />
+                    <div className="bg-amber-400 h-full transition-all duration-1000" style={{ width: `${(stats.lowStockCount / stats.totalProducts) * 100}%` }} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-[10px] font-black text-slate-800">{p.name}</p>
-                      <p className="text-[9px] font-bold text-emerald-600 uppercase mt-0.5">
-                        +{Math.round(((Number(p.price) - Number(p.costPrice)) / Number(p.price)) * 100) || 0}% margen
-                      </p>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Items OK</p>
+                       <p className="text-lg font-black text-slate-800">{stats.totalProducts - stats.lowStockCount}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Utilidad</p>
-                      <p className="text-xs font-black text-emerald-600">{formatCurrency(p.price - p.costPrice)}</p>
+                    <div>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Críticos</p>
+                       <p className="text-lg font-black text-amber-600">{stats.lowStockCount}</p>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                 <div className="flex items-center justify-between mb-6">
+                   <div className="flex items-center space-x-3">
+                     <div className="p-3 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-100">
+                       <AlertTriangle size={20} />
+                     </div>
+                     <h2 className="text-xl font-black text-slate-800 tracking-tight">Stock Inteligente</h2>
+                   </div>
+                   <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-2 py-1 rounded-lg uppercase">Predicción</span>
                  </div>
-               ))}
+
+                 <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
+                   {predictiveStockAlerts.map((product) => (
+                     <div key={product.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-transparent hover:border-amber-200 transition-all group">
+                       <div className="flex-1 min-w-0 pr-4">
+                         <p className="text-xs font-black text-slate-800 leading-tight truncate">{product.name}</p>
+                         <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
+                           Stock: {product.stock} | ~{Math.round(product.velocity * 7)} vtas/sem
+                         </p>
+                       </div>
+                       <div className="text-right">
+                         <p className={cn(
+                           "text-[9px] font-black uppercase tracking-tighter",
+                           product.daysRemaining < 5 ? "text-rose-600" : "text-amber-500"
+                         )}>
+                           {product.daysRemaining < 30 ? `Agotado en ~${product.daysRemaining}d` : "Stock Crítico"}
+                         </p>
+                       </div>
+                     </div>
+                   ))}
+                   {predictiveStockAlerts.length === 0 && (
+                     <div className="text-center py-10">
+                       <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-4">
+                         <TrendingUp size={32} />
+                       </div>
+                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Nivel de stock óptimo</p>
+                     </div>
+                   )}
+                   <button 
+                     onClick={() => onNavigate?.("inventory")}
+                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+                   >
+                     Abastecer Inventario
+                   </button>
+                 </div>
+              </div>
+
+              {/* Trending Products */}
+              <div className="flex items-center space-x-3 mt-10">
+                <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
+                  <Zap size={20} />
+                </div>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">Más Vendidos</h2>
+              </div>
+              
+              <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
+                {topProducts.map((p, idx) => (
+                  <div key={p.name} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs font-black text-slate-200 w-4">0{idx + 1}</span>
+                      <p className="text-xs font-black text-slate-800">{p.name}</p>
+                    </div>
+                    <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
+                      {p.count} vtas
+                    </span>
+                  </div>
+                ))}
+                {topProducts.length === 0 && (
+                  <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest py-4">
+                    Pendiente de datos
+                  </p>
+                )}
+              </div>
+
+              {/* High Margin Analysis - Admin Only */}
+              {isAdmin && (
+                <div className="space-y-4 pt-4">
+                  <div className="flex items-center justify-between px-1">
+                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Alta Rentabilidad</h3>
+                     <span className="text-[9px] font-bold text-emerald-500 uppercase">Margen Jefe</span>
+                  </div>
+                  <div className="space-y-3">
+                     {allProducts.sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice))).slice(0, 3).map((p) => (
+                       <div key={p.id} className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] font-black text-slate-800">{p.name}</p>
+                            <p className="text-[9px] font-bold text-emerald-600 uppercase mt-0.5">
+                              +{Math.round(((Number(p.price) - Number(p.costPrice)) / Number(p.price)) * 100) || 0}% margen
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Utilidad</p>
+                            <p className="text-xs font-black text-emerald-600">{formatCurrency(p.price - p.costPrice)}</p>
+                          </div>
+                       </div>
+                     ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          )}
       </div>
       </div>
 

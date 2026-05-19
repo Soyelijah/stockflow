@@ -39,6 +39,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, calculatePoints, getCustomerTier } from "../lib/utils";
 import confetti from "canvas-confetti";
+import { printReceipt } from "../lib/printUtils";
 
 interface CartItem {
   id: string;
@@ -67,6 +68,7 @@ export function MobilePOS() {
   const [paymentMethod, setPaymentMethod] = useState<"efectivo" | "tarjeta" | "transferencia" | "digital">("efectivo");
   const [activeTab, setActiveTab] = useState<"shop" | "cart" | "profile">("shop");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [lastOrder, setLastOrder] = useState<any>(null);
 
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -238,6 +240,7 @@ export function MobilePOS() {
       setSelectedCustomer(null);
       setDocumentType("boleta");
       setPaymentMethod("efectivo");
+      setLastOrder(orderDetails);
       setShowSuccess(true);
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
     } catch (error) {
@@ -559,6 +562,27 @@ export function MobilePOS() {
               El stock ha sido actualizado.
               {emailSentTo && ` El recibo ha sido enviado a: ${emailSentTo}`}
             </p>
+            <button 
+              onClick={() => {
+                if (lastOrder) {
+                  printReceipt({
+                    orderId: lastOrder.orderId,
+                    timestamp: lastOrder.timestamp,
+                    items: lastOrder.items,
+                    total: lastOrder.total,
+                    paymentMethod: lastOrder.paymentMethod || 'Efectivo',
+                    customerName: lastOrder.customerName,
+                    businessName: settings.businessName,
+                    address: settings.address,
+                    phone: settings.phone
+                  });
+                }
+              }}
+              className="w-full h-16 bg-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs border border-white/20 mb-4 flex items-center justify-center space-x-2"
+            >
+              <Ticket size={18} />
+              <span>Imprimir Ticket</span>
+            </button>
             <button 
               onClick={() => { setShowSuccess(false); setActiveTab("shop"); }}
               className="w-full h-16 bg-white text-emerald-600 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-emerald-800/20"

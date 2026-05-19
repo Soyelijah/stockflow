@@ -42,6 +42,7 @@ import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, getCus
 import confetti from "canvas-confetti";
 import { CashRegisterManagement } from "./CashRegister";
 import { MercadoPagoWallet } from "./MercadoPagoWallet";
+import { printReceipt } from "../lib/printUtils";
 
 interface CartItem {
   id: string;
@@ -290,105 +291,24 @@ export function POS() {
   };
 
   const handlePrint = (order: any) => {
-    // Create hidden iframe for printing
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
-
-    const receiptHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Ticket de Venta - ${order.id}</title>
-          <style>
-            @page { size: 80mm auto; margin: 0; }
-            body { 
-              font-family: 'Courier New', Courier, monospace; 
-              padding: 10px; 
-              width: 75mm; 
-              color: #000; 
-              margin: 0;
-              font-size: 12px;
-            }
-            .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
-            .item { display: flex; justify-content: space-between; margin: 3px 0; }
-            .total { margin-top: 10px; border-top: 1px solid #000; padding-top: 8px; font-weight: bold; font-size: 14px; }
-            .footer { text-align: center; margin-top: 25px; font-size: 10px; border-top: 1px dashed #ccc; pt: 10px; }
-            .payment { font-size: 10px; margin-top: 8px; color: #333; }
-            .business-name { font-size: 16px; font-weight: 900; margin: 0 0 5px 0; }
-            .separator { border-bottom: 1px dashed #000; margin: 10px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1 class="business-name">${settings.businessName.toUpperCase()}</h1>
-            <p>${settings.address || ""}</p>
-            <div class="separator"></div>
-            <p style="font-weight: black; font-size: 14px; margin: 5px 0;">${order.documentType?.toUpperCase() || "TICKET"} ELECTRÓNICO</p>
-            <p>No: ${order.id.slice(0, 8)}</p>
-            <p>${new Date().toLocaleDateString("es-CL")} ${new Date().toLocaleTimeString("es-CL")}</p>
-          </div>
-          
-          ${order.customer ? `
-            <div style="font-size: 10px; margin-bottom: 10px; border: 1px solid #000; padding: 5px;">
-              <p style="margin: 2px 0;"><strong>CLIENTE:</strong> ${order.customer.name}</p>
-              <p style="margin: 2px 0;"><strong>ID/RUC:</strong> ${formatRUT(order.customer.taxId)}</p>
-              ${order.customer.address ? `<p style="margin: 2px 0;"><strong>DIR:</strong> ${order.customer.address}</p>` : ""}
-            </div>
-          ` : ""}
-
-          <div class="items">
-            ${order.items.map((item: any) => `
-              <div class="item">
-                <span>${item.name} x${item.quantity}</span>
-                <span>$ ${formatNumber(item.price * item.quantity)}</span>
-              </div>
-            `).join("")}
-          </div>
-          <div class="total item">
-            <span>TOTAL</span>
-            <span>$ ${formatNumber(order.total)}</span>
-          </div>
-          <div class="separator"></div>
-            <div class="payment">
-              ${order.payments.efectivo > 0 ? `<div>Efectivo: $ ${formatNumber(order.payments.efectivo)}</div>` : ""}
-              ${order.payments.tarjeta > 0 ? `<div>Tarjeta: $ ${formatNumber(order.payments.tarjeta)}</div>` : ""}
-              ${order.payments.transferencia > 0 ? `<div>Transferencia: $ ${formatNumber(order.payments.transferencia)}</div>` : ""}
-              ${order.payments.digital > 0 ? `<div>Pago Virtual: $ ${formatNumber(order.payments.digital)}</div>` : ""}
-            </div>
-          <div class="footer">
-            <p>¡Gracias por su compra!</p>
-            <p>SISTEMA DE GESTIÓN STOCKFLOW</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(receiptHtml);
-      doc.close();
-
-      // Small delay to ensure content is layouted
-      setTimeout(() => {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-          
-          // Cleanup
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        }
-      }, 500);
-    }
+    if (!order) return;
+    
+    printReceipt({
+      orderId: order.id,
+      timestamp: order.timestamp,
+      items: order.items,
+      total: order.total,
+      paymentMethod: order.paymentMethod || Object.entries(order.payments || {})
+        .filter(([_, val]) => (val as number) > 0)
+        .map(([key, _]) => key)
+        .join(", ") || 'Efectivo',
+      customerName: order.customer?.name,
+      businessName: settings.businessName,
+      address: settings.address,
+      phone: settings.phone
+    });
   };
+
 
   const handleCheckout = async () => {
     if (cart.length === 0 || isProcessing) return;

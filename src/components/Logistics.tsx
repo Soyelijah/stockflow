@@ -513,7 +513,7 @@ export function Logistics() {
                         onChange={(e) => setFormData({...formData, reference: e.target.value})}
                       />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-                        {formData.movementType === "sale" ? (
+                        {mode === "dispatch" && formData.movementType === "sale" ? (
                           <>
                             <button 
                               type="button"
@@ -537,16 +537,30 @@ export function Logistics() {
                             </button>
                           </>
                         ) : (
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              const num = Math.floor(100000 + Math.random() * 900000);
-                              setFormData({...formData, reference: `GUIA-${num}`});
-                            }}
-                            className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
-                          >
-                            GUIA
-                          </button>
+                          <>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const num = Math.floor(100000 + Math.random() * 900000);
+                                setFormData({...formData, reference: `GUIA-${num}`});
+                              }}
+                              className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
+                            >
+                              GUIA
+                            </button>
+                            {mode === "reception" && (
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const num = Math.floor(100000 + Math.random() * 900000);
+                                  setFormData({...formData, reference: `FACT-${num}`});
+                                }}
+                                className="bg-white border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-black text-slate-400 hover:text-emerald-600 hover:border-emerald-100 transition-all shadow-sm"
+                              >
+                                COMPRA
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>

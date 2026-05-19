@@ -13,6 +13,9 @@ interface Settings {
   taxRate: number;
   aiEnabled: boolean;
   notificationsEnabled: boolean;
+  printerType: 'thermal' | 'regular' | 'none';
+  printerInterface: 'usb' | 'bluetooth' | 'network' | 'system';
+  autoPrintInvoice: boolean;
 }
 
 interface SettingsContextType {
@@ -29,7 +32,10 @@ const defaultSettings: Settings = {
   taxEnabled: true,
   taxRate: 19,
   aiEnabled: false,
-  notificationsEnabled: true
+  notificationsEnabled: true,
+  printerType: 'thermal',
+  printerInterface: 'system',
+  autoPrintInvoice: false
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);

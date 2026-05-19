@@ -18,14 +18,21 @@ import {
   AlertTriangle,
   Info,
   CheckCircle2,
+  Truck,
+  Building2,
+  MinusCircle,
+  Receipt,
+  UserCircle,
   Settings as SettingsIcon
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
-import { collection, query, onSnapshot, where, getDocs, limit } from "firebase/firestore";
+import { collection, query, onSnapshot, where, getDocs, limit, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
+
+import { formatCurrency } from "../lib/utils";
 
 interface Notification {
   id: string;
@@ -99,12 +106,19 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
     const performSearch = async () => {
       try {
+        const isAdmin = profile?.role === "admin" || profile?.role === "manager";
         const productsQ = query(collection(db, "products"), limit(50));
         const customersQ = query(collection(db, "customers"), limit(50));
+        let txQ = query(collection(db, "transactions"), orderBy("timestamp", "desc"), limit(50));
+        
+        if (!isAdmin && profile?.uid) {
+           txQ = query(collection(db, "transactions"), where("userId", "==", profile.uid), orderBy("timestamp", "desc"), limit(50));
+        }
 
-        const [prodSnap, custSnap] = await Promise.all([
+        const [prodSnap, custSnap, txSnap] = await Promise.all([
           getDocs(productsQ),
-          getDocs(customersQ)
+          getDocs(customersQ),
+          getDocs(txQ)
         ]);
 
         const productMatches = prodSnap.docs
@@ -134,7 +148,21 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             detail: `RUT: ${c.rut} | ${c.email || ''}`
           }));
 
-        setSearchResults([...productMatches, ...customerMatches].slice(0, 10));
+        const transactionMatches = txSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as any))
+          .filter(t => 
+            t.orderId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.productName?.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+          .map(t => ({
+            id: t.id,
+            type: 'transaction' as const,
+            name: `Orden: ${t.orderId || t.id.slice(0, 8).toUpperCase()}`,
+            detail: `${t.customerName || 'General'} | ${formatCurrency(t.amount)}`
+          }));
+
+        setSearchResults([...productMatches, ...customerMatches, ...transactionMatches].slice(0, 10));
         setIsSearchOpen(true);
       } catch (error) {
         console.error("Search error:", error);
@@ -150,22 +178,24 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     setIsSearchOpen(false);
     if (result.type === 'product') {
       onNavigate('inventory');
-    } else {
+    } else if (result.type === 'customer') {
       onNavigate('customers');
+    } else if (result.type === 'transaction') {
+      onNavigate('transactions');
     }
   };
 
   const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "seller", "logistics"] },
-    { id: "pos", label: "Ventas POS", icon: ShoppingCart, roles: ["admin", "manager", "seller"] },
+    { id: "dashboard", label: "Panel Central", icon: LayoutDashboard, roles: ["admin", "manager", "seller", "logistics"] },
+    { id: "pos", label: "Ventas / POS", icon: ShoppingCart, roles: ["admin", "manager", "seller"] },
     { id: "customers", label: "CRM Clientes", icon: Users, roles: ["admin", "manager", "seller"] },
     { id: "inventory", label: "Inventario", icon: Package, roles: ["admin", "manager", "logistics"] },
-    { id: "logistics", label: "Logística", icon: ArrowRightLeft, roles: ["admin", "manager", "logistics"] },
-    { id: "suppliers", label: "Proveedores", icon: Users, roles: ["admin", "manager", "logistics"] },
-    { id: "expenses", label: "Gastos", icon: CreditCard, roles: ["admin", "manager"] },
-    { id: "kardex", label: "Kardex", icon: History, roles: ["admin", "manager", "logistics"] },
-    { id: "transactions", label: "Historial", icon: History, roles: ["admin", "manager"] },
-    { id: "profile", label: "Mi Perfil", icon: Users, roles: ["admin", "manager", "seller", "logistics"] },
+    { id: "logistics", label: "Logística / Ent", icon: Truck, roles: ["admin", "manager", "logistics"] },
+    { id: "suppliers", label: "Proveedores", icon: Building2, roles: ["admin", "manager", "logistics"] },
+    { id: "expenses", label: "Control Gastos", icon: MinusCircle, roles: ["admin", "manager"] },
+    { id: "kardex", label: "Kardex / Mov", icon: ArrowRightLeft, roles: ["admin", "manager", "logistics"] },
+    { id: "transactions", label: "Historial Caja", icon: Receipt, roles: ["admin", "manager", "seller"] },
+    { id: "profile", label: "Mi Perfil", icon: UserCircle, roles: ["admin", "manager", "seller", "logistics"] },
     { id: "settings", label: "Configuración", icon: SettingsIcon, roles: ["admin"] },
   ];
 
@@ -423,9 +453,11 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                           >
                             <div className={cn(
                               "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                              result.type === 'product' ? "bg-emerald-50 text-emerald-600" : "bg-purple-50 text-purple-600"
+                              result.type === 'product' ? "bg-emerald-50 text-emerald-600" : 
+                              result.type === 'customer' ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"
                             )}>
-                              {result.type === 'product' ? <Package size={16} /> : <Users size={16} />}
+                              {result.type === 'product' ? <Package size={16} /> : 
+                               result.type === 'customer' ? <Users size={16} /> : <History size={16} />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{result.name}</p>

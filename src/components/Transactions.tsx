@@ -4,7 +4,8 @@ import {
   query, 
   onSnapshot, 
   orderBy, 
-  limit 
+  limit,
+  where
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
@@ -23,20 +24,38 @@ import {
   ShoppingCart,
   ArrowUpRight,
   ArrowDownRight,
-  Printer
+  Printer,
+  ArrowRightLeft,
+  ChevronRight
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, formatNumber } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
+import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { printReceipt } from "../lib/printUtils";
 
 export function Transactions() {
+  const { profile } = useAuth();
   const { settings } = useSettings();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'manager';
+
   useEffect(() => {
-    const q = query(collection(db, "transactions"), orderBy("timestamp", "desc"), limit(100));
+    let q = query(collection(db, "transactions"), orderBy("timestamp", "desc"), limit(100));
+    
+    // If user is a seller, only show their own transactions
+    if (!isAdmin) {
+      q = query(
+        collection(db, "transactions"), 
+        where("userId", "==", profile?.uid),
+        orderBy("timestamp", "desc"), 
+        limit(100)
+      );
+    }
+
     const unsub = onSnapshot(q, (snapshot) => {
       const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTransactions(txs);
@@ -66,98 +85,34 @@ export function Transactions() {
   const filteredTransactions = transactions.filter(tx => 
     tx.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tx.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tx.orderId?.toLowerCase().includes(searchTerm.toLowerCase())
+    tx.orderId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tx.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handlePrint = (tx: any) => {
     // Find all items in this order
     const orderItems = transactions.filter(t => t.orderId === tx.orderId);
     
-    // Create hidden iframe for printing
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
-
-    const receiptHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Ticket de Venta - ${tx.orderId}</title>
-          <style>
-            @page { size: 80mm auto; margin: 0; }
-            body { 
-              font-family: 'Courier New', Courier, monospace; 
-              padding: 10px; 
-              width: 75mm; 
-              color: #000; 
-              margin: 0;
-              font-size: 12px;
-            }
-            .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
-            .item { display: flex; justify-content: space-between; margin: 3px 0; }
-            .total { margin-top: 10px; border-top: 1px solid #000; padding-top: 8px; font-weight: bold; font-size: 14px; }
-            .footer { text-align: center; margin-top: 25px; font-size: 10px; border-top: 1px dashed #ccc; pt: 10px; }
-            .payment { font-size: 10px; margin-top: 8px; color: #333; }
-            .business-name { font-size: 16px; font-weight: 900; margin: 0 0 5px 0; }
-            .separator { border-bottom: 1px dashed #000; margin: 10px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1 class="business-name">${settings.businessName.toUpperCase()}</h1>
-            <p>${settings.address || ""}</p>
-            <p>Ticket No: ${tx.orderId?.slice(0, 8)}</p>
-            <p>${tx.timestamp?.toDate ? formatDate(tx.timestamp.toDate()) : formatDate(new Date())}</p>
-          </div>
-          <div class="items">
-            ${orderItems.map((item: any) => `
-              <div class="item">
-                <span>${item.productName} x${item.quantity}</span>
-                <span>$ ${formatNumber(item.amount)}</span>
-              </div>
-            `).join("")}
-          </div>
-          <div class="total item">
-            <span>TOTAL</span>
-            <span>$ ${formatNumber(orderItems.reduce((acc, i) => acc + i.amount, 0))}</span>
-          </div>
-          <div class="separator"></div>
-          <div class="payment">
-            ${tx.paymentBreakdown?.efectivo > 0 ? `<div>Efectivo: $ ${formatNumber(tx.paymentBreakdown.efectivo)}</div>` : ""}
-            ${tx.paymentBreakdown?.tarjeta > 0 ? `<div>Tarjeta: $ ${formatNumber(tx.paymentBreakdown.tarjeta)}</div>` : ""}
-            ${tx.paymentBreakdown?.digital > 0 ? `<div>Transferencia/Digital: $ ${formatNumber(tx.paymentBreakdown.digital)}</div>` : ""}
-          </div>
-          <div class="footer">
-            <p>¡Gracias por su compra!</p>
-            <p>RE-IMPRESIÓN DE COMPROBANTE</p>
-            <p>SISTEMA DE GESTIÓN STOCKFLOW</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(receiptHtml);
-      doc.close();
-
-      setTimeout(() => {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        }
-      }, 500);
-    }
+    printReceipt({
+      orderId: tx.orderId || tx.id,
+      timestamp: tx.timestamp,
+      items: orderItems.map(item => ({
+        name: item.productName || "Producto",
+        quantity: item.quantity || 1,
+        price: (item.amount || 0) / (item.quantity || 1)
+      })),
+      total: orderItems.reduce((acc, i) => acc + (i.amount || 0), 0),
+      paymentMethod: tx.paymentBreakdown ? Object.entries(tx.paymentBreakdown)
+        .filter(([_, val]) => (val as number) > 0)
+        .map(([key, _]) => key)
+        .join(", ") : "Manual",
+      customerName: tx.customerName,
+      businessName: settings.businessName,
+      address: settings.address,
+      phone: settings.phone
+    });
   };
+
 
   const exportToCSV = () => {
     const headers = ["ID Orden", "Fecha", "Tipo", "Producto", "Monto", "Efectivo", "Tarjeta", "Digital", "Cajero", "Notas"];
@@ -190,35 +145,48 @@ export function Transactions() {
     <div className="space-y-8 max-w-7xl mx-auto">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Historial Financiero</h1>
-          <p className="text-slate-500 font-medium text-sm">Registro detallado de ventas y movimientos de stock.</p>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">
+            {isAdmin ? "Historial de Caja" : "Mi Registro de Ventas"}
+          </h1>
+          <p className="text-slate-500 font-medium text-sm">
+            {isAdmin 
+              ? "Registro detallado de todas las ventas y movimientos de la tienda." 
+              : "Listado de tus ventas procesadas y tickets emitidos."}
+          </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <button 
-            onClick={exportToCSV}
-            className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2 text-sm"
-          >
-            <Download size={18} />
-            <span>Exportar CSV</span>
-          </button>
-          <button className="bg-white text-slate-700 font-bold px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center space-x-2 text-sm">
-            <Filter size={18} />
-            <span>Filtros Avanzados</span>
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={exportToCSV}
+              className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2 text-sm"
+            >
+              <Download size={18} />
+              <span>Exportar CSV</span>
+            </button>
+            <button className="bg-white text-slate-700 font-bold px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center space-x-2 text-sm">
+              <Filter size={18} />
+              <span>Filtros Avanzados</span>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Sales Summaries */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className={cn("grid gap-6", isAdmin ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1")}>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-indigo-600 rounded-[2.5rem] p-8 text-white flex items-center justify-between relative overflow-hidden group shadow-xl shadow-indigo-100"
+          className={cn(
+            "rounded-[2.5rem] p-8 text-white flex items-center justify-between relative overflow-hidden group shadow-xl",
+            isAdmin ? "bg-indigo-600 shadow-indigo-100" : "bg-slate-900 shadow-slate-100"
+          )}
         >
           <div className="relative z-10">
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Ventas de Hoy</p>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">
+              {isAdmin ? "Ventas de Hoy" : "Mi Venta del Día"}
+            </p>
             <h3 className="text-4xl font-black">{formatCurrency(stats.todaySales)}</h3>
-            <div className="flex items-center mt-2 text-indigo-200 text-xs font-bold">
+            <div className="flex items-center mt-2 text-white/40 text-xs font-bold">
               <ArrowUpRight size={14} className="mr-1" />
               <span>Sincronizado</span>
             </div>
@@ -228,21 +196,23 @@ export function Transactions() {
           </div>
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-[2.5rem] p-8 border border-slate-200 flex items-center justify-between relative overflow-hidden group shadow-sm"
-        >
-          <div className="relative z-10">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Historial Acumulado (Muestra)</p>
-            <h3 className="text-4xl font-black text-slate-800">{formatCurrency(stats.totalSales)}</h3>
-            <p className="text-slate-400 text-xs font-medium mt-2">Últimos 100 movimientos</p>
-          </div>
-          <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
-            <ShoppingCart size={48} className="text-slate-200" />
-          </div>
-        </motion.div>
+        {isAdmin && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-[2.5rem] p-8 border border-slate-200 flex items-center justify-between relative overflow-hidden group shadow-sm"
+          >
+            <div className="relative z-10">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Historial Acumulado (Muestra)</p>
+              <h3 className="text-4xl font-black text-slate-800">{formatCurrency(stats.totalSales)}</h3>
+              <p className="text-slate-400 text-xs font-medium mt-2">Últimos 100 movimientos</p>
+            </div>
+            <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
+              <ShoppingCart size={48} className="text-slate-200" />
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -266,9 +236,9 @@ export function Transactions() {
               <tr className="bg-slate-50/50">
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Fecha / Orden</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Tipo</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Producto</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Referencia</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Método</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Cajero</th>
+                {isAdmin && <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Cajero</th>}
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] text-right">Total</th>
               </tr>
             </thead>
@@ -311,31 +281,56 @@ export function Transactions() {
                           <Tag size={16} />
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-800 text-xs">{tx.productName}</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">x{tx.quantity} Unidades</span>
+                          <span className="font-bold text-slate-800 text-xs truncate max-w-[150px]">
+                            {tx.productName || tx.customerName || "Venta General"}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                            {tx.quantity ? `${tx.quantity} Unidades` : 'Movimiento Caja'}
+                          </span>
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-5">
                       {tx.type === 'sale' ? (
-                        <div className="flex items-center space-x-1.5">
-                          {tx.paymentBreakdown?.efectivo > 0 && <Banknote size={14} className="text-emerald-500" title="Efectivo" />}
-                          {tx.paymentBreakdown?.tarjeta > 0 && <CreditCard size={14} className="text-blue-500" title="Tarjeta" />}
-                          {tx.paymentBreakdown?.digital > 0 && <Smartphone size={14} className="text-purple-500" title="Digital" />}
-                          {!tx.paymentBreakdown && <div className="text-[10px] font-black text-slate-300">N/D</div>}
+                        <div className="flex items-center space-x-2">
+                          {tx.paymentBreakdown?.efectivo > 0 && (
+                            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-100" title="Efectivo">
+                              <Banknote size={14} />
+                            </div>
+                          )}
+                          {tx.paymentBreakdown?.tarjeta > 0 && (
+                            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm border border-blue-100" title="Tarjeta">
+                              <CreditCard size={14} />
+                            </div>
+                          )}
+                          {(tx.paymentBreakdown?.transferencia > 0 || tx.paymentMethod === 'transferencia') && (
+                            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm border border-purple-100" title="Transferencia">
+                              <ArrowRightLeft size={14} />
+                            </div>
+                          )}
+                          {tx.paymentBreakdown?.digital > 0 && (
+                            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm border border-amber-100" title="Pago Digital">
+                              <Smartphone size={14} />
+                            </div>
+                          )}
+                          {!tx.paymentBreakdown && !tx.paymentMethod && (
+                            <div className="text-[10px] font-black text-slate-300 bg-slate-50 px-2 py-1 rounded-lg">N/D</div>
+                          )}
                         </div>
                       ) : (
-                        <span className="text-[10px] font-black text-slate-300 uppercase italic">Ajuste Stock</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter opacity-50 px-2 py-1 bg-slate-50 rounded-lg">Mov. Stock</span>
                       )}
                     </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
-                          <UserIcon size={12} />
+                    {isAdmin && (
+                      <td className="px-8 py-5">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
+                            <UserIcon size={12} />
+                          </div>
+                          <span className="text-xs font-bold text-slate-600">{tx.userName || "Sistema"}</span>
                         </div>
-                        <span className="text-xs font-bold text-slate-600">{tx.userName || "Sistema"}</span>
-                      </div>
-                    </td>
+                      </td>
+                    )}
                     <td className="px-8 py-5 text-right">
                       <div className="flex items-center justify-end space-x-3">
                         <div className="flex flex-col items-end">
