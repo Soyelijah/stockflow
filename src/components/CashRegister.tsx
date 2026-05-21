@@ -30,6 +30,7 @@ import {
   Smartphone
 } from "lucide-react";
 import { cn, formatCurrency } from "../lib/utils";
+import { ModernAlert } from "./ui/ModernAlert";
 
 interface CashRegisterProps {
   onStatusChange: (isOpen: boolean, session: any) => void;
@@ -49,6 +50,20 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
     card: 0,
     digital: 0,
     total: 0
+  });
+
+  // Alert Modal State
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "delete" | "info";
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
   });
 
   useEffect(() => {
@@ -117,7 +132,12 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
   const handleOpenRegister = async () => {
     const amount = parseFloat(initialAmount);
     if (isNaN(amount) || amount < 0) {
-      alert("Por favor ingrese un monto inicial válido.");
+      setAlertConfig({
+        isOpen: true,
+        type: "warning",
+        title: "Monto Inválido",
+        message: "Por favor ingrese un monto inicial válido para la apertura de caja."
+      });
       return;
     }
 
@@ -142,14 +162,30 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
   const handleCloseRegister = async () => {
     const cash = parseFloat(finalCash);
     if (isNaN(cash) || cash < 0) {
-      alert("Por favor ingrese el efectivo contado final.");
+      setAlertConfig({
+        isOpen: true,
+        type: "warning",
+        title: "Monto Faltante",
+        message: "Por favor ingrese el efectivo contado final para realizar el arqueo."
+      });
       return;
     }
 
     try {
       setLoading(true);
-      const expectedCash = session.initialAmount + sessionStats.cash;
+      const expectedCash = (session.initialAmount || 0) + (sessionStats.cash || 0);
       const difference = cash - expectedCash;
+
+      const summaryData = {
+        openedAt: session.openedAt,
+        closedAt: new Date(),
+        openedBy: profile?.name,
+        initialAmount: session.initialAmount,
+        expectedAmount: expectedCash,
+        actualAmount: cash,
+        difference: difference,
+        stats: sessionStats
+      };
 
       await updateDoc(doc(db, "cashRegisters", session.id), {
         closedAt: serverTimestamp(),
@@ -160,12 +196,124 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
         difference: difference,
         summary: sessionStats
       });
+
+      setAlertConfig({
+        isOpen: true,
+        type: "success",
+        title: "Caja Cerrada",
+        message: `El arqueo se ha completado. Diferencia: ${formatCurrency(difference)}. ¿Desea imprimir el Reporte Z?`,
+        onConfirm: () => printZReport(summaryData)
+      });
+
       setIsClosing(false);
       setFinalCash("");
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, "cashRegisters");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const printZReport = (summary: any) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const reportHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            @page { size: 58mm auto; margin: 0; }
+            body { 
+              font-family: 'Inter', -apple-system, sans-serif; 
+              font-size: 11px; 
+              width: 48mm; 
+              margin: 0; 
+              padding: 10px; 
+              line-height: 1.4; 
+              color: #000;
+            }
+            .header { text-align: center; font-weight: 800; text-transform: uppercase; margin-bottom: 5px; font-size: 13px; }
+            .divider { border-top: 1px dashed #000; margin: 10px 0; }
+            .row { display: flex; justify-content: space-between; margin: 3px 0; }
+            .total-row { font-weight: 800; font-size: 12px; margin: 8px 0; border-top: 1px solid #eee; padding-top: 4px; }
+            .footer { text-align: center; margin-top: 25px; font-size: 9px; color: #666; font-weight: 500; }
+            .business-name { font-weight: 900; font-size: 14px; text-align: center; margin-bottom: 2px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">CIERRE DE CAJA</div>
+          <div class="header" style="font-size: 10px;">REPORTE Z</div>
+          <div style="text-align: center; font-size: 8px; color: #666; margin-top: 5px;">${new Date().toLocaleString('es-CL')}</div>
+          
+          <div class="divider"></div>
+          <div class="row"><span>OPERADOR:</span> <span>${summary.openedBy?.toUpperCase()}</span></div>
+          <div class="row"><span>APERTURA:</span> <span>${new Date(summary.openedAt?.toDate?.() || summary.openedAt).toLocaleTimeString('es-CL')}</span></div>
+          <div class="row"><span>CIERRE:</span> <span>${new Date().toLocaleTimeString('es-CL')}</span></div>
+          
+          <div class="divider"></div>
+          
+          <div class="row"><span>SALDO INICIAL:</span> <span>${formatCurrency(summary.initialAmount)}</span></div>
+          <div class="row"><span>(+) EFECTIVO VENTAS:</span> <span>${formatCurrency(summary.stats.cash)}</span></div>
+          
+          <div class="total-row row">
+            <span>EFECTIVO ESPERADO:</span> 
+            <span>${formatCurrency(summary.expectedAmount)}</span>
+          </div>
+          
+          <div class="row" style="margin-top: 4px;">
+            <span>EFECTIVO CONTADO:</span> 
+            <span>${formatCurrency(summary.actualAmount)}</span>
+          </div>
+
+          <div class="row" style="color: ${summary.difference < 0 ? '#ef4444' : '#10b981'}; font-weight: 800; border-top: 1px solid #eee; padding-top: 4px; margin-top: 4px;">
+            <span>DIFERENCIA:</span> 
+            <span>${summary.difference > 0 ? '+' : ''}${formatCurrency(summary.difference)}</span>
+          </div>
+
+          <div class="divider"></div>
+          <div class="header" style="font-size: 9px; margin-bottom: 8px;">RESUMEN DE OPERACIONES</div>
+          
+          <div class="row"><span>VENTAS TARJETA:</span> <span>${formatCurrency(summary.stats.card)}</span></div>
+          <div class="row"><span>VENTAS DIGITAL:</span> <span>${formatCurrency(summary.stats.digital)}</span></div>
+          <div class="divider"></div>
+          <div class="row" style="font-weight: 900; font-size: 12px;">
+            <span>TOTAL VENTAS:</span> 
+            <span>${formatCurrency(summary.stats.total)}</span>
+          </div>
+
+          <div class="footer">
+            SISTEMA STOCKFLOW PRO<br/>
+            COMPROBANTE NO VÁLIDO COMO FACTURA
+          </div>
+          <script>
+            window.onload = () => { 
+              window.print(); 
+              setTimeout(() => { window.close(); }, 500); 
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(reportHtml);
+      doc.close();
+      setTimeout(() => {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }
+      }, 500);
     }
   };
 
@@ -375,6 +523,16 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
           </div>
         )}
       </AnimatePresence>
+
+      <ModernAlert 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alertConfig.onConfirm}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.onConfirm ? "Imprimir" : "Aceptar"}
+      />
     </>
   );
 }

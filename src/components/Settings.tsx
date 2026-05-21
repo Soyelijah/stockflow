@@ -16,9 +16,13 @@ import {
   Users,
   AlertCircle,
   Smartphone,
-  Printer
+  Printer,
+  Tag,
+  Plus,
+  Trash2,
+  Truck
 } from "lucide-react";
-import { collection, getDoc, getDocs, doc, setDoc, query, orderBy } from "firebase/firestore";
+import { collection, getDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { cn, formatChileanPhone } from "../lib/utils";
 import { motion } from "motion/react";
@@ -30,6 +34,81 @@ export function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [couponError, setCouponError] = useState("");
+  const [newCoupon, setNewCoupon] = useState({
+    code: "",
+    title: "",
+    desc: "",
+    discountType: "percent",
+    discountValue: 10,
+    minTier: "BRONZE",
+    img: "🎟️",
+    active: true,
+    color: "bg-indigo-50 border-indigo-100 text-indigo-600"
+  });
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, "coupons")), (snap) => {
+      setCoupons(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn("Coupons snapshot listener permission or connection warning:", error);
+    });
+    return unsub;
+  }, []);
+
+  const handleCreateCoupon = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setCouponError("");
+    const code = newCoupon.code.trim().toUpperCase();
+    if (!code) {
+      setCouponError("Debe ingresar un código");
+      return;
+    }
+    if (!newCoupon.title.trim()) {
+      setCouponError("Debe ingresar el título principal");
+      return;
+    }
+    try {
+      const docRef = doc(db, "coupons", code);
+      await setDoc(docRef, {
+        ...newCoupon,
+        id: code,
+        code: code,
+        active: true
+      });
+      setNewCoupon({
+        code: "",
+        title: "",
+        desc: "",
+        discountType: "percent",
+        discountValue: 10,
+        minTier: "BRONZE",
+        img: "🎟️",
+        active: true,
+        color: "bg-indigo-50 border-indigo-100 text-indigo-600"
+      });
+    } catch (err) {
+      setCouponError("Error al guardar cupón.");
+    }
+  };
+
+  const handleToggleCoupon = async (id: string, active: boolean) => {
+    try {
+      const docRef = doc(db, "coupons", id);
+      await updateDoc(docRef, { active });
+    } catch (err) {
+      console.error("Error toggling coupon", err);
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "coupons", id));
+    } catch (err) {
+      console.error("Error deleting coupon:", err);
+    }
+  };
   const [settings, setSettings] = useState({
     businessName: "StockFlow Pro",
     email: "contacto@negocio.cl",
@@ -42,7 +121,8 @@ export function Settings() {
     notificationsEnabled: true,
     printerType: 'thermal',
     printerInterface: 'system',
-    autoPrintInvoice: false
+    autoPrintInvoice: false,
+    deliveryEnabled: true
   });
 
   useEffect(() => {
@@ -53,6 +133,7 @@ export function Settings() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setSettings({
+            deliveryEnabled: true,
             ...data,
             phone: formatChileanPhone(data.phone || "")
           } as any);
@@ -299,6 +380,35 @@ export function Settings() {
               </div>
             </div>
           </div>
+
+          {/* Delivery & Logistics Settings */}
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                <Truck size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">Sistema de Reparto</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Logística, despachos y delivery</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer" onClick={() => setSettings({...settings, deliveryEnabled: !settings.deliveryEnabled})}>
+              <div className="space-y-1">
+                <p className="text-xs font-black text-slate-800">Habilitar Despachos</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Activar mapas y seguimiento en ruta</p>
+              </div>
+              <div className={cn(
+                "w-12 h-6 rounded-full transition-all relative",
+                settings.deliveryEnabled ? "bg-indigo-600" : "bg-slate-200"
+              )}>
+                <div className={cn(
+                  "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                  settings.deliveryEnabled ? "left-7" : "left-1"
+                )} />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* User Management */}
@@ -367,6 +477,193 @@ export function Settings() {
                     Copiar Enlace
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Coupon Management Card */}
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden mt-8">
+          <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex items-center space-x-4">
+            <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600">
+              <Tag size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-800 tracking-tight">Gestor de Cupones de Descuento</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Crear, activar y administrar promociones</p>
+            </div>
+          </div>
+
+          <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Create Coupon Form */}
+            <div className="lg:col-span-1 space-y-4">
+              <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2">Crear Nuevo Cupón</h3>
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Código (Único)</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej: FIESTAS20"
+                  className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold uppercase text-slate-800 animate-none focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
+                  value={newCoupon.code}
+                  onChange={e => setNewCoupon({...newCoupon, code: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Título / Nombre</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej: Descuento dieciochero"
+                  className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
+                  value={newCoupon.title}
+                  onChange={e => setNewCoupon({...newCoupon, title: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Descripción / Beneficio</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej: 20% descuento total"
+                  className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
+                  value={newCoupon.desc}
+                  onChange={e => setNewCoupon({...newCoupon, desc: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</label>
+                  <select 
+                    className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-xs font-bold text-slate-800"
+                    value={newCoupon.discountType}
+                    onChange={e => setNewCoupon({...newCoupon, discountType: e.target.value as any})}
+                  >
+                    <option value="percent">Porcentaje (%)</option>
+                    <option value="fixed">Monto Fijo ($)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</label>
+                  <input 
+                    type="number" 
+                    className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-slate-800"
+                    value={newCoupon.discountValue}
+                    onChange={e => setNewCoupon({...newCoupon, discountValue: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nivel Mínimo</label>
+                  <select 
+                    className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-xs font-bold text-slate-800"
+                    value={newCoupon.minTier}
+                    onChange={e => setNewCoupon({...newCoupon, minTier: e.target.value as any})}
+                  >
+                    <option value="BRONZE">Bronce</option>
+                    <option value="SILVER">Plata</option>
+                    <option value="GOLD">Oro</option>
+                    <option value="PLATINUM">Platino</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Icono / Emoji</label>
+                  <input 
+                    type="text" 
+                    className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-center text-slate-800"
+                    value={newCoupon.img}
+                    onChange={e => setNewCoupon({...newCoupon, img: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Esquema de Color</label>
+                <select 
+                  className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-xs font-bold text-slate-800"
+                  value={newCoupon.color}
+                  onChange={e => setNewCoupon({...newCoupon, color: e.target.value})}
+                >
+                  <option value="bg-indigo-50 border-indigo-100 text-indigo-600">Indigo Soft</option>
+                  <option value="bg-rose-50 border-rose-100 text-rose-600">Rose Soft (Verano)</option>
+                  <option value="bg-emerald-50 border-emerald-100 text-emerald-600">Emerald Soft (Eco / Agro)</option>
+                  <option value="bg-amber-50 border-amber-100 text-amber-600">Amber Soft (Panadería)</option>
+                  <option value="bg-purple-50 border-purple-100 text-purple-600">Purple Soft (Vino/VIP)</option>
+                </select>
+              </div>
+
+              {couponError && (
+                <p className="text-xs font-bold text-rose-500">{couponError}</p>
+              )}
+
+              <button 
+                type="button"
+                onClick={handleCreateCoupon}
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center space-x-2 shadow-sm transition-colors"
+              >
+                <Plus size={16} />
+                <span>Registrar Cupón</span>
+              </button>
+            </div>
+
+            {/* Coupons List */}
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2">Cupones Registrados ({coupons.length})</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {coupons.map((coupon) => (
+                  <div 
+                    key={coupon.id} 
+                    className={cn(
+                      "p-4 rounded-2xl border flex items-center justify-between transition-all",
+                      coupon.color || "bg-slate-50 border-slate-100 text-slate-600",
+                      !coupon.active && "opacity-50 grayscale"
+                    )}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">{coupon.img || "🎟️"}</span>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-extrabold text-sm">{coupon.code}</p>
+                          <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-black/10">
+                            {coupon.minTier}
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold opacity-90 mt-0.5 text-slate-800">{coupon.title}</p>
+                        <p className="text-[10px] opacity-75">{coupon.desc}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        type="button"
+                        onClick={() => handleToggleCoupon(coupon.id, !coupon.active)}
+                        className={cn(
+                          "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
+                          coupon.active ? "bg-emerald-500 text-white" : "bg-slate-300 text-slate-700"
+                        )}
+                      >
+                        {coupon.active ? "Activo" : "Pausado"}
+                      </button>
+
+                      <button 
+                        type="button"
+                        onClick={() => handleDeleteCoupon(coupon.id)}
+                        className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {coupons.length === 0 && (
+                  <p className="text-xs text-slate-400 font-bold italic col-span-2">No hay cupones configurados.</p>
+                )}
               </div>
             </div>
           </div>

@@ -16,6 +16,7 @@ interface Settings {
   printerType: 'thermal' | 'regular' | 'none';
   printerInterface: 'usb' | 'bluetooth' | 'network' | 'system';
   autoPrintInvoice: boolean;
+  deliveryEnabled: boolean;
 }
 
 interface SettingsContextType {
@@ -35,7 +36,8 @@ const defaultSettings: Settings = {
   notificationsEnabled: true,
   printerType: 'thermal',
   printerInterface: 'system',
-  autoPrintInvoice: false
+  autoPrintInvoice: false,
+  deliveryEnabled: true
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -46,15 +48,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     const unsub = onSnapshot(doc(db, "settings", "global"), (doc) => {
       if (doc.exists()) {
-        setSettings(doc.data() as Settings);
+        setSettings({
+          ...defaultSettings,
+          ...doc.data()
+        } as Settings);
+      } else {
+        setSettings(defaultSettings);
       }
       setLoading(false);
     }, (error) => {
@@ -63,7 +65,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     });
 
     return unsub;
-  }, [user]);
+  }, []);
 
   return (
     <SettingsContext.Provider value={{ settings, loading }}>

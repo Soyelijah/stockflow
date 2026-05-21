@@ -82,10 +82,10 @@ export function formatNumber(value: number | undefined | null) {
 }
 
 export const LOYALTY_TIERS = {
-  PLATINUM: { min: 5000, name: "Platinum", color: "text-indigo-400", bg: "bg-slate-900", segment: "vip" },
-  GOLD: { min: 2000, name: "Gold", color: "text-amber-500", bg: "bg-amber-50", segment: "vip" },
-  SILVER: { min: 500, name: "Silver", color: "text-slate-500", bg: "bg-slate-100", segment: "regular" },
-  BRONZE: { min: 0, name: "Bronze", color: "text-orange-700", bg: "bg-orange-50", segment: "regular" }
+  PLATINUM: { min: 5000, name: "Platinum", color: "text-indigo-400", bg: "bg-slate-900", textColor: "text-white", segment: "vip" },
+  GOLD: { min: 2000, name: "Gold", color: "text-amber-500", bg: "bg-amber-50", textColor: "text-slate-900", segment: "vip" },
+  SILVER: { min: 500, name: "Silver", color: "text-slate-500", bg: "bg-slate-100", textColor: "text-slate-900", segment: "regular" },
+  BRONZE: { min: 0, name: "Bronze", color: "text-orange-700", bg: "bg-orange-50", textColor: "text-slate-900", segment: "regular" }
 };
 
 export function getCustomerTier(points: number = 0) {
@@ -93,6 +93,14 @@ export function getCustomerTier(points: number = 0) {
   if (points >= LOYALTY_TIERS.GOLD.min) return LOYALTY_TIERS.GOLD;
   if (points >= LOYALTY_TIERS.SILVER.min) return LOYALTY_TIERS.SILVER;
   return LOYALTY_TIERS.BRONZE;
+}
+
+export function toDate(timestamp: any): Date {
+  if (!timestamp) return new Date();
+  if (typeof timestamp.toDate === "function") return timestamp.toDate();
+  if (timestamp.seconds !== undefined) return new Date(timestamp.seconds * 1000);
+  if (timestamp instanceof Date) return timestamp;
+  return new Date(timestamp);
 }
 
 export function calculatePoints(amount: number) {

@@ -14,7 +14,8 @@ import {
   DollarSign,
   BarChart3,
   Zap,
-  Users
+  Users,
+  Smartphone
 } from "lucide-react";
 import { formatCurrency, cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -487,6 +488,12 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
           <p className="text-slate-500 font-medium mt-1">Sincronizado y listo para operar, {profile?.name}.</p>
         </div>
         <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl">
+            <div className={cn("w-2 h-2 rounded-full", "bg-emerald-500 animate-pulse")} />
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">
+              Nube Sincronizada
+            </span>
+          </div>
           {isAdmin && (
             <button 
               onClick={handlePrintZReport}
@@ -565,6 +572,44 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Apps & Channels Section */}
+        <div className="lg:col-span-12">
+          <div className="bg-indigo-50 border border-indigo-100 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center space-x-6">
+              <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                <Smartphone size={32} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">App Móvil de Clientes</h2>
+                <p className="text-sm font-medium text-slate-500 max-w-md">
+                  Tus clientes pueden ver sus puntos, historial y ofertas exclusivas desde su propio celular. Comparte el link o imprime el QR en tus comprobantes.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <a 
+                href="/cliente" 
+                target="_blank" 
+                className="w-full sm:w-auto bg-white text-slate-900 font-black px-8 py-4 rounded-2xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center space-x-2 text-xs uppercase tracking-widest"
+              >
+                <Activity size={16} />
+                <span>Ver Portal Cliente</span>
+              </a>
+              <button 
+                onClick={() => {
+                  const url = window.location.origin + "/cliente";
+                  navigator.clipboard.writeText(url);
+                  alert("Link del Portal de Clientes copiado: " + url);
+                }}
+                className="w-full sm:w-auto bg-indigo-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-500 transition-all flex items-center justify-center space-x-2 text-xs uppercase tracking-widest"
+              >
+                <Plus size={16} />
+                <span>Copiar Link</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Sales Chart Area - Restricted to Admin or simplified for Seller */}
         <div className={cn(isAdmin ? "lg:col-span-8" : "lg:col-span-12")}>
           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm h-full">
@@ -1042,7 +1087,9 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                                   rec.action === "DISCOUNT" ? "bg-rose-200 text-rose-800" :
                                   "bg-blue-200 text-blue-800"
                                 )}>
-                                  {rec.action}
+                                  {rec.action === "RESTOCK" ? "REABASTECER" :
+                                   rec.action === "DISCOUNT" ? "DESCUENTO / LIQUIDAR" :
+                                   rec.action === "MONITOR" ? "MONITOREAR" : rec.action}
                                 </span>
                               </div>
                               <p className="text-xs font-medium text-slate-500 mt-2 leading-relaxed">{rec.reason}</p>

@@ -29,6 +29,7 @@
         "description": { "type": "string" },
         "costPrice": { "type": "number" },
         "price": { "type": "number" },
+        "wholesalePrice": { "type": "number", "description": "Price for business/wholesale customers" },
         "stock": { "type": "number" },
         "minThreshold": { "type": "number" },
         "category": { "type": "string" },
@@ -118,6 +119,9 @@
         "email": { "type": "string" },
         "phone": { "type": "string" },
         "address": { "type": "string" },
+        "type": { "type": "string", "enum": ["retail", "wholesale"], "default": "retail" },
+        "password": { "type": "string" },
+        "points": { "type": "number", "default": 0 },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name"]
@@ -184,6 +188,45 @@
         "status": { "type": "string", "enum": ["open", "closed"] }
       },
       "required": ["openedAt", "openedBy", "initialAmount", "status"]
+    },
+    "Coupon": {
+      "title": "Discount Coupon",
+      "description": "Store promotion codes and loyalty discounts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "title": { "type": "string" },
+        "desc": { "type": "string" },
+        "discountType": { "type": "string", "enum": ["percent", "fixed"] },
+        "discountValue": { "type": "number" },
+        "minTier": { "type": "string", "enum": ["BRONZE", "SILVER", "GOLD", "PLATINUM"] },
+        "active": { "type": "boolean" },
+        "color": { "type": "string" },
+        "img": { "type": "string" }
+      },
+      "required": ["code", "discountType", "discountValue", "minTier", "active"]
+    },
+    "Shipment": {
+      "title": "Order Shipment",
+      "description": "Logistics dispatch details for online deliveries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "address": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "status": { "type": "string", "enum": ["prepared", "in_route", "delivered"] },
+        "driverName": { "type": "string" },
+        "driverPhone": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["orderId", "customerName", "address", "status"]
     }
   },
   "firestore": {
@@ -226,6 +269,14 @@
     "cashRegisters": {
       "schema": "CashRegister",
       "description": "History of cash register sessions"
+    },
+    "coupons": {
+      "schema": "Coupon",
+      "description": "Active promo coupons"
+    },
+    "shipments": {
+      "schema": "Shipment",
+      "description": "Dispatched shipments and their tracking coordinates"
     }
   }
 }

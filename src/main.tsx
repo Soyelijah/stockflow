@@ -13,6 +13,9 @@ if (typeof window !== 'undefined') {
     'HMR',
     'websocket',
     'heartbeat',
+    'ERR_BLOCKED_BY_CLIENT',
+    '@firebase/firestore',
+    'firestore.googleapis.com',
   ];
 
   const originalError = console.error;

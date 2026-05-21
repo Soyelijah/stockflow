@@ -31,8 +31,12 @@ import {
   ArrowRightLeft,
   Tag,
   Truck,
-  Zap
+  Zap,
+  ShoppingCart,
+  Camera
 } from "lucide-react";
+import { ModernAlert } from "./ui/ModernAlert";
+import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { useAuth } from "../contexts/AuthContext";
 import { cn, formatCurrency } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -53,15 +57,35 @@ export function Inventory() {
     barcodes: [] as string[],
     costPrice: 0,
     price: 0,
+    wholesalePrice: 0,
+    wholesaleMinQty: 6,
     stock: 0,
     minThreshold: 5,
     description: "",
+    image: "",
     category: "",
     categoryId: "",
     supplierId: ""
   });
+  const [lastLookupStatus, setLastLookupStatus] = useState<"unused" | "searching" | "found" | "not_found">("unused");
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [isFetchingInfo, setIsFetchingInfo] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [salesVelocity, setSalesVelocity] = useState<Record<string, number>>({});
+  
+  // Alert Modal State
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "delete" | "info";
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
 
   useEffect(() => {
     // Calculate sales velocity for all products (last 30 days)
@@ -137,9 +161,12 @@ export function Inventory() {
         barcodes: product.barcodes || (product.barcode ? [product.barcode] : []),
         costPrice: product.costPrice || 0,
         price: product.price,
+        wholesalePrice: product.wholesalePrice || product.price,
+        wholesaleMinQty: product.wholesaleMinQty || 6,
         stock: product.stock,
         minThreshold: product.minThreshold,
         description: product.description || "",
+        image: product.image || "",
         category: product.category || "",
         categoryId: product.categoryId || "",
         supplierId: product.supplierId || ""
@@ -153,15 +180,44 @@ export function Inventory() {
         barcodes: [],
         costPrice: 0,
         price: 0,
+        wholesalePrice: 0,
         stock: 0,
         minThreshold: 5,
         description: "",
+        image: "",
         category: "",
         categoryId: "",
         supplierId: ""
       });
     }
     setIsModalOpen(true);
+  };
+
+  const handleBarcodeLookup = async (barcode: string) => {
+    if (!barcode) return;
+    setIsFetchingInfo(true);
+    setLastLookupStatus("searching");
+    try {
+      const resp = await fetch(`/api/barcode-lookup?barcode=${barcode}`);
+      const data = await resp.json();
+      if (data.name) {
+        setFormData(prev => ({
+          ...prev,
+          name: data.name,
+          description: data.description || prev.description,
+          image: data.imageUrl || prev.image,
+          category: data.category || prev.category
+        }));
+        setLastLookupStatus("found");
+      } else {
+        setLastLookupStatus("not_found");
+      }
+    } catch (err) {
+      console.error("Failed to fetch product info", err);
+      setLastLookupStatus("not_found");
+    } finally {
+      setIsFetchingInfo(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -188,11 +244,22 @@ export function Inventory() {
       const selectedCategory = categories.find(c => c.id === formData.categoryId);
       const finalCategoryName = selectedCategory ? selectedCategory.name : formData.category;
 
+      // Ensure absolutely no undefined values are passed to Firestore
+      const cleanData: any = {};
+      Object.entries(formData).forEach(([k, v]) => {
+        if (v !== undefined) {
+          cleanData[k] = v;
+        }
+      });
+
       const finalData = {
-        ...formData,
-        barcodes: allFormBarcodes, // Keep synced
-        category: finalCategoryName,
+        ...cleanData,
+        barcodes: allFormBarcodes || [],
+        category: finalCategoryName || "",
       };
+
+      const updatedByName = profile?.name || "Admin";
+      const userUidVal = profile?.uid || "";
 
       if (editingProduct) {
         const stockDiff = formData.stock - editingProduct.stock;
@@ -202,7 +269,7 @@ export function Inventory() {
         batch.update(prodRef, {
           ...finalData,
           updatedAt: serverTimestamp(),
-          updatedBy: profile?.name
+          updatedBy: updatedByName
         });
 
         if (stockDiff !== 0) {
@@ -215,8 +282,8 @@ export function Inventory() {
             previousStock: Number(editingProduct.stock) || 0,
             newStock: Number(formData.stock) || 0,
             reason: "Ajuste manual web",
-            userId: profile?.uid,
-            userName: profile?.name,
+            userId: userUidVal,
+            userName: updatedByName,
             source: "web",
             timestamp: serverTimestamp()
           });
@@ -227,7 +294,7 @@ export function Inventory() {
           ...finalData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-          updatedBy: profile?.name
+          updatedBy: updatedByName
         });
 
         if (formData.stock > 0) {
@@ -239,41 +306,91 @@ export function Inventory() {
             previousStock: 0,
             newStock: formData.stock,
             reason: "Inventario inicial",
-            userId: profile?.uid,
-            userName: profile?.name,
+            userId: userUidVal,
+            userName: updatedByName,
             source: "web",
             timestamp: serverTimestamp()
           });
         }
       }
       setIsModalOpen(false);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, "products");
+      setAlertConfig({
+        isOpen: true,
+        type: "success",
+        title: "¡Éxito!",
+        message: editingProduct ? `El producto ${formData.name} ha sido actualizado.` : "Producto añadido al inventario."
+      });
+    } catch (err: any) {
+      console.error("Failed to save product:", err);
+      let errorMsg = "No se pudo guardar la información del producto.";
+      if (err instanceof Error) {
+        if (err.message.includes("permission") || err.message.includes("Permission")) {
+          errorMsg += " (Detalle: No tiene permisos suficientes en Firestore para crear este producto. Verifique su rol o inicio de sesión)";
+        } else {
+          try {
+            const parsed = JSON.parse(err.message);
+            if (parsed.error) {
+              errorMsg += ` (Detalle: ${parsed.error})`;
+            }
+          } catch {
+            errorMsg += ` (Detalle: ${err.message})`;
+          }
+        }
+      }
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error de Registro",
+        message: errorMsg
+      });
+      // Don't rethrow to avoid crashing the app environment loop, let the user read the clear UI alert.
     }
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
-    if (!window.confirm(`¿Está seguro de eliminar "${name}"? Esta acción no se puede deshacer.`)) return;
-    
-    try {
-      await deleteDoc(doc(db, "products", id));
-      // Log stock movement for deletion
-      await addDoc(collection(db, "stockMovements"), {
-        productId: id,
-        productName: name,
-        type: "loss",
-        quantity: 0,
-        previousStock: 0,
-        newStock: 0,
-        userId: profile?.uid,
-        userName: profile?.name,
-        timestamp: serverTimestamp(),
-        reason: `Producto eliminado del catálogo`,
-        source: "web"
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, "delete product");
-    }
+    setAlertConfig({
+      isOpen: true,
+      type: "delete",
+      title: "¿Eliminar Producto?",
+      message: `¿Realmente desea eliminar "${name}" del catálogo? Esta acción no se puede deshacer.`,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, "products", id));
+          // Log stock movement for deletion
+          await addDoc(collection(db, "stockMovements"), {
+            productId: id,
+            productName: name,
+            type: "loss",
+            quantity: 0,
+            previousStock: 0,
+            newStock: 0,
+            userId: profile?.uid,
+            userName: profile?.name,
+            timestamp: serverTimestamp(),
+            reason: `Producto eliminado del catálogo`,
+            source: "web"
+          });
+          
+          setAlertConfig(prev => ({
+            ...prev,
+            isOpen: true,
+            type: "success",
+            title: "Eliminado",
+            message: "El producto ha sido borrado exitosamente.",
+            onConfirm: undefined
+          }));
+        } catch (err: any) {
+          console.error(err);
+          setAlertConfig({
+            isOpen: true,
+            type: "error",
+            title: "Permiso Denegado",
+            message: "No tienes permisos suficientes para eliminar registros."
+          });
+          handleFirestoreError(err, OperationType.WRITE, "delete product");
+        }
+      }
+    });
   };
 
   const isAdmin = profile?.role === "admin" || profile?.role === "manager";
@@ -478,11 +595,11 @@ export function Inventory() {
 
       {/* Control Bar & Tabs */}
       <div className="bg-white p-4 rounded-3xl border border-slate-200 flex flex-col lg:flex-row gap-6 items-center shadow-sm">
-        <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full lg:w-auto">
+        <div className="flex bg-slate-100 p-1 rounded-2xl w-full lg:w-auto overflow-x-auto scrollbar-none whitespace-nowrap">
           <button
             onClick={() => setActiveTab("all")}
             className={cn(
-              "flex-1 lg:flex-none px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+              "flex-1 lg:flex-none px-3 sm:px-6 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer",
               activeTab === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
             )}
           >
@@ -491,7 +608,7 @@ export function Inventory() {
           <button
             onClick={() => setActiveTab("low")}
             className={cn(
-              "flex-1 lg:flex-none px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+              "flex-1 lg:flex-none px-3 sm:px-6 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer",
               activeTab === "low" ? "bg-rose-50 text-rose-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
             )}
           >
@@ -500,37 +617,46 @@ export function Inventory() {
           <button
             onClick={() => setActiveTab("smart")}
             className={cn(
-              "flex-1 lg:flex-none px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center space-x-2",
+              "flex-1 lg:flex-none px-3 sm:px-6 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-1 sm:space-x-2 cursor-pointer",
               activeTab === "smart" ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
             )}
           >
-            <TrendingUp size={12} />
+            <TrendingUp size={12} className="shrink-0" />
             <span>Sugerencias IA</span>
           </button>
         </div>
 
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Filtrar por nombre, SKU o categoría..."
-            className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-slate-400 text-slate-700"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="relative flex-1 w-full flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Filtrar por nombre, SKU o categoría..."
+              className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-12 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-slate-400 text-slate-700"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button 
+              onClick={() => setIsScanning(true)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors shadow-sm"
+              title="Escanear Código de Barras"
+            >
+              <Camera size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Products Grid/Table */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      {/* Mobile Card View + Desktop Table */}
+      <div className="bg-white rounded-3xl md:rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden mb-20 md:mb-0">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Producto y SKU</th>
                 {isAdmin && <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Valor Unitario</th>}
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Disponibilidad</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Proyección (IA)</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Estado</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] text-right">Acciones</th>
               </tr>
@@ -544,26 +670,19 @@ export function Inventory() {
                 >
                   <td className="px-8 py-5">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 group-hover:scale-110 group-hover:border-indigo-200 group-hover:text-indigo-500 transition-all shadow-sm">
-                        <Package size={24} />
-                      </div>
+                        <div className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 shadow-sm overflow-hidden">
+                          {product.image ? (
+                            <img src={product.image} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <Package size={24} />
+                          )}
+                        </div>
                       <div>
-                        <p className="font-bold text-slate-800 text-sm">{product.name || "Sin nombre"}</p>
+                        <p className="font-bold text-slate-800 text-sm truncate max-w-[200px]">{product.name || "Sin nombre"}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
                             {product.barcode || (product.barcodes && product.barcodes[0]) || "Sin código"}
-                            {product.barcodes && product.barcodes.length > 1 && ` (+${product.barcodes.length - 1})`}
                           </p>
-                          {product.categoryId && (
-                            <span className={cn(
-                              "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border",
-                              categories.find(c => c.id === product.categoryId)?.color?.replace("bg-", "text-").replace("500", "600") || "text-slate-400",
-                              categories.find(c => c.id === product.categoryId)?.color?.replace("bg-", "bg-")?.replace("500", "50") || "bg-slate-50",
-                              categories.find(c => c.id === product.categoryId)?.color?.replace("bg-", "border-")?.replace("500", "100") || "border-slate-100"
-                            )}>
-                              {product.category}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -571,8 +690,7 @@ export function Inventory() {
                   {isAdmin && (
                     <td className="px-8 py-5">
                       <div className="flex items-center space-x-1 font-black text-slate-700">
-                        <span className="text-slate-300 text-xs">$</span>
-                        <span>{formatCurrency(product.price || 0).replace(/[$\s]/g, "")}</span>
+                        <span>{formatCurrency(product.price || 0)}</span>
                       </div>
                     </td>
                   )}
@@ -584,72 +702,23 @@ export function Inventory() {
                       )}>
                         {product.stock || 0} <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">uds</span>
                       </span>
-                      <div className="w-20 h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
-                        <div 
-                          className={cn(
-                            "h-full rounded-full transition-all duration-500",
-                            Number(product.stock) <= Number(product.minThreshold) ? "bg-orange-500" : "bg-indigo-500"
-                          )}
-                          style={{ width: `${Math.min((product.stock / (product.minThreshold * 4)) * 100, 100)}%` }}
-                        />
-                      </div>
                     </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    {salesVelocity[product.id] > 0 ? (
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Días restantes</span>
-                        <span className={cn(
-                          "text-sm font-black",
-                          (product.stock / salesVelocity[product.id]) < 7 ? "text-rose-600" : 
-                          (product.stock / salesVelocity[product.id]) < 15 ? "text-orange-600" : "text-emerald-600"
-                        )}>
-                          ~{Math.round(product.stock / salesVelocity[product.id])} días
-                        </span>
-                        <p className="text-[9px] font-bold text-slate-300 uppercase mt-0.5">Venta: {salesVelocity[product.id].toFixed(2)}/día</p>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] font-bold text-slate-300 uppercase italic">Sin rotación</span>
-                    )}
                   </td>
                   <td className="px-8 py-5">
                     {Number(product.stock) <= 0 ? (
                       <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-rose-50 text-rose-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-rose-100">
-                        <div className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
                         <span>Agotado</span>
-                      </span>
-                    ) : Number(product.stock) <= Number(product.minThreshold) ? (
-                      <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-orange-100">
-                        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full" />
-                        <span>Critico</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-emerald-100">
-                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                        <span>Saludable</span>
+                        <span>En Stock</span>
                       </span>
                     )}
                   </td>
                   <td className="px-8 py-5 text-right">
                     <div className="flex items-center justify-end space-x-2">
-                      <button 
-                        onClick={() => openModal(product)} 
-                        className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                        title="Editar"
-                      >
+                      <button onClick={() => openModal(product)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
                         <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteProduct(product.id, product.name)}
-                        className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                        title="Eliminar"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                      <button 
-                        className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
-                      >
-                        <MoreVertical size={18} />
                       </button>
                     </div>
                   </td>
@@ -657,6 +726,58 @@ export function Inventory() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {filteredProducts.map(product => (
+            <div key={product.id} className="p-6 flex flex-col space-y-4">
+               <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 overflow-hidden border border-slate-100">
+                      {product.image ? (
+                        <img src={product.image} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <Package size={28} />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-800 tracking-tight">{product.name}</h4>
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">SKU: {product.sku || 'N/A'}</p>
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-1">
+                          <span>EAN / IBAN:</span>
+                          <span className="font-mono text-xs">{product.barcode || (product.barcodes && product.barcodes[0]) || 'Sin código'}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => openModal(product)} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+                    <Edit2 size={18} />
+                  </button>
+               </div>
+               
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-3 rounded-2xl">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Precio Venta</p>
+                    <p className="text-lg font-black text-slate-800 leading-none">{formatCurrency(product.price)}</p>
+                  </div>
+                  <div className={cn(
+                    "p-3 rounded-2xl border",
+                    Number(product.stock) <= Number(product.minThreshold) ? "bg-rose-50 border-rose-100" : "bg-emerald-50 border-emerald-100"
+                  )}>
+                    <p className="text-[9px] font-black opacity-60 uppercase tracking-widest mb-1">Disponible</p>
+                    <p className={cn(
+                      "text-xl font-black leading-none",
+                      Number(product.stock) <= Number(product.minThreshold) ? "text-rose-600" : "text-emerald-600"
+                    )}>
+                      {product.stock} <span className="text-xs uppercase opacity-60">un</span>
+                    </p>
+                  </div>
+               </div>
+            </div>
+          ))}
+        </div>
           {filteredProducts.length === 0 && (
             <div className="p-20 text-center">
               <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-slate-200 mx-auto mb-6">
@@ -666,7 +787,6 @@ export function Inventory() {
             </div>
           )}
         </div>
-      </div>
 
       <AnimatePresence>
         {isCategoryModalOpen && (
@@ -676,7 +796,7 @@ export function Inventory() {
 
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-10">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-10">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -688,36 +808,44 @@ export function Inventory() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl relative z-10 overflow-hidden"
+              className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]"
             >
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
                 <div className="flex items-center space-x-4 text-indigo-600">
                   <div className="p-2 bg-indigo-100 rounded-2xl">
                     <Package size={24} />
                   </div>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                  <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">
                     {editingProduct ? "Actualizar Producto" : "Configurar Producto"}
                   </h3>
                 </div>
                 <button 
                   onClick={() => setIsModalOpen(false)} 
-                  className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 transition-all hover:rotate-90"
+                  className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 transition-all hover:rotate-90"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 text-slate-700">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre del Producto</label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
-                      value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
-                    />
+                    <div className="flex gap-4">
+                      <input 
+                        required
+                        type="text" 
+                        placeholder="Escribe el nombre del producto manualmente"
+                        className="flex-1 h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
+                        value={formData.name}
+                        onChange={e => setFormData({...formData, name: e.target.value})}
+                      />
+                      {formData.image && (
+                        <div className="w-14 h-14 bg-slate-100 rounded-2xl border border-slate-200 overflow-hidden shrink-0">
+                          <img src={formData.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="sm:col-span-2 space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Códigos de Barra (Escriba y presione Enter para múltiples)</label>
@@ -735,24 +863,49 @@ export function Inventory() {
                         </span>
                       ))}
                     </div>
-                    <div className="relative">
-                      <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input 
-                        type="text" 
-                        placeholder="Escanee o escriba un código y presione Enter..."
-                        className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const val = e.currentTarget.value.trim();
-                            if (val && !formData.barcodes.includes(val)) {
-                              setFormData({...formData, barcodes: [...formData.barcodes, val]});
-                              e.currentTarget.value = "";
+                    <div className="flex gap-3">
+                      <div className="relative flex-1">
+                        <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input 
+                          type="text" 
+                          placeholder="Escanee o escriba un código..."
+                          className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const val = e.currentTarget.value.trim();
+                              if (val && !formData.barcodes.includes(val)) {
+                                setFormData(prev => ({
+                                  ...prev, 
+                                  barcodes: [...prev.barcodes, val],
+                                  barcode: prev.barcode || val,
+                                  sku: prev.sku || val
+                                }));
+                                e.currentTarget.value = "";
+                              }
                             }
-                          }
-                        }}
-                      />
+                          }}
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setIsScanning(true)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white border border-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors shadow-sm"
+                        >
+                          <Camera size={16} />
+                        </button>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Imagen URL (Opcional)</label>
+                    <input 
+                      type="url" 
+                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
+                      value={formData.image}
+                      onChange={e => setFormData({...formData, image: e.target.value})}
+                      placeholder="https://ejemplo.com/imagen.jpg (En blanco si no desea imagen)"
+                    />
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">SKU / ID Interno</label>
@@ -786,6 +939,32 @@ export function Inventory() {
                         className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                         value={formData.price}
                         onChange={e => setFormData({...formData, price: Number(e.target.value)})}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Precio Mayorista (Default: Venta)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input 
+                        required
+                        type="number" step="1"
+                        className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
+                        value={formData.wholesalePrice}
+                        onChange={e => setFormData({...formData, wholesalePrice: Number(e.target.value)})}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Mínimo para Mayorista (Unidades)</label>
+                    <div className="relative">
+                      <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input 
+                        required
+                        type="number" min="1"
+                        className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
+                        value={formData.wholesaleMinQty}
+                        onChange={e => setFormData({...formData, wholesaleMinQty: Number(e.target.value)})}
                       />
                     </div>
                   </div>
@@ -846,17 +1025,17 @@ export function Inventory() {
                   </div>
                 </div>
 
-                <div className="pt-8 border-slate-50 flex flex-col sm:flex-row gap-3">
+                <div className="pt-8 border-slate-50 flex flex-col sm:flex-row gap-3 w-full">
                   <button 
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 py-4 bg-slate-50 text-slate-500 font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-slate-100 transition-all"
+                    className="w-full sm:flex-1 py-4 bg-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[13px] rounded-2xl hover:bg-slate-200 transition-all min-h-[3.25rem] md:min-h-[3.5rem] flex items-center justify-center cursor-pointer"
                   >
                     Descartar
                   </button>
                   <button 
                     type="submit"
-                    className="flex-[2] py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center space-x-2"
+                    className="w-full sm:flex-[2] py-4 bg-indigo-600 text-white font-bold uppercase tracking-wider text-[13px] rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center space-x-2 min-h-[3.25rem] md:min-h-[3.5rem] cursor-pointer"
                   >
                     <Save size={18} />
                     <span>Confirmar Cambios</span>
@@ -867,6 +1046,43 @@ export function Inventory() {
           </div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {isScanning && (
+          <BarcodeScanner 
+            onScan={(code) => {
+              if (code) {
+                // If the modal is not open, open it
+                if (!isModalOpen) {
+                  openModal();
+                }
+                
+                setFormData(prev => {
+                  const newBarcodes = prev.barcodes.includes(code) ? prev.barcodes : [...prev.barcodes, code];
+                  return {
+                    ...prev,
+                    barcodes: newBarcodes,
+                    barcode: prev.barcode || code,
+                    sku: prev.sku || code
+                  };
+                });
+              }
+              setIsScanning(false);
+            }}
+            onClose={() => setIsScanning(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <ModernAlert 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alertConfig.onConfirm}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.type === "delete" ? "Eliminar" : "Aceptar"}
+      />
     </div>
   );
 }

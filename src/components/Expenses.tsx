@@ -29,6 +29,7 @@ import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { cn, formatCurrency } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
+import { ModernAlert } from "./ui/ModernAlert";
 
 const CATEGORIES = [
   "Servicios (Luz, Agua, Gas)",
@@ -50,6 +51,20 @@ export function Expenses() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Alert Modal State
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "delete" | "info";
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
 
   const [formData, setFormData] = useState({
     description: "",
@@ -91,13 +106,35 @@ export function Expenses() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("¿Estás seguro de eliminar este gasto?")) return;
-    try {
-      await deleteDoc(doc(db, "expenses", id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, "expenses");
-    }
+  const handleDelete = async (id: string, description: string) => {
+    setAlertConfig({
+      isOpen: true,
+      type: "delete",
+      title: "¿Eliminar Gasto?",
+      message: `¿Realmente desea eliminar el registro de "${description}"?`,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, "expenses", id));
+          setAlertConfig(prev => ({
+            ...prev,
+            isOpen: true,
+            type: "success",
+            title: "Eliminado",
+            message: "Registro borrado exitosamente.",
+            onConfirm: undefined
+          }));
+        } catch (err: any) {
+          console.error(err);
+          setAlertConfig({
+            isOpen: true,
+            type: "error",
+            title: "Error de Servidor",
+            message: "No se pudo eliminar el gasto."
+          });
+          handleFirestoreError(err, OperationType.DELETE, "expenses");
+        }
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,7 +165,19 @@ export function Expenses() {
         category: CATEGORIES[0],
         date: new Date().toISOString().split("T")[0]
       });
+      setAlertConfig({
+        isOpen: true,
+        type: "success",
+        title: editingExpense ? "¡Actualizado!" : "¡Éxito!",
+        message: editingExpense ? "Gasto actualizado correctamente." : "Gasto registrado en el sistema."
+      });
     } catch (err) {
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error",
+        message: "No se pudo guardar la información del gasto."
+      });
       handleFirestoreError(err, OperationType.WRITE, "expenses");
     } finally {
       setIsSubmitting(false);
@@ -278,8 +327,8 @@ export function Expenses() {
                       <Edit2 size={16} />
                     </button>
                     <button 
-                      onClick={() => handleDelete(exp.id)}
-                      className="p-2 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-600 transition-all"
+                      onClick={() => handleDelete(exp.id, exp.description)}
+                      className="p-2 hover:bg-rose-100 rounded-xl text-rose-400 hover:text-rose-600 transition-all"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -314,22 +363,22 @@ export function Expenses() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden"
+              className="relative bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]"
             >
-              <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+              <div className="p-6 md:p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50 shrink-0">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-800">{editingExpense ? "Editar Gasto" : "Nuevo Registro"}</h2>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Egresos operativos</p>
+                  <h2 className="text-xl md:text-2xl font-black text-slate-800">{editingExpense ? "Editar Gasto" : "Nuevo Registro"}</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Egresos operativos</p>
                 </div>
                 <button 
                   onClick={() => setIsModalOpen(false)}
-                  className="p-3 hover:bg-slate-100 rounded-2xl transition-all"
+                  className="p-2.5 hover:bg-slate-100 rounded-2xl transition-all"
                 >
                   <X size={20} className="text-slate-400" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 text-slate-700">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descripción</label>
                   <input 
@@ -410,6 +459,16 @@ export function Expenses() {
           </div>
         )}
       </AnimatePresence>
+
+      <ModernAlert 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alertConfig.onConfirm}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.type === "delete" ? "Eliminar" : "Aceptar"}
+      />
     </div>
   );
 }

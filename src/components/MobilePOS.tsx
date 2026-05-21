@@ -5,6 +5,7 @@ import {
   onSnapshot, 
   writeBatch, 
   doc, 
+  getDoc,
   addDoc,
   serverTimestamp,
   increment,
@@ -33,10 +34,13 @@ import {
   Users,
   LogOut,
   FileText,
-  Ticket
+  Ticket,
+  Camera
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { AUTOMATIC_POINT_COUPONS } from "../lib/coupons";
+import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, calculatePoints, getCustomerTier } from "../lib/utils";
 import confetti from "canvas-confetti";
 import { printReceipt } from "../lib/printUtils";
@@ -62,6 +66,8 @@ export function MobilePOS() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [emailSentTo, setEmailSentTo] = useState<string | null>(null);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isScanningCustomer, setIsScanningCustomer] = useState(false);
   const [isNewCustomerMode, setIsNewCustomerMode] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [documentType, setDocumentType] = useState<"boleta" | "factura">("boleta");
@@ -69,6 +75,7 @@ export function MobilePOS() {
   const [activeTab, setActiveTab] = useState<"shop" | "cart" | "profile">("shop");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [lastOrder, setLastOrder] = useState<any>(null);
+  const [visibleCount, setVisibleCount] = useState(16);
 
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -76,6 +83,11 @@ export function MobilePOS() {
     email: "",
     phone: ""
   });
+
+  // Promo Coupons State
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState("");
 
   useEffect(() => {
     const q = query(collection(db, "products"), orderBy("name"));
@@ -114,24 +126,110 @@ export function MobilePOS() {
   ).slice(0, 5);
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const couponDiscount = appliedCoupon ? (appliedCoupon.discountType === "percent" ? Math.round(cartTotal * (appliedCoupon.discountValue / 100)) : Number(appliedCoupon.discountValue || 0)) : 0;
+  const finalTotal = Math.max(0, cartTotal - couponDiscount);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const addToCart = (product: any) => {
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        if (existing.quantity >= product.stock) return prev;
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      return [...prev, { 
-        id: product.id, 
-        name: product.name, 
-        price: Number(product.price) || 0, 
-        costPrice: Number(product.costPrice) || 0,
-        quantity: 1, 
-        maxStock: product.stock 
-      }];
+       const existing = prev.find(item => item.id === product.id);
+       const stockVal = Number(product.stock) || 0;
+       if (existing) {
+         if (existing.quantity >= stockVal) return prev;
+         return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+       }
+       return [...prev, { 
+         id: product.id, 
+         name: product.name, 
+         price: Number(product.price) || 0, 
+         costPrice: Number(product.costPrice) || 0,
+         quantity: 1, 
+         maxStock: stockVal 
+       }];
     });
+  };
+
+  const handleApplyCoupon = async () => {
+    setCouponError("");
+    if (!promoCode.trim()) return;
+    try {
+      const codeUpper = promoCode.trim().toUpperCase();
+      
+      // Check if selected customer has already used this coupon
+      if (selectedCustomer && selectedCustomer.usedCoupons && selectedCustomer.usedCoupons.includes(codeUpper)) {
+        setCouponError("Cupón ya utilizado por este cliente");
+        setAppliedCoupon(null);
+        return;
+      }
+
+      // 1. Check if it's an automatic point-based loyalty coupon
+      const autoCoupon = AUTOMATIC_POINT_COUPONS.find(c => c.code === codeUpper);
+      if (autoCoupon) {
+        if (!selectedCustomer) {
+          setCouponError("Asocie cliente para validar puntos");
+          setAppliedCoupon(null);
+          return;
+        }
+        const points = selectedCustomer.points || 0;
+        if (points < autoCoupon.requiredPoints) {
+          setCouponError(`Faltan puntos (${points}/${autoCoupon.requiredPoints} pts)`);
+          setAppliedCoupon(null);
+          return;
+        }
+        setAppliedCoupon({
+          id: autoCoupon.id,
+          code: autoCoupon.code,
+          title: autoCoupon.title,
+          discountType: autoCoupon.discountType,
+          discountValue: autoCoupon.discountValue,
+          minTier: "BRONZE",
+          active: true,
+          img: autoCoupon.img
+        });
+        setCouponError("");
+        return;
+      }
+
+      // 2. Otherwise assume it's an enterprise promo coupon in Firestore
+      const docRef = doc(db, "coupons", codeUpper);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        setCouponError("Código inválido");
+        setAppliedCoupon(null);
+        return;
+      }
+      const data = docSnap.data();
+      if (!data.active) {
+        setCouponError("Inactivo");
+        setAppliedCoupon(null);
+        return;
+      }
+      
+      // Verify min loyalty tier if customer is selected
+      if (selectedCustomer) {
+        const points = selectedCustomer.points || 0;
+        const customerTier = getCustomerTier(points);
+        const tiersOrder = { BRONZE: 0, SILVER: 1, GOLD: 2, PLATINUM: 3 };
+        const reqTierRank = tiersOrder[data.minTier as keyof typeof tiersOrder] || 0;
+        const curTierRank = tiersOrder[customerTier.name.toUpperCase() as keyof typeof tiersOrder] || 0;
+        
+        if (curTierRank < reqTierRank) {
+          setCouponError(`Requiere ${data.minTier}`);
+          setAppliedCoupon(null);
+          return;
+        }
+      } else if (data.minTier !== "BRONZE") {
+        setCouponError(`Requiere cliente ${data.minTier}`);
+        setAppliedCoupon(null);
+        return;
+      }
+
+      setAppliedCoupon({ id: docSnap.id, ...data });
+      setCouponError("¡Cupón aplicado!");
+      setTimeout(() => setCouponError(""), 3000);
+    } catch (err) {
+      setCouponError("Error al validar");
+    }
   };
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
@@ -150,6 +248,50 @@ export function MobilePOS() {
     }
   };
 
+  // Intercept secure rotating token scanning or secure PIN entry
+  useEffect(() => {
+    const cleanSearch = customerSearch.trim();
+    
+    // 1. Check if scanned dynamic QR code token
+    if (cleanSearch.startsWith("STK:ID:")) {
+      const parts = cleanSearch.split(":");
+      if (parts.length >= 4) {
+        const taxId = parts[2];
+        const expiresAt = Number(parts[3]);
+        
+        if (Date.now() > expiresAt + 60000) { // 60s clock tolerance
+          alert("🔐 Token Expirado: El código QR presentado por el cliente ha vencido. Solicite que abra su tarjeta digital nuevamente para actualizar el código.");
+          setCustomerSearch("");
+          return;
+        }
+        
+        const found = customers.find(c => c.taxId === taxId);
+        if (found) {
+          setSelectedCustomer(found);
+          setCustomerSearch("");
+          setIsCustomerModalOpen(false);
+        } else {
+          alert(`RUT ${taxId} no está registrado en el sistema de la empresa.`);
+          setCustomerSearch("");
+        }
+      }
+    }
+    // 2. Check if entered a 6-digit manual secure OTP PIN from the app
+    else if (/^\d{6}$/.test(cleanSearch)) {
+      const matchedCustomer = customers.find(c => 
+        c.securePin === cleanSearch && 
+        c.securePinExpiresAt && 
+        c.securePinExpiresAt + 60000 > Date.now()
+      );
+      
+      if (matchedCustomer) {
+        setSelectedCustomer(matchedCustomer);
+        setCustomerSearch("");
+        setIsCustomerModalOpen(false);
+      }
+    }
+  }, [customerSearch, customers]);
+
   const handleCheckout = async () => {
     if (cart.length === 0 || isProcessing) return;
     setIsProcessing(true);
@@ -158,14 +300,24 @@ export function MobilePOS() {
       const orderId = doc(collection(db, "transactions")).id;
       const timestamp = new Date();
       
+      const cleanItems = cart.map(item => ({
+        id: item.id || "",
+        name: item.name || "",
+        price: item.price || 0,
+        quantity: item.quantity || 1
+      }));
+
       const orderDetails = {
         orderId,
-        items: cart,
-        total: cartTotal,
+        items: cleanItems,
+        total: finalTotal,
         paymentMethod,
         documentType,
         customerName: selectedCustomer?.name || "VENTA GENERAL",
-        timestamp: timestamp.toISOString()
+        timestamp: timestamp.toISOString(),
+        totalPoints: selectedCustomer ? (selectedCustomer.points || 0) + calculatePoints(finalTotal) : undefined,
+        couponCode: appliedCoupon?.code || null,
+        discountApplied: couponDiscount,
       };
 
       cart.forEach(item => {
@@ -194,24 +346,35 @@ export function MobilePOS() {
           paymentMethod,
           timestamp: serverTimestamp(),
           orderId: orderId,
-          source: "mobile_pos"
+          source: "mobile_pos",
+          couponCode: appliedCoupon?.code || null,
+          discountApplied: couponDiscount,
         });
       });
 
       // Award loyalty points and update stats automatically
       if (selectedCustomer?.id) {
-        const pointsAwarded = calculatePoints(cartTotal);
+        const pointsAwarded = calculatePoints(finalTotal);
         const currentPoints = (selectedCustomer.points || 0) + pointsAwarded;
         const newTier = getCustomerTier(currentPoints);
         
         const customerRef = doc(db, "customers", selectedCustomer.id);
-        batch.update(customerRef, {
+        const updates: any = {
           points: increment(pointsAwarded),
-          totalSpent: increment(cartTotal),
+          totalSpent: increment(finalTotal),
           segment: newTier.segment,
           lastPurchaseAt: serverTimestamp(),
           updatedAt: serverTimestamp()
-        });
+        };
+        
+        if (appliedCoupon?.code) {
+          const used = selectedCustomer.usedCoupons || [];
+          if (!used.includes(appliedCoupon.code)) {
+            updates.usedCoupons = [...used, appliedCoupon.code];
+          }
+        }
+        
+        batch.update(customerRef, updates);
       }
 
       await batch.commit();
@@ -238,6 +401,9 @@ export function MobilePOS() {
 
       setCart([]);
       setSelectedCustomer(null);
+      setPromoCode("");
+      setAppliedCoupon(null);
+      setCouponError("");
       setDocumentType("boleta");
       setPaymentMethod("efectivo");
       setLastOrder(orderDetails);
@@ -251,9 +417,20 @@ export function MobilePOS() {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-50 flex flex-col font-sans select-none">
-      {/* Mobile Header */}
-      <header className="bg-white px-6 pt-10 pb-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
+    <div className="fixed inset-0 bg-slate-900 md:bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] md:from-slate-800 md:via-slate-950 md:to-slate-950 flex md:items-center md:justify-center font-sans select-none overflow-hidden">
+      {/* Phone housing frame on wide displays */}
+      <div className="w-full h-full md:max-w-md md:h-[860px] bg-slate-50 md:rounded-[3rem] md:border-[10px] md:border-slate-800 md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col relative overflow-hidden shrink-0">
+        
+        {/* Notch on desktop mockups */}
+        <div className="hidden md:flex absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 bg-slate-800 rounded-b-2xl z-50 items-center justify-center">
+          <div className="w-3 h-3 bg-black rounded-full mr-2" />
+          <div className="w-16 h-1.5 bg-slate-900 rounded-full" />
+        </div>
+
+        {/* Inner layout wrapper */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden relative pt-6 md:pt-10">
+          {/* Mobile Header */}
+          <header className="bg-white px-6 pt-4 pb-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
             <Store size={20} />
@@ -263,21 +440,26 @@ export function MobilePOS() {
             <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">POS Móvil</p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          {activeTab === "shop" && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-              <input 
-                type="text"
-                placeholder="Buscar..."
-                className="w-32 bg-slate-50 border-none rounded-lg pl-9 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-indigo-500 transition-all"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          )}
-        </div>
       </header>
+
+        <AnimatePresence>
+          {isScanning && (
+            <BarcodeScanner 
+              onScan={(code) => {
+                if (code) {
+                  const product = products.find(p => p.barcode === code || (p.barcodes && p.barcodes.includes(code)));
+                  if (product) {
+                    addToCart(product);
+                  } else {
+                    setSearchTerm(code);
+                  }
+                }
+                setIsScanning(false);
+              }}
+              onClose={() => setIsScanning(false)}
+            />
+          )}
+        </AnimatePresence>
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto pb-32">
@@ -288,48 +470,204 @@ export function MobilePOS() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="p-6 space-y-6"
+              className="p-6 space-y-4"
             >
+              {/* Buscador Optimizado para Móvil */}
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => setIsScanning(true)}
+                  className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 active:bg-indigo-50 active:text-indigo-600 transition-all shrink-0 shadow-sm"
+                  title="Escanear Código de Barras"
+                >
+                  <Camera size={20} />
+                </button>
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                  <input 
+                    type="text"
+                    placeholder="Buscar por nombre, SKU o código de barras..."
+                    className="w-full h-12 bg-white border border-slate-100 rounded-2xl pl-12 pr-10 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setVisibleCount(16);
+                    }}
+                  />
+                  {searchTerm && (
+                    <button 
+                      onClick={() => {
+                        setSearchTerm("");
+                        setVisibleCount(16);
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Category Slider */}
               <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-2">
                 {categories.map(cat => (
                   <button
                     key={cat}
-                    onClick={() => setSelectedCategory(cat)}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      setVisibleCount(16);
+                    }}
                     className={cn(
-                      "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      selectedCategory === cat ? "bg-slate-900 text-white shadow-md" : "bg-white text-slate-400 border border-slate-100"
+                      "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 border",
+                      selectedCategory === cat 
+                        ? "bg-slate-900 border-slate-900 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] scale-102" 
+                        : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
                     )}
                   >
-                    {cat}
+                    <span>{cat}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Product Grid */}
-              <div className="grid grid-cols-1 gap-3">
-                {filteredProducts.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => addToCart(p)}
-                    className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between active:scale-95 transition-all text-left group"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-active:text-indigo-500 transition-colors">
-                        <Package size={24} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">{p.name}</p>
-                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{formatCurrency(p.price)}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Stock</p>
-                      <p className="font-black text-slate-800">{p.stock}</p>
-                    </div>
-                  </button>
-                ))}
+              {/* Status Indicators & Count */}
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 px-1 pt-1">
+                <span>Catálogo de Ventas</span>
+                <span className="text-indigo-600">
+                  {filteredProducts.length === 1 
+                    ? "1 producto encontrado" 
+                    : `${filteredProducts.length} productos`}
+                </span>
               </div>
+
+              {/* Product Grid optimized for thousands of items (Virtual window rendering) */}
+              <div className="grid grid-cols-1 gap-3">
+                {filteredProducts.slice(0, visibleCount).map(p => {
+                  const cartItem = cart.find(item => item.id === p.id);
+                  const isOutOfStock = Number(p.stock) <= 0;
+                  const isLowStock = Number(p.stock) > 0 && Number(p.stock) <= 5;
+                  
+                  return (
+                    <motion.div
+                      layoutId={`pos-prod-${p.id}`}
+                      key={p.id}
+                      className={cn(
+                        "bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between transition-all text-left relative overflow-hidden group",
+                        cartItem ? "ring-2 ring-indigo-500/25 border-indigo-200 bg-indigo-50/5" : ""
+                      )}
+                    >
+                      <div className="flex items-center space-x-4 min-w-0 flex-1 mr-2">
+                        {/* Interactive dynamic category visual dot */}
+                        <div className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center transition-all shrink-0 font-bold text-sm",
+                          cartItem 
+                            ? "bg-indigo-600 text-white ring-4 ring-indigo-50" 
+                            : isOutOfStock 
+                              ? "bg-slate-100 text-slate-400" 
+                              : "bg-slate-50 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+                        )}>
+                          {p.name?.charAt(0).toUpperCase()}
+                        </div>
+                        
+                        <div className="min-w-0 flex-1">
+                          <p className="font-extrabold text-slate-800 text-xs sm:text-sm truncate pr-1" title={p.name}>
+                            {p.name}
+                          </p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className="text-xs font-black text-indigo-600 tracking-tight">
+                              {formatCurrency(p.price)}
+                            </span>
+                            {p.sku && (
+                              <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded font-semibold uppercase">
+                                {p.sku}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Stock color warning badge */}
+                          <div className="mt-1.5 flex items-center space-x-1">
+                            {isOutOfStock ? (
+                              <span className="text-[8px] font-black tracking-wider text-rose-500 uppercase bg-rose-50 px-2 py-0.5 rounded-full">
+                                ✕ Agotado
+                              </span>
+                            ) : isLowStock ? (
+                              <span className="text-[8px] font-black tracking-wider text-amber-500 uppercase bg-amber-50 px-2 py-0.5 rounded-full animate-pulse">
+                                ⚠ Pocas unidades ({p.stock})
+                              </span>
+                            ) : (
+                              <span className="text-[8px] font-black tracking-wider text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded-full">
+                                ✓ Disponible ({p.stock} u)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Premium direct addition trigger tool right on the slot! */}
+                      <div className="shrink-0">
+                        {cartItem ? (
+                          <div className="flex items-center space-x-2 bg-indigo-650/10 bg-indigo-50 border border-indigo-100 rounded-xl p-1 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (cartItem.quantity === 1) {
+                                  setCart(prev => prev.filter(i => i.id !== p.id));
+                                } else {
+                                  setCart(prev => prev.map(i => i.id === p.id ? { ...i, quantity: i.quantity - 1 } : i));
+                                }
+                              }}
+                              className="w-7 h-7 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-90 transition-all font-bold"
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="text-xs font-black text-indigo-950 px-1 min-w-4 text-center">
+                              {cartItem.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (cartItem.quantity < Number(p.stock)) {
+                                  setCart(prev => prev.map(i => i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
+                                }
+                              }}
+                              className="w-7 h-7 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-90 transition-all font-bold"
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isOutOfStock}
+                            onClick={() => addToCart(p)}
+                            className={cn(
+                              "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center space-x-1 shadow-sm active:scale-95",
+                              isOutOfStock 
+                                ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                                : "bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-md hover:shadow-indigo-500/10"
+                            )}
+                          >
+                            <Plus size={12} />
+                            <span>Añadir</span>
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* Show more / pagination button handles scaled files (up to thousands of items) */}
+              {filteredProducts.length > visibleCount && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(prev => prev + 16)}
+                  className="w-full py-4 bg-white border border-dashed border-indigo-200 text-indigo-600 rounded-3xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-indigo-50 active:scale-98 transition-all shadow-sm"
+                >
+                  <RefreshCw size={12} className="animate-spin-slow text-indigo-400" />
+                  <span>Cargar más productos ({filteredProducts.length - visibleCount} restantes)</span>
+                </button>
+              )}
             </motion.div>
           )}
 
@@ -447,14 +785,20 @@ export function MobilePOS() {
                     </div>
                     <div className="flex items-center space-x-3">
                       <button 
-                        onClick={() => setCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))}
+                        onClick={() => {
+                          if (item.quantity === 1) {
+                            setCart(prev => prev.filter(i => i.id !== item.id));
+                          } else {
+                            setCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity - 1 } : i));
+                          }
+                        }}
                         className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400"
                       >
                         <Minus size={14} />
                       </button>
                       <span className="font-black text-slate-800">{item.quantity}</span>
                       <button 
-                        onClick={() => setCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.min(i.maxStock, i.quantity + 1) } : i))}
+                        onClick={() => setCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.min(Number(i.maxStock) || 9999, i.quantity + 1) } : i))}
                         className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400"
                       >
                         <Plus size={14} />
@@ -476,15 +820,140 @@ export function MobilePOS() {
                 )}
               </div>
 
+               {cart.length > 0 && (
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+                  <div className="flex items-center space-x-2 text-indigo-950">
+                    <Ticket className="w-5 h-5 text-indigo-600" />
+                    <span className="text-xs font-black uppercase tracking-wider">¿Tienes un cupón?</span>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <div className="relative flex-1">
+                      <input 
+                        type="text"
+                        placeholder="CÓDIGO DE CUPÓN"
+                        value={promoCode}
+                        onChange={(e) => {
+                          setPromoCode(e.target.value);
+                          setCouponError("");
+                        }}
+                        className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 pr-8 text-xs font-bold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 placeholder:text-slate-300"
+                      />
+                      {promoCode && (
+                        <button 
+                          onClick={() => { setPromoCode(""); setCouponError(""); }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      className="px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+
+                  {couponError && (
+                    <motion.p 
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-[10px] font-bold text-rose-500 ml-1 flex items-center space-x-1"
+                    >
+                      <span>⚠️ {couponError}</span>
+                    </motion.p>
+                  )}
+
+                  {appliedCoupon && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xl">{appliedCoupon.img || "🎟️"}</span>
+                        <div>
+                          <p className="text-xs font-extrabold text-emerald-950 uppercase tracking-tight">{appliedCoupon.code}</p>
+                          <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
+                            {appliedCoupon.title} (-{appliedCoupon.discountType === "percent" ? `${appliedCoupon.discountValue}%` : formatCurrency(appliedCoupon.discountValue)})
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => { setAppliedCoupon(null); setPromoCode(""); }}
+                        className="text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100 p-1 rounded-lg transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </motion.div>
+                  )}
+
+                  {selectedCustomer && (
+                    <div className="pt-2 border-t border-slate-50">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Cupones para {selectedCustomer.name}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {AUTOMATIC_POINT_COUPONS.map(ac => {
+                          const points = selectedCustomer.points || 0;
+                          const eligible = points >= ac.requiredPoints;
+                          const alreadyUsed = selectedCustomer.usedCoupons && selectedCustomer.usedCoupons.includes(ac.code);
+                          if (alreadyUsed) return null;
+                          return (
+                            <button
+                              key={ac.code}
+                              onClick={() => {
+                                if (eligible) {
+                                  setPromoCode(ac.code);
+                                  setAppliedCoupon({
+                                    id: ac.id,
+                                    code: ac.code,
+                                    title: ac.title,
+                                    discountType: ac.discountType,
+                                    discountValue: ac.discountValue,
+                                    minTier: "BRONZE",
+                                    active: true,
+                                    img: ac.img
+                                  });
+                                  setCouponError("");
+                                }
+                              }}
+                              disabled={!eligible}
+                              className={cn(
+                                "text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-lg flex items-center space-x-1 border transition-all",
+                                eligible 
+                                  ? "bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100" 
+                                  : "bg-slate-50 border-slate-100 text-slate-400"
+                              )}
+                              title={eligible ? "Click para aplicar" : `Requiere ${ac.requiredPoints} pts`}
+                            >
+                              <span>{ac.img}</span>
+                              <span>{ac.code} ({points}/{ac.requiredPoints} pts)</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {cart.length > 0 && (
                 <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-4">
                   <div className="flex justify-between items-center text-white/40 font-bold uppercase tracking-widest text-[10px]">
                     <span>Subtotal</span>
                     <span>{formatCurrency(cartTotal)}</span>
                   </div>
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between items-center text-emerald-400 font-bold uppercase tracking-widest text-[10px]">
+                      <span>Descuento ({appliedCoupon?.code})</span>
+                      <span>-{formatCurrency(couponDiscount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-end">
                     <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Monto Total</span>
-                    <span className="text-2xl font-black text-white">{formatCurrency(cartTotal)}</span>
+                    <span className="text-2xl font-black text-white">{formatCurrency(finalTotal)}</span>
                   </div>
                   <button 
                     disabled={isProcessing || (documentType === "factura" && !selectedCustomer)}
@@ -517,16 +986,23 @@ export function MobilePOS() {
                   {profile?.name?.charAt(0)}
                 </div>
                 <h2 className="text-xl font-black text-slate-800 tracking-tight">{profile?.name}</h2>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{profile?.role}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                  {profile?.role === "admin" ? "Administrador de Sistemas" :
+                   profile?.role === "manager" ? "Jefe de Local / Administración" :
+                   profile?.role === "seller" ? "Vendedor / Cajero" :
+                   profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role}
+                </p>
                 
                 <div className="mt-8 pt-8 border-t border-slate-50 flex flex-col gap-3">
-                  <button 
-                    onClick={() => window.location.href = "/"}
-                    className="flex items-center justify-center space-x-3 w-full py-4 bg-slate-50 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest border border-slate-100"
-                  >
-                    <Store size={16} />
-                    <span>Ir a Versión PC</span>
-                  </button>
+                  {profile?.role !== "seller" && (
+                    <button 
+                      onClick={() => window.location.href = "/"}
+                      className="flex items-center justify-center space-x-3 w-full py-4 bg-slate-50 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest border border-slate-100"
+                    >
+                      <Store size={16} />
+                      <span>Ir a Versión PC</span>
+                    </button>
+                  )}
                   <button 
                     onClick={logout}
                     className="flex items-center justify-center space-x-3 w-full py-4 bg-rose-50 text-rose-600 rounded-2xl text-xs font-black uppercase tracking-widest border border-rose-100"
@@ -574,7 +1050,9 @@ export function MobilePOS() {
                     customerName: lastOrder.customerName,
                     businessName: settings.businessName,
                     address: settings.address,
-                    phone: settings.phone
+                    phone: settings.phone,
+                    pointsEarned: calculatePoints(lastOrder.total),
+                    totalPoints: lastOrder.totalPoints // We should make sure totalPoints is captured in the order object
                   });
                 }
               }}
@@ -677,7 +1155,7 @@ export function MobilePOS() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">RUC / NIT / DNI</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">RUT</label>
                     <input 
                       required
                       type="text"
@@ -716,12 +1194,36 @@ export function MobilePOS() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                     <input 
                       type="text"
-                      placeholder="Buscar por nombre o TaxId..."
-                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-5 text-sm font-bold"
+                      placeholder="Nombre, RUT o escriba PIN OTP de 6 dígitos..."
+                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-16 text-sm font-bold shadow-inner"
                       value={customerSearch}
                       onChange={e => setCustomerSearch(e.target.value)}
                     />
+                    <button 
+                      onClick={() => setIsScanningCustomer(true)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white border border-slate-100 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                      title="Escaneo Webcam - Código QR de Cliente"
+                    >
+                      <Camera size={14} />
+                    </button>
                   </div>
+
+                  <AnimatePresence>
+                    {isScanningCustomer && (
+                      <div className="bg-slate-900/10 p-3 rounded-2xl border border-slate-100 relative">
+                        <p className="text-[9px] font-black text-indigo-950 uppercase tracking-wider mb-2 text-center">Enfoque el código QR de la app del cliente</p>
+                        <BarcodeScanner 
+                          onScan={(code) => {
+                            if (code) {
+                              setCustomerSearch(code);
+                            }
+                            setIsScanningCustomer(false);
+                          }}
+                          onClose={() => setIsScanningCustomer(false)}
+                        />
+                      </div>
+                    )}
+                  </AnimatePresence>
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                     {filteredCustomers.map(c => (
                       <button 
@@ -746,6 +1248,8 @@ export function MobilePOS() {
           </div>
         )}
       </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }

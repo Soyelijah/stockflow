@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
+import { ModernAlert } from "./ui/ModernAlert";
 
 const COLORS = [
   { name: "Indigo", value: "bg-indigo-500", text: "text-indigo-600", light: "bg-indigo-50" },
@@ -41,6 +42,20 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
     name: "",
     description: "",
     color: COLORS[0].value
+  });
+  
+  // Alert Modal State
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "delete" | "info";
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
   });
 
   useEffect(() => {
@@ -70,7 +85,19 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
       }
       setFormData({ name: "", description: "", color: COLORS[0].value });
       setIsAdding(false);
+      setAlertConfig({
+        isOpen: true,
+        type: "success",
+        title: editingId ? "¡Actualizada!" : "¡Éxito!",
+        message: editingId ? "Categoría actualizada con éxito." : "Categoría creada correctamente."
+      });
     } catch (err) {
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error",
+        message: "No se pudo guardar la categoría."
+      });
       handleFirestoreError(err, OperationType.WRITE, "categories");
     }
   };
@@ -86,12 +113,34 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`¿Eliminar categoría "${name}"? Los productos asociados quedarán sin categoría.`)) return;
-    try {
-      await deleteDoc(doc(db, "categories", id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, "delete category");
-    }
+    setAlertConfig({
+      isOpen: true,
+      type: "delete",
+      title: "¿Eliminar Categoría?",
+      message: `¿Realmente desea eliminar "${name}"? Los productos asociados quedarán sin categoría asignada.`,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, "categories", id));
+          setAlertConfig(prev => ({
+            ...prev,
+            isOpen: true,
+            type: "success",
+            title: "Eliminada",
+            message: "Categoría borrada exitosamente.",
+            onConfirm: undefined
+          }));
+        } catch (err: any) {
+          console.error(err);
+          setAlertConfig({
+            isOpen: true,
+            type: "error",
+            title: "Error de Servidor",
+            message: "No se pudo eliminar la categoría."
+          });
+          handleFirestoreError(err, OperationType.WRITE, "delete category");
+        }
+      }
+    });
   };
 
   return (
@@ -152,13 +201,13 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
                 <button 
                   type="button" 
                   onClick={() => setIsAdding(false)}
-                  className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all"
+                  className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 rounded-2xl font-bold uppercase tracking-wider text-[13px] hover:bg-slate-100 transition-all min-h-[3.25rem] md:min-h-[3.5rem] flex items-center justify-center cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center space-x-2"
+                  className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold uppercase tracking-wider text-[13px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center space-x-2 min-h-[3.25rem] md:min-h-[3.5rem] cursor-pointer"
                 >
                   <Save size={18} />
                   <span>{editingId ? "Actualizar" : "Guardar Categoría"}</span>
@@ -195,7 +244,13 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
                   <button onClick={() => handleEdit(cat)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
                     <Edit2 size={16} />
                   </button>
-                  <button onClick={() => handleDelete(cat.id, cat.name)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(cat.id, cat.name);
+                    }} 
+                    className="p-2 text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -204,6 +259,16 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </motion.div>
+
+      <ModernAlert 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alertConfig.onConfirm}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.type === "delete" ? "Eliminar" : "Aceptar"}
+      />
     </div>
   );
 }

@@ -149,7 +149,10 @@ export function Profile() {
             <h3 className="text-xl font-black text-slate-800">{profile?.name}</h3>
             <div className="mt-2 inline-flex items-center px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">
               <Shield size={12} className="mr-1.5" />
-              {profile?.role}
+              {profile?.role === "admin" ? "Administrador de Sistemas" :
+               profile?.role === "manager" ? "Jefe de Local / Administración" :
+               profile?.role === "seller" ? "Vendedor / Cajero" :
+               profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role}
             </div>
             
             <div className="mt-8 pt-8 border-t border-slate-50 space-y-4">
@@ -300,7 +303,12 @@ export function Profile() {
             <div>
               <h4 className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">Seguridad de la Cuenta</h4>
               <p className="text-[11px] text-amber-700/70 font-medium leading-relaxed">
-                Tu rol de <strong>{profile?.role}</strong> te otorga acceso específico a las herramientas que necesitas. No compartas tus credenciales con terceros para mantener la integridad de los datos.
+                Tu rol de <strong>{
+                  profile?.role === "admin" ? "Administrador de Sistemas" :
+                  profile?.role === "manager" ? "Jefe de Local / Administración" :
+                  profile?.role === "seller" ? "Vendedor / Cajero" :
+                  profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role
+                }</strong> te otorga acceso específico a las herramientas que necesitas. No compartas tus credenciales con terceros para mantener la integridad de los datos.
               </p>
             </div>
           </div>

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { db } from "../lib/firebase";
-import { collection, doc, writeBatch, increment, serverTimestamp } from "firebase/firestore";
+import { collection, doc, writeBatch, increment, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
 
 export function FlowResult() {
@@ -28,9 +28,10 @@ export function FlowResult() {
 
         // status 2 = Aceptado
         if (flowData.status === 2 || flowData.status === "2") {
-          // 2. Recover cart from storage
+          // 2. Recover cart and transaction details from storage
           const cartRaw = localStorage.getItem("pending_order_cart");
           const paymentsRaw = localStorage.getItem("pending_order_payments");
+          const couponRaw = localStorage.getItem("pending_order_coupon");
           
           if (!cartRaw || !paymentsRaw) {
             console.error("No pending order data found in storage");
@@ -41,11 +42,29 @@ export function FlowResult() {
 
           const cart = JSON.parse(cartRaw);
           const payments = JSON.parse(paymentsRaw);
+          const coupon = couponRaw ? JSON.parse(couponRaw) : null;
 
           // 3. Update Firebase
           const batch = writeBatch(db);
           const orderId = doc(collection(db, "transactions")).id;
           const cartTotal = cart.reduce((sumValue: number, itemValue: any) => sumValue + (itemValue.price * itemValue.quantity), 0);
+          const discountApplied = coupon 
+            ? (coupon.discountType === "percent" 
+                ? Math.round(cartTotal * (coupon.discountValue / 100)) 
+                : Number(coupon.discountValue)) 
+            : 0;
+          const finalOrderTotal = Math.max(0, cartTotal - discountApplied);
+
+          // Retrieve customer from local customer_session
+          const customerSessionRaw = localStorage.getItem("customer_session");
+          let customer: any = null;
+          if (customerSessionRaw) {
+            try {
+              customer = JSON.parse(customerSessionRaw);
+            } catch (e) {
+              console.error("Error parsing customer session in FlowResult:", e);
+            }
+          }
 
           cart.forEach((item: any) => {
             const productRef = doc(db, "products", item.id);
@@ -65,8 +84,8 @@ export function FlowResult() {
               previousStock: Number(item.stock || item.maxStock) || 0,
               newStock: (Number(item.stock || item.maxStock) || 0) - item.quantity,
               reason: `Venta Flow #${orderId}`,
-              userId: profile?.uid || "system",
-              userName: profile?.name || "Auto System",
+              userId: customer?.id || profile?.uid || "system",
+              userName: customer?.name || profile?.name || "Auto System",
               source: "mobile",
               timestamp: serverTimestamp()
             });
@@ -77,8 +96,14 @@ export function FlowResult() {
               type: "sale",
               quantity: item.quantity,
               amount: item.price * item.quantity,
-              userId: profile?.uid || "system",
-              userName: profile?.name || "Auto System",
+              userId: customer?.id || profile?.uid || "system",
+              userName: customer?.name || profile?.name || "Auto System",
+              customerId: customer?.id || null,
+              customerName: customer?.name || "VENTA GENERAL",
+              customerTaxId: customer?.taxId || null,
+              couponCode: coupon?.code || null,
+              discountApplied: discountApplied,
+              finalOrderTotal: finalOrderTotal,
               paymentBreakdown: payments,
               timestamp: serverTimestamp(),
               orderId: orderId,
@@ -86,11 +111,49 @@ export function FlowResult() {
             });
           });
 
+          // Apply points award and tag used coupons
+          if (customer && customer.id) {
+            const customerRef = doc(db, "customers", customer.id);
+            const pointsAwarded = Math.floor(finalOrderTotal / 1000); // 1 point per $1000 CLP
+            const totalPoints = (customer.points || 0) + pointsAwarded;
+            
+            // Calculate tier segment
+            let finalSegment = "Bronze";
+            if (totalPoints >= 5000) finalSegment = "Platinum";
+            else if (totalPoints >= 2000) finalSegment = "Gold";
+            else if (totalPoints >= 500) finalSegment = "Silver";
+
+            const customerUpdates: any = {
+              points: increment(pointsAwarded),
+              totalSpent: increment(finalOrderTotal),
+              segment: finalSegment,
+              lastPurchaseAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            };
+
+            if (coupon && coupon.code) {
+              customerUpdates.usedCoupons = arrayUnion(coupon.code);
+            }
+
+            batch.update(customerRef, customerUpdates);
+
+            // Sync updated values to local session storage so they show immediately
+            const updatedSession = {
+              ...customer,
+              points: totalPoints,
+              totalSpent: (customer.totalSpent || 0) + finalOrderTotal,
+              segment: finalSegment,
+              usedCoupons: [...(customer.usedCoupons || []), coupon?.code].filter(Boolean)
+            };
+            localStorage.setItem("customer_session", JSON.stringify(updatedSession));
+          }
+
           await batch.commit();
 
           // 4. Clear storage
           localStorage.removeItem("pending_order_cart");
           localStorage.removeItem("pending_order_payments");
+          localStorage.removeItem("pending_order_coupon");
 
           setStatus("success");
         } else {

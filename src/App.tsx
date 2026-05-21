@@ -20,15 +20,25 @@ import { StockLedger } from "./components/StockLedger";
 import { Logistics } from "./components/Logistics";
 import { Customers } from "./components/Customers";
 import { Profile } from "./components/Profile";
+import { CustomerPortal } from "./components/CustomerPortal";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { motion, AnimatePresence } from "motion/react";
 import { MobilePOS } from "./components/MobilePOS";
+import { DriverPortal } from "./components/DriverPortal";
+import { seedCouponsIfEmpty } from "./lib/coupons";
 
-type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "customers" | "profile";
+type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "driver" | "customers" | "profile";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+
+  // Seed default coupons if missing, executed securely by staff with admin privileges
+  useEffect(() => {
+    if (user && (profile?.role === "admin" || profile?.role === "manager" || user.email === "solier.elijah@gmail.com")) {
+      seedCouponsIfEmpty();
+    }
+  }, [user, profile]);
 
   // Force reset page on login/logout or role change to avoid "getting stuck" on restricted pages
   useEffect(() => {
@@ -36,10 +46,17 @@ function AppContent() {
   }, [user?.uid, profile?.role]);
 
   const isMobilePath = window.location.pathname === "/mobile";
+  const isCustomerPath = window.location.pathname === "/cliente";
+  const isDriverPath = window.location.pathname === "/driver" || window.location.pathname === "/repartidor";
 
   // Handle Flow Result Path
   if (window.location.pathname === "/flow-result") {
     return <FlowResult />;
+  }
+
+  // Handle Customer Portal (Public Route)
+  if (isCustomerPath) {
+    return <CustomerPortal />;
   }
 
   if (loading) {
@@ -58,7 +75,18 @@ function AppContent() {
     return <VerifyEmail />;
   }
 
-  // Pure Mobile POS Route (no sidebar/layout)
+  // Driver route (direct access)
+  if (isDriverPath) {
+    return <DriverPortal />;
+  }
+
+  // Seller always gets the MobilePOS view!
+  // No full desktop layout or sidebars for sellers - exactly what the CEO wanted
+  if (profile?.role === "seller") {
+    return <MobilePOS />;
+  }
+
+  // Pure Mobile POS Route for others (no sidebar/layout)
   if (isMobilePath) {
     return <MobilePOS />;
   }
@@ -70,7 +98,9 @@ function AppContent() {
       case "inventory":
         return <Inventory />;
       case "logistics":
-        return <Logistics />;
+        return <Logistics onNavigate={setCurrentPage} />;
+      case "driver":
+        return <DriverPortal onBackToDashboard={() => setCurrentPage("logistics")} />;
       case "pos":
         return <POS />;
       case "transactions":

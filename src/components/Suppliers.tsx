@@ -25,6 +25,7 @@ import {
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { cn, formatChileanPhone } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
+import { ModernAlert } from "./ui/ModernAlert";
 
 export function Suppliers() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -32,6 +33,20 @@ export function Suppliers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Alert Modal State
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "delete" | "info";
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -65,7 +80,19 @@ export function Suppliers() {
       setIsModalOpen(false);
       setEditingSupplier(null);
       setFormData({ name: "", contactName: "", email: "", phone: "", category: "", address: "" });
+      setAlertConfig({
+        isOpen: true,
+        type: "success",
+        title: editingSupplier ? "¡Actualizado!" : "¡Éxito!",
+        message: editingSupplier ? "Proveedor actualizado correctamente." : "Nuevo proveedor registrado."
+      });
     } catch (err) {
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error",
+        message: "No se pudo guardar la información del proveedor."
+      });
       handleFirestoreError(err, OperationType.WRITE, "suppliers");
     } finally {
       setIsSubmitting(false);
@@ -85,14 +112,35 @@ export function Suppliers() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("¿Estás seguro de eliminar este proveedor?")) {
-      try {
-        await deleteDoc(doc(db, "suppliers", id));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, "suppliers");
+  const handleDelete = async (id: string, name: string) => {
+    setAlertConfig({
+      isOpen: true,
+      type: "delete",
+      title: "¿Eliminar Proveedor?",
+      message: `¿Realmente desea eliminar a "${name}"? Esta acción no se puede deshacer.`,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, "suppliers", id));
+          setAlertConfig(prev => ({
+            ...prev,
+            isOpen: true,
+            type: "success",
+            title: "Eliminado",
+            message: "El proveedor ha sido borrado exitosamente.",
+            onConfirm: undefined
+          }));
+        } catch (err: any) {
+          console.error(err);
+          setAlertConfig({
+            isOpen: true,
+            type: "error",
+            title: "Error de Servidor",
+            message: "No tienes permisos para eliminar este proveedor."
+          });
+          handleFirestoreError(err, OperationType.DELETE, "suppliers");
+        }
       }
-    }
+    });
   };
 
   const filteredSuppliers = suppliers.filter(s => 
@@ -165,7 +213,13 @@ export function Suppliers() {
                   <button onClick={() => handleEdit(supplier)} className="p-2 hover:bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors">
                     <Edit2 size={16} />
                   </button>
-                  <button onClick={() => handleDelete(supplier.id)} className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(supplier.id, supplier.name);
+                    }} 
+                    className="p-2 hover:bg-rose-100 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -232,22 +286,22 @@ export function Suppliers() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden"
+              className="relative bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]"
             >
-              <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+              <div className="p-6 md:p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50 shrink-0">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-800">{editingSupplier ? "Editar Proveedor" : "Nuevo Proveedor"}</h2>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Completa los detalles</p>
+                  <h2 className="text-xl md:text-2xl font-black text-slate-800">{editingSupplier ? "Editar Proveedor" : "Nuevo Proveedor"}</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Completa los detalles</p>
                 </div>
                 <button 
                   onClick={() => setIsModalOpen(false)}
-                  className="p-3 hover:bg-slate-100 rounded-2xl transition-all"
+                  className="p-2.5 hover:bg-slate-100 rounded-2xl transition-all"
                 >
                   <X size={20} className="text-slate-400" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 text-slate-700">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre de la Empresa</label>
                   <input 
@@ -345,6 +399,16 @@ export function Suppliers() {
           </div>
         )}
       </AnimatePresence>
+
+      <ModernAlert 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alertConfig.onConfirm}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.type === "delete" ? "Eliminar" : "Aceptar"}
+      />
     </div>
   );
 }

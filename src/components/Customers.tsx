@@ -33,8 +33,10 @@ import {
   Target,
   Zap,
   MessageCircle,
-  Gift
+  Gift,
+  Lock
 } from "lucide-react";
+import { ModernAlert } from "./ui/ModernAlert";
 import { useAuth } from "../contexts/AuthContext";
 import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, getCustomerTier, getHealthStatus, LOYALTY_TIERS } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -47,6 +49,21 @@ export function Customers() {
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [customerTransactions, setCustomerTransactions] = useState<any[]>([]);
+  const [customerRedemptions, setCustomerRedemptions] = useState<any[]>([]);
+  
+  // Alert Modal State
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "delete" | "info";
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
   
   const [formData, setFormData] = useState({
     name: "",
@@ -54,8 +71,10 @@ export function Customers() {
     email: "",
     phone: "",
     address: "",
+    password: "",
     points: 0,
     segment: "regular" as "regular" | "vip" | "churn",
+    type: "retail" as "retail" | "wholesale",
     notes: "",
     totalSpent: 0
   });
@@ -99,6 +118,28 @@ export function Customers() {
     }
   }, [selectedCustomerId, customers]);
 
+  useEffect(() => {
+    if (selectedCustomerId) {
+      const q = query(
+        collection(db, "redemptions"),
+        where("customerId", "==", selectedCustomerId)
+      );
+      const unsub = onSnapshot(q, (snapshot) => {
+        const sorted = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as any))
+          .sort((a, b) => {
+            const dateA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+            const dateB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+            return dateB - dateA;
+          });
+        setCustomerRedemptions(sorted);
+      });
+      return unsub;
+    } else {
+      setCustomerRedemptions([]);
+    }
+  }, [selectedCustomerId]);
+
   const openModal = (customer: any = null) => {
     if (customer) {
       setEditingCustomer(customer);
@@ -108,8 +149,10 @@ export function Customers() {
         email: customer.email || "",
         phone: formatChileanPhone(customer.phone || ""),
         address: customer.address || "",
+        password: customer.password || "",
         points: customer.points || 0,
         segment: customer.segment || "regular",
+        type: customer.type || "retail",
         notes: customer.notes || ""
       });
     } else {
@@ -120,8 +163,10 @@ export function Customers() {
         email: "",
         phone: "+56 ",
         address: "",
+        password: "",
         points: 0,
         segment: "regular",
+        type: "retail",
         notes: ""
       });
     }
@@ -136,25 +181,99 @@ export function Customers() {
           ...formData,
           updatedAt: serverTimestamp()
         });
+        setAlertConfig({
+          isOpen: true,
+          type: "success",
+          title: "¡Actualizado!",
+          message: `El cliente ${formData.name} ha sido actualizado correctamente.`
+        });
       } else {
         await addDoc(collection(db, "customers"), {
           ...formData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
+        setAlertConfig({
+          isOpen: true,
+          type: "success",
+          title: "¡Éxito!",
+          message: "Nuevo cliente registrado en la base de datos."
+        });
       }
       setIsModalOpen(false);
     } catch (err) {
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error",
+        message: "No se pudo guardar la información del cliente."
+      });
       handleFirestoreError(err, OperationType.WRITE, "customers");
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`¿Eliminar al cliente "${name}"?`)) return;
+  const handleDelete = async (id: string | null, name: string | undefined) => {
+    if (!id || !name) {
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error de Selección",
+        message: "No se pudo identificar al cliente para eliminar."
+      });
+      return;
+    }
+    
+    setAlertConfig({
+      isOpen: true,
+      type: "delete",
+      title: "¿Eliminar Cliente?",
+      message: `¿Realmente desea eliminar al cliente "${name}"? Esta acción eliminará su perfil y puntos permanentemente.`,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, "customers", id));
+          setSelectedCustomerId(null);
+          setAlertConfig(prev => ({
+            ...prev,
+            isOpen: true,
+            type: "success",
+            title: "Eliminado",
+            message: "El cliente ha sido borrado del sistema.",
+            onConfirm: undefined
+          }));
+        } catch (err: any) {
+          console.error(err);
+          setAlertConfig({
+            isOpen: true,
+            type: "error",
+            title: "Permiso Denegado",
+            message: "No tienes permisos suficientes para eliminar registros."
+          });
+          handleFirestoreError(err, OperationType.WRITE, "delete customer");
+        }
+      }
+    });
+  };
+
+  const handleDeliverPhysicalReward = async (redemptionId: string, productName: string) => {
     try {
-      await deleteDoc(doc(db, "customers", id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, "delete customer");
+      await updateDoc(doc(db, "redemptions", redemptionId), {
+        status: "claimed",
+        claimedAt: new Date()
+      });
+      setAlertConfig({
+        isOpen: true,
+        type: "success",
+        title: "¡Premio Entregado! 🎁",
+        message: `El premio "${productName}" ha sido marcado como entregado al cliente con éxito.`
+      });
+    } catch (e: any) {
+      console.error(e);
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error al entregar",
+        message: "Ocurrió un error al actualizar el estado de entrega: " + e.message
+      });
     }
   };
 
@@ -320,8 +439,12 @@ export function Customers() {
                           <Edit2 size={18} />
                         </button>
                         <button 
-                          onClick={() => handleDelete(selectedCustomerId, customers.find(c => c.id === selectedCustomerId)?.name)}
-                          className="p-3 bg-rose-500/20 text-rose-300 rounded-2xl hover:bg-rose-500/40 transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const currentCustomer = customers.find(c => c.id === selectedCustomerId);
+                            handleDelete(selectedCustomerId, currentCustomer?.name);
+                          }}
+                          className="p-3 bg-rose-600 text-white rounded-2xl hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -377,13 +500,44 @@ export function Customers() {
                         <span>Acción de Retención IA Sugerida</span>
                       </div>
                       <p className="text-xs text-center font-bold text-rose-100">Este cliente no ha comprado hace tiempo. Envíale un incentivo hoy.</p>
-                      <button 
-                        onClick={() => alert(`Sugerencia IA: Enviando Cupón de 15% DCTO a ${customers.find(c => c.id === selectedCustomerId)?.name}.`)}
-                        className="w-full py-3 bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-rose-400 transition-all shadow-lg shadow-rose-900/20"
-                      >
-                        <Gift size={14} />
-                        <span>Enviar Cupón Reactivación</span>
-                      </button>
+                      <div className="flex gap-2 w-full">
+                        <button 
+                          onClick={() => {
+                            const newPass = prompt(`Establecer nueva contraseña para ${customers.find(c => c.id === selectedCustomerId)?.name}:`);
+                            if (newPass) {
+                              updateDoc(doc(db, "customers", selectedCustomerId!), { password: newPass })
+                                .then(() => setAlertConfig({
+                                  isOpen: true,
+                                  type: "success",
+                                  title: "Password Reseteado",
+                                  message: "La contraseña ha sido actualizada exitosamente."
+                                }))
+                                .catch(e => setAlertConfig({
+                                  isOpen: true,
+                                  type: "error",
+                                  title: "Error",
+                                  message: "Error al actualizar: " + e.message
+                                }));
+                            }
+                          }}
+                          className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-slate-200 transition-all border border-slate-200"
+                        >
+                          <Lock size={14} />
+                          <span>Reset Clave</span>
+                        </button>
+                        <button 
+                          onClick={() => setAlertConfig({
+                            isOpen: true,
+                            type: "info",
+                            title: "Campaña IA Enviada",
+                            message: `Se ha generado y enviado un cupón de 15% DCTO a ${customers.find(c => c.id === selectedCustomerId)?.name} vía email.`
+                          })}
+                          className="flex-1 py-3 bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-rose-400 transition-all shadow-lg shadow-rose-900/20"
+                        >
+                          <Gift size={14} />
+                          <span>Enviar Cupón</span>
+                        </button>
+                      </div>
                     </motion.div>
                   )}
                 </div>
@@ -440,6 +594,76 @@ export function Customers() {
                      </div>
                    </div>
 
+                   {/* Physical Redemptions (Premios Físicos por Puntos) */}
+                   <div className="space-y-4">
+                     <div className="flex items-center justify-between">
+                       <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest ml-1 flex items-center gap-2">
+                         <Gift size={15} className="text-amber-500" />
+                         Canjes de Premios (Productos Físicos)
+                       </h3>
+                       {customerRedemptions.filter(r => r.status === "pending").length > 0 && (
+                         <span className="text-[8px] bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full font-black animate-pulse">
+                           {customerRedemptions.filter(r => r.status === "pending").length} PENDIENTES
+                         </span>
+                       )}
+                     </div>
+                     
+                     <div className="space-y-3">
+                       {customerRedemptions.map((item) => (
+                         <div 
+                           key={item.id} 
+                           className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-[2rem] hover:border-amber-250 hover:bg-white hover:shadow-sm transition-all gap-4"
+                         >
+                           <div className="flex items-center space-x-3 text-left">
+                             <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-bold text-lg border border-amber-100 shadow-inner shrink-0">
+                               🎁
+                             </div>
+                             <div className="text-left">
+                               <h4 className="text-xs font-black text-slate-800 tracking-tight leading-none text-left">{item.productName}</h4>
+                               <div className="flex items-center gap-2 mt-1 flex-wrap text-left">
+                                 <span className="text-[9px] font-bold text-slate-400">
+                                   {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleDateString('es-CL') : new Date(item.timestamp || 0).toLocaleDateString('es-CL')}
+                                 </span>
+                                 <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                 <span className="text-[9px] font-black text-amber-700 bg-amber-50 rounded px-1.5 py-0.2 tracking-tight">
+                                   Costó {item.pointsCost} PTS
+                                  </span>
+                               </div>
+                             </div>
+                           </div>
+
+                           <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                             <div className="text-left sm:text-right shrink-0">
+                               <span className="block font-mono text-[10px] font-black text-slate-700 bg-white border border-slate-200 px-3 py-1 rounded-lg tracking-wider">
+                                 {item.validationCode}
+                               </span>
+                             </div>
+
+                             <div>
+                               {item.status === "pending" ? (
+                                 <button
+                                   onClick={() => handleDeliverPhysicalReward(item.id, item.productName)}
+                                   className="py-2 px-3 bg-emerald-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md shadow-emerald-200 active:scale-95 flex items-center space-x-1"
+                                 >
+                                   <span>Entregar Premio</span>
+                                 </button>
+                               ) : (
+                                 <div className="text-emerald-650 bg-emerald-50 border border-emerald-150 rounded-xl py-1.5 px-3 text-[8px] font-black uppercase tracking-widest inline-flex items-center">
+                                   <span>✓ Entregado</span>
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+                         </div>
+                       ))}
+                       {customerRedemptions.length === 0 && (
+                         <div className="p-6 text-center rounded-[2rem] bg-slate-50 border border-slate-100 text-slate-300">
+                           <p className="text-[9px] font-black uppercase tracking-widest">El cliente no registra canjes de premios físicos.</p>
+                         </div>
+                       )}
+                     </div>
+                   </div>
+
                    {/* History */}
                    <div className="space-y-4">
                      <div className="flex items-center justify-between">
@@ -488,7 +712,7 @@ export function Customers() {
 
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 pb-20 sm:pb-6">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -500,9 +724,9 @@ export function Customers() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl relative z-10 overflow-hidden flex flex-col"
+              className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]"
             >
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
                 <div className="flex items-center space-x-4 text-indigo-600">
                   <div className="p-3 bg-indigo-100 rounded-2xl">
                     <Users size={24} />
@@ -513,13 +737,13 @@ export function Customers() {
                 </div>
                 <button 
                   onClick={() => setIsModalOpen(false)} 
-                  className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"
+                  className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 text-slate-700">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre / Empresa *</label>
@@ -532,13 +756,23 @@ export function Customers() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Identificación (TaxID/RUT)</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">RUT</label>
                     <input 
                       type="text" 
                       placeholder="11.111.111-K"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.taxId}
                       onChange={e => setFormData({...formData, taxId: formatRUT(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Contraseña (Portal Clientes)</label>
+                    <input 
+                      type="text" 
+                      placeholder="PIN o Clave de acceso"
+                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
+                      value={formData.password}
+                      onChange={e => setFormData({...formData, password: e.target.value})}
                     />
                   </div>
                   <div>
@@ -579,7 +813,30 @@ export function Customers() {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Clasificación</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Tipo de Cliente</label>
+                    <div className="flex gap-4">
+                       {[
+                         { id: "retail", label: "Minorista" },
+                         { id: "wholesale", label: "Mayorista" }
+                       ].map((t) => (
+                         <button
+                           key={t.id}
+                           type="button"
+                           onClick={() => setFormData({...formData, type: t.id as any})}
+                           className={cn(
+                             "flex-1 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all",
+                             formData.type === t.id 
+                               ? "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100" 
+                               : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
+                           )}
+                         >
+                           {t.label}
+                         </button>
+                       ))}
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Clasificación de Fidelidad</label>
                     <div className="flex gap-4">
                        {["regular", "vip", "churn"].map((seg) => (
                          <button
@@ -630,6 +887,17 @@ export function Customers() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modern Alert Modal */}
+      <ModernAlert 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alertConfig.onConfirm}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText={alertConfig.type === "delete" ? "Eliminar" : "Aceptar"}
+      />
     </div>
   );
 }

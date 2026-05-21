@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   LayoutDashboard, 
   Package, 
@@ -57,6 +57,66 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("read_notification_ids") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("dismissed_notification_ids") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const activeNotifications = useMemo(() => {
+    return notifications
+      .filter(n => !dismissedNotifIds.includes(n.id))
+      .map(n => ({
+        ...n,
+        read: readNotifIds.includes(n.id)
+      }));
+  }, [notifications, readNotifIds, dismissedNotifIds]);
+
+  const unreadCount = useMemo(() => {
+    return activeNotifications.filter(n => !n.read).length;
+  }, [activeNotifications]);
+
+  // Automatically mark active notifications as read when the notification dropdown is opened
+  useEffect(() => {
+    if (isNotificationsOpen && activeNotifications.length > 0) {
+      const unreadAlerts = activeNotifications.filter(n => !n.read);
+      if (unreadAlerts.length > 0) {
+        setReadNotifIds(prev => {
+          const newIds = [...prev];
+          unreadAlerts.forEach(n => {
+            if (!newIds.includes(n.id)) {
+              newIds.push(n.id);
+            }
+          });
+          localStorage.setItem("read_notification_ids", JSON.stringify(newIds));
+          return newIds;
+        });
+      }
+    }
+  }, [isNotificationsOpen, activeNotifications]);
+
+  const handleClearAll = () => {
+    const currentIds = activeNotifications.map(n => n.id);
+    const newDismissed = [...dismissedNotifIds];
+    currentIds.forEach(id => {
+      if (!newDismissed.includes(id)) {
+        newDismissed.push(id);
+      }
+    });
+    setDismissedNotifIds(newDismissed);
+    localStorage.setItem("dismissed_notification_ids", JSON.stringify(newDismissed));
+  };
 
   useEffect(() => {
     // Listen for low stock notifications
@@ -199,7 +259,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: "settings", label: "Configuración", icon: SettingsIcon, roles: ["admin"] },
   ];
 
-  const filteredNavItems = navItems.filter(item => item.roles.includes(profile?.role || ""));
+  const filteredNavItems = navItems
+    .filter(item => item.roles.includes(profile?.role || ""))
+    .filter(item => item.id !== "logistics" || settings.deliveryEnabled !== false);
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] flex flex-col md:flex-row font-sans selection:bg-indigo-100">
@@ -262,7 +324,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-slate-900 truncate">{profile?.name}</p>
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">{profile?.role}</p>
+                <p className="text-[10px] text-indigo-500 uppercase tracking-widest font-bold mt-0.5">
+                  {profile?.role === "admin" ? "Administrador de Sistemas" :
+                   profile?.role === "manager" ? "Jefe de Local / Administración" :
+                   profile?.role === "seller" ? "Vendedor / Cajero" :
+                   profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role}
+                </p>
               </div>
             </div>
           )}
@@ -286,6 +353,17 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           >
             <Smartphone size={20} />
             {!isSidebarCollapsed && <span className="font-semibold text-sm">App Vendedores</span>}
+          </button>
+
+          <button
+            onClick={() => window.open("/cliente", "_blank")}
+            className={cn(
+              "w-full flex items-center p-3 mt-1 rounded-xl text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all",
+              isSidebarCollapsed ? "justify-center" : "space-x-3"
+            )}
+          >
+            <Users size={20} />
+            {!isSidebarCollapsed && <span className="font-semibold text-sm">Portal Clientes</span>}
           </button>
         </div>
         
@@ -314,9 +392,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             className="p-2 bg-slate-50 rounded-xl text-slate-600 relative"
           >
             <Bell size={20} />
-            {notifications.length > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
-                {notifications.length}
+                {unreadCount}
               </span>
             )}
           </button>
@@ -349,9 +427,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               >
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                   <h3 className="font-bold text-slate-800">Notificaciones</h3>
-                  {notifications.length > 0 && (
+                  {activeNotifications.length > 0 && (
                     <button 
-                      onClick={() => setNotifications([])}
+                      onClick={handleClearAll}
                       className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider"
                     >
                       Limpiar todo
@@ -360,7 +438,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 </div>
                 
                 <div className="max-h-[60vh] md:max-h-[400px] overflow-y-auto">
-                  {notifications.length === 0 ? (
+                  {activeNotifications.length === 0 ? (
                     <div className="p-10 text-center">
                       <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                         <Bell size={20} className="text-slate-300" />
@@ -368,14 +446,17 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                       <p className="text-slate-400 text-xs font-medium">No tienes notificaciones por ahora</p>
                     </div>
                   ) : (
-                    notifications.map((notif) => (
+                    activeNotifications.map((notif) => (
                       <button
                         key={notif.id}
                         onClick={() => {
                           if (notif.link) onNavigate(notif.link);
                           setIsNotificationsOpen(false);
                         }}
-                        className="w-full p-4 flex items-start space-x-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0"
+                        className={cn(
+                          "w-full p-4 flex items-start space-x-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0 relative",
+                          !notif.read ? "bg-indigo-50/10" : ""
+                        )}
                       >
                         <div className={cn(
                           "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
@@ -387,8 +468,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                            notif.type === 'alert' ? <X size={16} /> :
                            notif.type === 'success' ? <CheckCircle2 size={16} /> : <Info size={16} />}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-900 mb-0.5">{notif.title}</p>
+                        <div className="flex-1 min-w-0 pr-4">
+                          <p className="text-xs font-bold text-slate-900 mb-0.5 flex items-center gap-1.5">
+                            <span>{notif.title}</span>
+                            {!notif.read && (
+                              <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                            )}
+                          </p>
                           <p className="text-[11px] text-slate-500 leading-relaxed mb-1">{notif.message}</p>
                           <p className="text-[10px] text-slate-400 font-medium">{notif.time}</p>
                         </div>
@@ -397,7 +483,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                   )}
                 </div>
                 
-                {notifications.length > 0 && (
+                {activeNotifications.length > 0 && (
                   <div className="p-3 bg-slate-50 text-center">
                     <button 
                       onClick={() => {
@@ -481,9 +567,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 )}
               >
                 <Bell size={20} />
-                {notifications.length > 0 && (
+                {unreadCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
-                    {notifications.length}
+                    {unreadCount}
                   </span>
                 )}
               </button>

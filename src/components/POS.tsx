@@ -6,9 +6,11 @@ import {
   writeBatch, 
   doc, 
   addDoc,
+  getDoc,
   serverTimestamp,
   increment,
-  orderBy
+  orderBy,
+  arrayUnion
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -33,16 +35,20 @@ import {
   FileText,
   Ticket,
   ChevronRight,
-  Store
+  Store,
+  Camera
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, getCustomerTier, calculatePoints } from "../lib/utils";
 import confetti from "canvas-confetti";
 import { CashRegisterManagement } from "./CashRegister";
 import { MercadoPagoWallet } from "./MercadoPagoWallet";
 import { printReceipt } from "../lib/printUtils";
+import { ModernAlert } from "./ui/ModernAlert";
+import { AUTOMATIC_POINT_COUPONS } from "../lib/coupons";
 
 interface CartItem {
   id: string;
@@ -76,6 +82,8 @@ export function POS() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [documentType, setDocumentType] = useState<"boleta" | "factura">("boleta");
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isScanningCustomer, setIsScanningCustomer] = useState(false);
   const [isNewCustomerMode, setIsNewCustomerMode] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -105,9 +113,109 @@ export function POS() {
   const [showNFCSim, setShowNFCSim] = useState(false);
   const [nfcState, setNfcState] = useState<"waiting" | "processing" | "success">("waiting");
 
+  // Promo Coupons State
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState("");
+
+  const handleApplyCoupon = async () => {
+    setCouponError("");
+    if (!promoCode.trim()) return;
+    try {
+      const codeUpper = promoCode.trim().toUpperCase();
+      
+      // Check if selected customer has already used this coupon
+      if (selectedCustomer && selectedCustomer.usedCoupons && selectedCustomer.usedCoupons.includes(codeUpper)) {
+        setCouponError("Cupón ya utilizado por este cliente");
+        setAppliedCoupon(null);
+        return;
+      }
+
+      // 1. Check if it's an automatic point-based loyalty coupon
+      const autoCoupon = AUTOMATIC_POINT_COUPONS.find(c => c.code === codeUpper);
+      if (autoCoupon) {
+        if (!selectedCustomer) {
+          setCouponError("Asocie cliente para validar puntos");
+          setAppliedCoupon(null);
+          return;
+        }
+        const points = selectedCustomer.points || 0;
+        if (points < autoCoupon.requiredPoints) {
+          setCouponError(`Faltan puntos (${points}/${autoCoupon.requiredPoints} pts)`);
+          setAppliedCoupon(null);
+          return;
+        }
+        setAppliedCoupon({
+          id: autoCoupon.id,
+          code: autoCoupon.code,
+          title: autoCoupon.title,
+          discountType: autoCoupon.discountType,
+          discountValue: autoCoupon.discountValue,
+          minTier: "BRONZE",
+          active: true
+        });
+        setCouponError("");
+        return;
+      }
+
+      // 2. Otherwise assume it's an enterprise promo coupon in Firestore
+      const docRef = doc(db, "coupons", codeUpper);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        setCouponError("Código inválido");
+        setAppliedCoupon(null);
+        return;
+      }
+      const data = docSnap.data();
+      if (!data.active) {
+        setCouponError("Inactivo");
+        setAppliedCoupon(null);
+        return;
+      }
+      
+      // Verify min loyalty tier if customer is selected
+      if (selectedCustomer) {
+        const points = selectedCustomer.points || 0;
+        const customerTier = getCustomerTier(points);
+        const tiersOrder = { BRONZE: 0, SILVER: 1, GOLD: 2, PLATINUM: 3 };
+        const reqTierRank = tiersOrder[data.minTier as keyof typeof tiersOrder] || 0;
+        const curTierRank = tiersOrder[customerTier.name.toUpperCase() as keyof typeof tiersOrder] || 0;
+        
+        if (curTierRank < reqTierRank) {
+          setCouponError(`Requiere ${data.minTier}`);
+          setAppliedCoupon(null);
+          return;
+        }
+      } else if (data.minTier !== "BRONZE") {
+        setCouponError(`Requiere cliente ${data.minTier}`);
+        setAppliedCoupon(null);
+        return;
+      }
+
+      setAppliedCoupon({ id: docSnap.id, ...data });
+      setCouponError("");
+    } catch (err) {
+      setCouponError("Error al validar");
+    }
+  };
+
   // Cash Register State
   const [isCashRegisterOpen, setIsCashRegisterOpen] = useState(false);
   const [currentSession, setCurrentSession] = useState<any>(null);
+
+  // Alert Modal State
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "delete" | "info";
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
 
   useEffect(() => {
     let interval: any;
@@ -189,9 +297,80 @@ export function POS() {
       setIsNewCustomerMode(false);
       setNewCustomer({ name: "", taxId: "", email: "", phone: "", address: "" });
     } catch (err) {
-      alert("Error al crear cliente");
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error",
+        message: "No se pudo registrar al nuevo cliente."
+      });
     }
   };
+
+  // Intercept secure rotating token scanning or secure PIN entry
+  useEffect(() => {
+    const cleanSearch = customerSearch.trim();
+    
+    // 1. Check if scanned dynamic QR code token
+    if (cleanSearch.startsWith("STK:ID:")) {
+      const parts = cleanSearch.split(":");
+      if (parts.length >= 4) {
+        const taxId = parts[2];
+        const expiresAt = Number(parts[3]);
+        
+        if (Date.now() > expiresAt + 60000) { // 60s clock tolerance
+          setAlertConfig({
+            isOpen: true,
+            type: "error",
+            title: "🔐 Token Expirado",
+            message: "El código QR presentado por el cliente ha vencido. Solicite que abra su tarjeta digital nuevamente para actualizar el código."
+          });
+          setCustomerSearch("");
+          return;
+        }
+        
+        const found = customers.find(c => c.taxId === taxId);
+        if (found) {
+          setSelectedCustomer(found);
+          setCustomerSearch("");
+          setShowCustomerModal(false);
+          setAlertConfig({
+            isOpen: true,
+            type: "success",
+            title: "🔐 Cliente Verificado",
+            message: `Identidad verificada de forma segura para ${found.name}. Token dinámico válido.`
+          });
+        } else {
+          setAlertConfig({
+            isOpen: true,
+            type: "error",
+            title: "Cliente No Registrado",
+            message: `El RUT ${taxId} decodificado no está registrado en el sistema de la empresa.`
+          });
+          setCustomerSearch("");
+        }
+      }
+    }
+    // 2. Check if entered a 6-digit manual secure OTP PIN from the app
+    else if (/^\d{6}$/.test(cleanSearch)) {
+      const matchedCustomer = customers.find(c => 
+        c.securePin === cleanSearch && 
+        c.securePinExpiresAt && 
+        c.securePinExpiresAt + 60000 > Date.now()
+      );
+      
+      if (matchedCustomer) {
+        setSelectedCustomer(matchedCustomer);
+        setCustomerSearch("");
+        setShowCustomerModal(false);
+        setAlertConfig({
+          isOpen: true,
+          type: "success",
+          title: "🔑 PIN Verificado",
+          message: `Código temporal validado con éxito. Cliente: ${matchedCustomer.name}.`
+        });
+      }
+    }
+  }, [customerSearch, customers]);
 
   useEffect(() => {
     let barcode = "";
@@ -228,22 +407,45 @@ export function POS() {
   const addToCart = (product: any) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
+      
+      const isWholesaleEligible = (selectedCustomer?.type === "wholesale" || true) && // Can be tuned to allow anyone or only bulk accounts
+                                  (product.wholesaleMinQty ? (existing ? existing.quantity + 1 : 1) >= product.wholesaleMinQty : false);
+
+      const price = isWholesaleEligible
+        ? Number(product.wholesalePrice)
+        : Number(product.price) || 0;
+
       if (existing) {
         if (existing.quantity >= product.stock) return prev;
         return prev.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id ? { ...item, quantity: item.quantity + 1, price } : item
         );
       }
       return [...prev, { 
         id: product.id, 
         name: product.name, 
-        price: Number(product.price) || 0, 
+        price: price, 
         costPrice: Number(product.costPrice) || 0,
         quantity: 1, 
-        maxStock: product.stock 
+        maxStock: product.stock,
+        image: product.image
       }];
     });
   };
+
+  // Recalculate cart prices when customer changes
+  useEffect(() => {
+    setCart(prev => prev.map(item => {
+      const product = products.find(p => p.id === item.id);
+      if (!product) return item;
+      
+      const newPrice = (selectedCustomer?.type === "wholesale" && product.wholesalePrice)
+        ? Number(product.wholesalePrice)
+        : Number(product.price) || 0;
+      
+      return { ...item, price: newPrice };
+    }));
+  }, [selectedCustomer, products]);
 
   const updateQuantity = (id: string, delta: number) => {
     setCart(prev => prev.map(item => {
@@ -262,8 +464,10 @@ export function POS() {
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const couponDiscount = appliedCoupon ? (appliedCoupon.discountType === "percent" ? Math.round(cartTotal * (appliedCoupon.discountValue / 100)) : appliedCoupon.discountValue) : 0;
+  const finalTotal = Math.max(0, cartTotal - couponDiscount);
   const paidTotal = payments.efectivo + payments.tarjeta + payments.transferencia + payments.digital;
-  const remaining = Math.max(0, cartTotal - paidTotal);
+  const remaining = Math.max(0, finalTotal - paidTotal);
   const change = Math.max(0, Number(cashReceived) - payments.efectivo);
 
   const handlePaymentChange = (key: keyof PaymentBreakdown, value: string) => {
@@ -282,12 +486,12 @@ export function POS() {
 
   const quickPay = () => {
     setPayments({
-      efectivo: cartTotal,
+      efectivo: finalTotal,
       tarjeta: 0,
       transferencia: 0,
       digital: 0
     });
-    setCashReceived(cartTotal.toString());
+    setCashReceived(finalTotal.toString());
   };
 
   const handlePrint = (order: any) => {
@@ -305,22 +509,34 @@ export function POS() {
       customerName: order.customer?.name,
       businessName: settings.businessName,
       address: settings.address,
-      phone: settings.phone
+      phone: settings.phone,
+      pointsEarned: calculatePoints(order.total),
+      totalPoints: order.customer ? (order.customer.points || 0) + calculatePoints(order.total) : undefined
     });
   };
 
 
   const handleCheckout = async () => {
     if (cart.length === 0 || isProcessing) return;
-    if (paidTotal < cartTotal) {
-      alert("El monto pagado es menor al total de la venta.");
+    if (paidTotal < finalTotal) {
+      setAlertConfig({
+        isOpen: true,
+        type: "warning",
+        title: "Pago Incompleto",
+        message: "El monto pagado es menor al total de la venta con descuento. Por favor verifique los montos ingresados."
+      });
       return;
     }
 
     // Handle Flow QR Payment if there's digital portion
     if (payments.digital > 0) {
       if (payments.digital < 350) {
-        alert("El monto mínimo para pagos digitales (Flow) es de $350 CLP por transacción.");
+        setAlertConfig({
+          isOpen: true,
+          type: "warning",
+          title: "Monto Mínimo Flow",
+          message: "El monto mínimo para pagos digitales (Flow) es de $350 CLP por transacción."
+        });
         return;
       }
       setShowNFCSim(true);
@@ -333,7 +549,12 @@ export function POS() {
 
   const startFlowQR = async () => {
     if (payments.digital < 350) {
-      alert("El monto mínimo para cobrar con Flow es de $350 CLP.");
+      setAlertConfig({
+        isOpen: true,
+        type: "warning",
+        title: "Monto Mínimo Flow",
+        message: "El monto mínimo para cobrar con Flow es de $350 CLP."
+      });
       return;
     }
     try {
@@ -363,7 +584,12 @@ export function POS() {
         throw new Error(data.error || "No se pudo generar el QR");
       }
     } catch (err: any) {
-      alert("Error Flow: " + err.message);
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error de Pago",
+        message: "Error Flow: " + err.message
+      });
       setIsProcessing(false);
     }
   };
@@ -416,34 +642,62 @@ export function POS() {
           timestamp: serverTimestamp(),
           orderId: orderId,
           cashRegisterId: currentSession?.id,
+          couponCode: appliedCoupon?.code || null,
+          discountApplied: couponDiscount,
+          finalOrderTotal: finalTotal,
           note: token?.startsWith("mercadopago") ? `Pago Contactless (MP: ${token})` : token ? `Pago Flow QR (Token: ${token})` : `Venta Directa`
         });
       });
 
       // Award loyalty points and update stats automatically
       if (selectedCustomer?.id) {
-        const pointsAwarded = calculatePoints(cartTotal);
+        const pointsAwarded = calculatePoints(finalTotal);
         const currentPoints = (selectedCustomer.points || 0) + pointsAwarded;
         const newTier = getCustomerTier(currentPoints);
         
         const customerRef = doc(db, "customers", selectedCustomer.id);
-        batch.update(customerRef, {
+        const customerUpdates: any = {
           points: increment(pointsAwarded),
-          totalSpent: increment(cartTotal),
+          totalSpent: increment(finalTotal),
           segment: newTier.segment,
           lastPurchaseAt: serverTimestamp(),
           updatedAt: serverTimestamp()
-        });
+        };
+
+        if (appliedCoupon?.code) {
+          customerUpdates.usedCoupons = arrayUnion(appliedCoupon.code);
+        }
+
+        batch.update(customerRef, customerUpdates);
       }
 
       await batch.commit();
       
+      // Sanitize order details before sending to avoid any payload size issues (e.g. from base64 images/signatures)
+      const cleanItems = cart.map(item => ({
+        id: item.id || "",
+        name: item.name || "",
+        price: item.price || 0,
+        quantity: item.quantity || 1
+      }));
+
+      const cleanCustomer = selectedCustomer ? {
+        id: selectedCustomer.id || "",
+        name: selectedCustomer.name || "",
+        taxId: selectedCustomer.taxId || "",
+        email: selectedCustomer.email || "",
+        phone: selectedCustomer.phone || ""
+      } : null;
+
       const orderData = {
         id: orderId,
-        items: cart,
-        total: cartTotal,
+        items: cleanItems,
+        total: finalTotal,
+        originalTotal: cartTotal,
+        discount: couponDiscount,
+        couponCode: appliedCoupon?.code || null,
         payments: payments,
-        customer: selectedCustomer,
+        customer: cleanCustomer,
         documentType,
         timestamp: new Date().toISOString()
       };
@@ -475,6 +729,8 @@ export function POS() {
       setDocumentType("boleta");
       setPayments({ efectivo: 0, tarjeta: 0, transferencia: 0, digital: 0 });
       setCashReceived("");
+      setPromoCode("");
+      setAppliedCoupon(null);
       
       confetti({
         particleCount: 150,
@@ -513,11 +769,37 @@ export function POS() {
             <input 
               type="text" 
               placeholder="Buscar producto o SKU..."
-              className="w-full sm:w-72 bg-white border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-bold shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all text-slate-700"
+              className="w-full sm:w-72 bg-white border-none rounded-2xl py-3 pl-12 pr-12 text-sm font-bold shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all text-slate-700"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <button 
+              onClick={() => setIsScanning(true)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors shadow-sm"
+              title="Escaneo Móvil/Webcam"
+            >
+              <Camera size={14} />
+            </button>
           </div>
+
+          <AnimatePresence>
+            {isScanning && (
+              <BarcodeScanner 
+                onScan={(code) => {
+                  if (code) {
+                    const product = products.find(p => p.barcode === code || (p.barcodes && p.barcodes.includes(code)));
+                    if (product) {
+                      addToCart(product);
+                    } else {
+                      setSearchTerm(code);
+                    }
+                  }
+                  setIsScanning(false);
+                }}
+                onClose={() => setIsScanning(false)}
+              />
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Category Rail */}
@@ -565,9 +847,13 @@ export function POS() {
                 onClick={() => addToCart(product)}
                 className="group bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1.5 transition-all relative overflow-hidden flex flex-col items-center text-center"
               >
-                {/* Product Icon/Image Placeholder */}
+                {/* Product Icon/Image */}
                 <div className="w-20 h-20 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-all mb-4 relative overflow-hidden capitalize font-black text-3xl">
-                   {product.name.charAt(0)}
+                   {product.image ? (
+                     <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                   ) : (
+                     product.name.charAt(0)
+                   )}
                    <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 
@@ -577,6 +863,9 @@ export function POS() {
                   </h4>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                     SKU: {product.sku || 'N/A'}
+                  </p>
+                  <p className="text-[9px] font-bold text-indigo-500 truncate">
+                    EAN: {product.barcode || (product.barcodes && product.barcodes[0]) || 'Sin código'}
                   </p>
                 </div>
 
@@ -696,15 +985,34 @@ export function POS() {
           <div className="space-y-3 mb-6 max-h-[160px] overflow-y-auto pr-2">
             {cart.map((item) => (
               <div key={item.id} className="flex items-center justify-between group bg-slate-50 p-3 rounded-2xl">
-                <div className="flex-1 min-w-0 pr-4">
-                  <p className="font-bold text-slate-800 text-xs truncate">{item.name}</p>
-                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                    {formatCurrency(item.price)} x {item.quantity}
-                  </p>
+                <div className="flex items-center flex-1 min-w-0 pr-4">
+                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-300 mr-3 border border-slate-100 overflow-hidden shrink-0">
+                    {item.image ? (
+                      <img src={item.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <Package size={14} />
+                    )}
+                  </div>
+                  <div className="truncate">
+                    <p className="font-bold text-slate-800 text-xs truncate">{item.name}</p>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                      {formatCurrency(item.price)} x {item.quantity}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center space-x-1">
                   <button onClick={() => updateQuantity(item.id, -1)} className="p-1 rounded-lg bg-white shadow-sm border border-slate-100"><Minus size={12}/></button>
-                  <span className="w-6 text-center text-xs font-black italic">{item.quantity}</span>
+                  <input 
+                    type="number"
+                    className="w-8 text-center bg-transparent border-none text-[10px] font-black text-slate-800 focus:ring-0 p-0 italic"
+                    value={item.quantity}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val)) {
+                        setCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.min(i.maxStock, Math.max(0, val)) } : i).filter(i => i.quantity > 0));
+                      }
+                    }}
+                  />
                   <button onClick={() => updateQuantity(item.id, 1)} disabled={item.quantity >= item.maxStock} className="p-1 rounded-lg bg-white shadow-sm border border-slate-100 disabled:opacity-30"><Plus size={12}/></button>
                   <button onClick={() => removeFromCart(item.id)} className="ml-2 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
                 </div>
@@ -827,10 +1135,65 @@ export function POS() {
                 </button>
               </div>
 
+              {/* Coupon Apply Area */}
+              <div className="pt-4 border-t border-white/5 space-y-2 relative z-10">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Cupón de Descuento</p>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-white/5 p-2 rounded-xl border border-white/10">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{appliedCoupon.img || "🎟️"}</span>
+                      <div>
+                        <p className="text-xs font-black text-white">{appliedCoupon.code}</p>
+                        <p className="text-[10px] text-white/60">{appliedCoupon.desc}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setAppliedCoupon(null)} 
+                      className="text-[10px] font-black text-rose-400 hover:text-rose-300 uppercase tracking-widest"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Ej: SUMMER15" 
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-black text-white uppercase placeholder-white/20 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                      />
+                      <button 
+                        onClick={handleApplyCoupon}
+                        className="bg-white/10 hover:bg-white/25 text-white text-xs font-black px-4 py-2 rounded-xl transition-all"
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-[9px] text-rose-400 font-bold">{couponError}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-white/5 space-y-3 relative z-10">
+                {couponDiscount > 0 && (
+                  <>
+                    <div className="flex justify-between text-xs font-bold text-white/50">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(cartTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-rose-400">
+                      <span>Descuento Cupón</span>
+                      <span>-{formatCurrency(couponDiscount)}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between text-xs font-bold text-white/60">
                   <span>Total Venta</span>
-                  <span className="text-white">{formatCurrency(cartTotal)}</span>
+                  <span className="text-white text-sm font-black">{formatCurrency(finalTotal)}</span>
                 </div>
                 <div className="flex justify-between items-end">
                   <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Saldo Restante</span>
@@ -938,7 +1301,12 @@ export function POS() {
                   }, 1500);
                 }}
                 onError={(err) => {
-                  alert("Error en el pago: " + err);
+                  setAlertConfig({
+                    isOpen: true,
+                    type: "error",
+                    title: "Error Contactless",
+                    message: "Error en el pago: " + err
+                  });
                 }}
               />
 
@@ -1095,7 +1463,7 @@ export function POS() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">ID Tributario (RUC/NIT/DNI)</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">RUT</label>
                         <input 
                           required
                           type="text" 
@@ -1136,12 +1504,36 @@ export function POS() {
                       <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
                       <input 
                         type="text"
-                        placeholder="Buscar por nombre, empresa o identificación..."
-                        className="w-full h-16 bg-slate-50 border border-slate-100 rounded-3xl pl-16 pr-6 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                        placeholder="Buscar por nombre, RUT, o escriba PIN OTP de 6 dígitos..."
+                        className="w-full h-16 bg-slate-50 border border-slate-100 rounded-3xl pl-16 pr-20 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
                         value={customerSearch}
                         onChange={e => setCustomerSearch(e.target.value)}
                       />
+                      <button 
+                        onClick={() => setIsScanningCustomer(true)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                        title="Escaneo Webcam - Código QR de Cliente"
+                      >
+                        <Camera size={18} />
+                      </button>
                     </div>
+
+                    <AnimatePresence>
+                      {isScanningCustomer && (
+                        <div className="bg-slate-900/10 p-4 rounded-3xl border border-slate-100 relative">
+                          <p className="text-[10px] font-black text-indigo-950 uppercase tracking-wider mb-2 text-center">Enfoque el código QR dinámico de la app del cliente</p>
+                          <BarcodeScanner 
+                            onScan={(code) => {
+                              if (code) {
+                                setCustomerSearch(code);
+                              }
+                              setIsScanningCustomer(false);
+                            }}
+                            onClose={() => setIsScanningCustomer(false)}
+                          />
+                        </div>
+                      )}
+                    </AnimatePresence>
                     <div className="space-y-3">
                       {filteredCustomers.map(c => (
                         <button 
@@ -1156,7 +1548,7 @@ export function POS() {
                             <div className="text-left">
                               <p className="font-bold text-slate-800">{c.name}</p>
                               <div className="flex items-center space-x-2 mt-1">
-                                <span className="text-[10px] font-black uppercase tracking-tight text-slate-400">ID TAX:</span>
+                                <span className="text-[10px] font-black uppercase tracking-tight text-slate-400">RUT:</span>
                                 <span className="text-[10px] font-black uppercase tracking-tight text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{formatRUT(c.taxId)}</span>
                               </div>
                             </div>
@@ -1178,6 +1570,16 @@ export function POS() {
           </div>
         )}
       </AnimatePresence>
+
+      <ModernAlert 
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alertConfig.onConfirm}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText="Aceptar"
+      />
     </div>
   );
 }
