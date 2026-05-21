@@ -3,8 +3,9 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Suppress benign Vite WebSocket and HMR errors in AI Studio environment
-if (typeof window !== 'undefined') {
+// Suppress benign Vite WebSocket and HMR errors in AI Studio environment (DEV only)
+// @ts-ignore
+if (import.meta.env?.DEV && typeof window !== 'undefined') {
   const suppressPatterns = [
     '[vite] failed to connect',
     'WebSocket closed without opened',

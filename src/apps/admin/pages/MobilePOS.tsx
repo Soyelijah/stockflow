@@ -35,7 +35,13 @@ import {
   LogOut,
   FileText,
   Ticket,
-  Camera
+  Camera,
+  Lock,
+  Unlock,
+  Wifi,
+  WifiOff,
+  TrendingUp,
+  Coins
 } from "lucide-react";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useSettings } from "@/src/contexts/SettingsContext";
@@ -76,6 +82,228 @@ export function MobilePOS() {
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [lastOrder, setLastOrder] = useState<any>(null);
   const [visibleCount, setVisibleCount] = useState(16);
+
+  // === FASE 2: ESTADOS DE CONTROL DE CAJA, OFFLINE Y COMISIONES ===
+  // 1. Estados de Control de Caja (Paso 2.1)
+  const [registerOpen, setRegisterOpen] = useState<boolean>(() => {
+    return localStorage.getItem("pos_register_open") === "true";
+  });
+  const [shiftData, setShiftData] = useState<any>(() => {
+    const data = localStorage.getItem("pos_shift_data");
+    return data ? JSON.parse(data) : {
+      efectivoInicial: 100000,
+      openedAt: "",
+      vendedorName: "",
+      vendedorId: "",
+      salesCount: 0,
+      salesTotal: 0,
+      salesByMethod: { efectivo: 0, tarjeta: 0, transferencia: 0, digital: 0 },
+      retiros: []
+    };
+  });
+  const [openingCashInput, setOpeningCashInput] = useState("100000");
+  const [showRetiroModal, setShowRetiroModal] = useState(false);
+  const [retiroAmountInput, setRetiroAmountInput] = useState("");
+  const [retiroReasonInput, setRetiroReasonInput] = useState("Retiro parcial de resguardo");
+  const [showCierreModal, setShowCierreModal] = useState(false);
+  const [countedCashInput, setCountedCashInput] = useState("");
+
+  // 2. Estados de Sincronización Offline (Paso 2.2)
+  const [isOffline, setIsOffline] = useState<boolean>(() => {
+    return localStorage.getItem("pos_mode_offline") === "true";
+  });
+  const [offlineQueue, setOfflineQueue] = useState<any[]>(() => {
+    const queue = localStorage.getItem("pos_offline_queue");
+    return queue ? JSON.parse(queue) : [];
+  });
+  const [isSyncingOfflineSales, setIsSyncingOfflineSales] = useState(false);
+
+  // 3. Estados de Metas de Ventas y Comisiones (Paso 2.3)
+  const SALES_TARGET = 500000; // Meta: $500,000 diarios
+  const COMMISSION_RATE = 0.025; // 2.5% de comisión por venta
+
+  // Watchers to persist shift states locally
+  useEffect(() => {
+    localStorage.setItem("pos_register_open", String(registerOpen));
+  }, [registerOpen]);
+
+  useEffect(() => {
+    localStorage.setItem("pos_shift_data", JSON.stringify(shiftData));
+  }, [shiftData]);
+
+  useEffect(() => {
+    localStorage.setItem("pos_mode_offline", String(isOffline));
+  }, [isOffline]);
+
+  useEffect(() => {
+    localStorage.setItem("pos_offline_queue", JSON.stringify(offlineQueue));
+  }, [offlineQueue]);
+
+  // Handle Online/Offline browser changes automatically
+  useEffect(() => {
+    const goOnline = () => {
+      // Keep state if user wants manual offline toggle, otherwise sync if preferred
+    };
+    const goOffline = () => {
+      setIsOffline(true);
+    };
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  // Helper actions for cash register
+  const handleOpenRegister = (cashAmount: number) => {
+    const newShift = {
+      efectivoInicial: cashAmount,
+      openedAt: new Date().toISOString(),
+      vendedorName: profile?.name || "Vendedor Elite",
+      vendedorId: profile?.uid || "seller_id",
+      salesCount: 0,
+      salesTotal: 0,
+      salesByMethod: { efectivo: 0, tarjeta: 0, transferencia: 0, digital: 0 },
+      retiros: []
+    };
+    setShiftData(newShift);
+    setRegisterOpen(true);
+    confetti({ particleCount: 30, spread: 40 });
+  };
+
+  const handleRegisterRetiro = (amount: number, reason: string) => {
+    if (amount <= 0 || !reason.trim()) return;
+    const newRetiro = {
+      amount,
+      reason,
+      timestamp: new Date().toISOString()
+    };
+    setShiftData((prev: any) => ({
+      ...prev,
+      retiros: [...(prev.retiros || []), newRetiro]
+    }));
+    setShowRetiroModal(false);
+    setRetiroAmountInput("");
+    alert(`💸 Retiro de Caja de ${formatCurrency(amount)} registrado con éxito.`);
+  };
+
+  const handleCierreRegister = async (countedCash: number) => {
+    // Save to Firestore a "cash_closure" document
+    try {
+      const estimatedCashOnHand = shiftData.efectivoInicial + 
+        (shiftData.salesByMethod.efectivo || 0) - 
+        (shiftData.retiros || []).reduce((sum: number, r: any) => sum + r.amount, 0);
+      
+      const discrepancy = countedCash - estimatedCashOnHand;
+
+      await addDoc(collection(db, "cash_closures"), {
+        vendedorId: shiftData.vendedorId,
+        vendedorName: shiftData.vendedorName,
+        openedAt: shiftData.openedAt,
+        closedAt: serverTimestamp(),
+        efectivoInicial: shiftData.efectivoInicial,
+        salesCount: shiftData.salesCount,
+        salesTotal: shiftData.salesTotal,
+        salesByMethod: shiftData.salesByMethod,
+        retiros: shiftData.retiros,
+        estimatedCash: estimatedCashOnHand,
+        countedCash: countedCash,
+        discrepancy: discrepancy,
+        timestamp: serverTimestamp()
+      });
+
+      // Clear register session
+      setRegisterOpen(false);
+      setShiftData({
+        efectivoInicial: 100000,
+        openedAt: "",
+        vendedorName: "",
+        vendedorId: "",
+        salesCount: 0,
+        salesTotal: 0,
+        salesByMethod: { efectivo: 0, tarjeta: 0, transferencia: 0, digital: 0 },
+        retiros: []
+      });
+      setShowCierreModal(false);
+      setCountedCashInput("");
+      alert("🔒 Arqueo completado. Caja cerrada con éxito. El reporte y cuadratura se han enviado a la central.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, "cash_closures (Cierre Caja)");
+      alert("Error al guardar arqueo de caja en la base de datos.");
+    }
+  };
+
+  // Sync Offline Queue method
+  const handleSyncOfflineSales = async () => {
+    if (offlineQueue.length === 0 || isSyncingOfflineSales) return;
+    setIsSyncingOfflineSales(true);
+    let successfulCount = 0;
+    try {
+      const batch = writeBatch(db);
+      
+      for (const sale of offlineQueue) {
+        const orderId = sale.orderId;
+        
+        // Loop standard transaction logic
+        sale.items.forEach((item: any) => {
+          const productRef = doc(db, "products", item.id);
+          const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
+          
+          batch.update(productRef, {
+            stock: increment(-item.quantity),
+            updatedAt: serverTimestamp()
+          });
+          
+          batch.set(transactionRef, {
+            productId: item.id,
+            productName: item.name,
+            type: "sale",
+            documentType: sale.documentType || "boleta",
+            quantity: item.quantity,
+            amount: item.price * item.quantity,
+            cost: (item.costPrice || item.price * 0.7) * item.quantity, // fallback
+            profit: (item.price - (item.costPrice || item.price * 0.7)) * item.quantity,
+            userId: profile?.uid,
+            userName: profile?.name,
+            customerId: sale.customerId || null,
+            customerName: sale.customerName || "VENTA GENERAL",
+            paymentMethod: sale.paymentMethod || "efectivo",
+            timestamp: serverTimestamp(),
+            orderId: orderId,
+            source: "mobile_pos_offline",
+            couponCode: sale.couponCode || null,
+            discountApplied: sale.discountApplied || 0,
+          });
+        });
+
+        // Award points if customer exists
+        if (sale.customerId) {
+          const customerRef = doc(db, "customers", sale.customerId);
+          const pointsAwarded = calculatePoints(sale.total);
+          
+          batch.update(customerRef, {
+            points: increment(pointsAwarded),
+            totalSpent: increment(sale.total),
+            lastPurchaseAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+        }
+        successfulCount++;
+      }
+
+      await batch.commit();
+      
+      // Update local stats after successful cloud syncing
+      setOfflineQueue([]);
+      alert(`🎉 ¡Sincronización Exitosa! Se enviaron ${successfulCount} ventas almacenadas localmente a la nube de AWS/Firebase.`);
+    } catch (e) {
+      console.error("Error syncing offline sales:", e);
+      alert("Error al sincronizar con la nube. Revise su conexión de internet.");
+    } finally {
+      setIsSyncingOfflineSales(false);
+    }
+  };
 
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -294,109 +522,150 @@ export function MobilePOS() {
 
   const handleCheckout = async () => {
     if (cart.length === 0 || isProcessing) return;
+    
+    // Check if the Cash Register is Open (Paso 2.1)
+    if (!registerOpen) {
+      alert("🔒 Caja Cerrada: Para registrar ventas, primero debe iniciar el turno declarando el efectivo inicial en la pestaña Perfil.");
+      setActiveTab("profile");
+      return;
+    }
+
     setIsProcessing(true);
-    try {
-      const batch = writeBatch(db);
-      const orderId = doc(collection(db, "transactions")).id;
-      const timestamp = new Date();
-      
-      const cleanItems = cart.map(item => ({
-        id: item.id || "",
-        name: item.name || "",
-        price: item.price || 0,
-        quantity: item.quantity || 1
-      }));
+    const orderId = doc(collection(db, "transactions")).id;
+    const timestamp = new Date();
 
-      const orderDetails = {
-        orderId,
-        items: cleanItems,
-        total: finalTotal,
-        paymentMethod,
-        documentType,
-        customerName: selectedCustomer?.name || "VENTA GENERAL",
-        timestamp: timestamp.toISOString(),
-        totalPoints: selectedCustomer ? (selectedCustomer.points || 0) + calculatePoints(finalTotal) : undefined,
-        couponCode: appliedCoupon?.code || null,
-        discountApplied: couponDiscount,
+    const cleanItems = cart.map(item => ({
+      id: item.id || "",
+      name: item.name || "",
+      price: item.price || 0,
+      costPrice: item.costPrice || 0,
+      quantity: item.quantity || 1
+    }));
+
+    const orderDetails = {
+      orderId,
+      items: cleanItems,
+      total: finalTotal,
+      paymentMethod,
+      documentType,
+      customerName: selectedCustomer?.name || "VENTA GENERAL",
+      customerId: selectedCustomer?.id || null,
+      timestamp: timestamp.toISOString(),
+      totalPoints: selectedCustomer ? (selectedCustomer.points || 0) + calculatePoints(finalTotal) : undefined,
+      couponCode: appliedCoupon?.code || null,
+      discountApplied: couponDiscount,
+    };
+
+    // Update Shift Metrics (Paso 2.1) - Both client and database models
+    setShiftData((prev: any) => {
+      const updatedSalesByMethod = { ...(prev.salesByMethod || {}) };
+      updatedSalesByMethod[paymentMethod] = (updatedSalesByMethod[paymentMethod] || 0) + finalTotal;
+      return {
+        ...prev,
+        salesCount: (prev.salesCount || 0) + 1,
+        salesTotal: (prev.salesTotal || 0) + finalTotal,
+        salesByMethod: updatedSalesByMethod
       };
+    });
 
-      cart.forEach(item => {
-        const productRef = doc(db, "products", item.id);
-        const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
-        
-        batch.update(productRef, {
-          stock: increment(-item.quantity),
-          updatedAt: serverTimestamp()
-        });
-        
-        batch.set(transactionRef, {
-          productId: item.id,
-          productName: item.name,
-          type: "sale",
-          documentType,
-          quantity: item.quantity,
-          amount: item.price * item.quantity,
-          cost: item.costPrice * item.quantity,
-          profit: (item.price - item.costPrice) * item.quantity,
-          userId: profile?.uid,
-          userName: profile?.name,
-          customerId: selectedCustomer?.id || null,
-          customerName: selectedCustomer?.name || "VENTA GENERAL",
-          customerTaxId: selectedCustomer?.taxId || null,
-          paymentMethod,
-          timestamp: serverTimestamp(),
-          orderId: orderId,
-          source: "mobile_pos",
-          couponCode: appliedCoupon?.code || null,
-          discountApplied: couponDiscount,
-        });
-      });
+    try {
+      if (isOffline) {
+        // === OFFLINE CHECKOUT (Paso 2.2) ===
+        // 1. Decouple and save to browser sandbox
+        setOfflineQueue(prev => [...prev, orderDetails]);
 
-      // Award loyalty points and update stats automatically
-      if (selectedCustomer?.id) {
-        const pointsAwarded = calculatePoints(finalTotal);
-        const currentPoints = (selectedCustomer.points || 0) + pointsAwarded;
-        const newTier = getCustomerTier(currentPoints);
-        
-        const customerRef = doc(db, "customers", selectedCustomer.id);
-        const updates: any = {
-          points: increment(pointsAwarded),
-          totalSpent: increment(finalTotal),
-          segment: newTier.segment,
-          lastPurchaseAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
-        
-        if (appliedCoupon?.code) {
-          const used = selectedCustomer.usedCoupons || [];
-          if (!used.includes(appliedCoupon.code)) {
-            updates.usedCoupons = [...used, appliedCoupon.code];
+        // 2. Decrement temporary local state product inventory so they can keep selling offline
+        setProducts(prev => prev.map(p => {
+          const matchedItem = cart.find(item => item.id === p.id);
+          if (matchedItem) {
+            return { ...p, stock: Math.max(0, (Number(p.stock) || 0) - matchedItem.quantity) };
           }
-        }
-        
-        batch.update(customerRef, updates);
-      }
+          return p;
+        }));
 
-      await batch.commit();
-
-      // If customer has email, send receipt
-      if (selectedCustomer?.email) {
-        setEmailSentTo(selectedCustomer.email);
-        try {
-          await fetch("/api/send-receipt", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              customerEmail: selectedCustomer.email,
-              orderDetails,
-              businessName: settings.businessName
-            })
-          });
-        } catch (err) {
-          console.error("Error calling send-receipt API:", err);
-        }
+        setEmailSentTo(selectedCustomer?.email ? `${selectedCustomer.email} (Pendiente de Envío)` : null);
       } else {
-        setEmailSentTo(null);
+        // === ONLINE CHECKOUT (Standard Firebase flow) ===
+        const batch = writeBatch(db);
+        
+        cart.forEach(item => {
+          const productRef = doc(db, "products", item.id);
+          const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
+          
+          batch.update(productRef, {
+            stock: increment(-item.quantity),
+            updatedAt: serverTimestamp()
+          });
+          
+          batch.set(transactionRef, {
+            productId: item.id,
+            productName: item.name,
+            type: "sale",
+            documentType,
+            quantity: item.quantity,
+            amount: item.price * item.quantity,
+            cost: item.costPrice * item.quantity,
+            profit: (item.price - item.costPrice) * item.quantity,
+            userId: profile?.uid,
+            userName: profile?.name,
+            customerId: selectedCustomer?.id || null,
+            customerName: selectedCustomer?.name || "VENTA GENERAL",
+            customerTaxId: selectedCustomer?.taxId || null,
+            paymentMethod,
+            timestamp: serverTimestamp(),
+            orderId: orderId,
+            source: "mobile_pos",
+            couponCode: appliedCoupon?.code || null,
+            discountApplied: couponDiscount,
+          });
+        });
+
+        // Award loyalty points and update stats automatically
+        if (selectedCustomer?.id) {
+          const pointsAwarded = calculatePoints(finalTotal);
+          const currentPoints = (selectedCustomer.points || 0) + pointsAwarded;
+          const newTier = getCustomerTier(currentPoints);
+          
+          const customerRef = doc(db, "customers", selectedCustomer.id);
+          const updates: any = {
+            points: increment(pointsAwarded),
+            totalSpent: increment(finalTotal),
+            segment: newTier.segment,
+            lastPurchaseAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          
+          if (appliedCoupon?.code) {
+            const used = selectedCustomer.usedCoupons || [];
+            if (!used.includes(appliedCoupon.code)) {
+              updates.usedCoupons = [...used, appliedCoupon.code];
+            }
+          }
+          
+          batch.update(customerRef, updates);
+        }
+
+        await batch.commit();
+
+        // If customer has email, send receipt
+        if (selectedCustomer?.email) {
+          setEmailSentTo(selectedCustomer.email);
+          try {
+            await fetch("/api/send-receipt", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customerEmail: selectedCustomer.email,
+                orderDetails,
+                businessName: settings.businessName
+              })
+            });
+          } catch (err) {
+            console.error("Error calling send-receipt API:", err);
+          }
+        } else {
+          setEmailSentTo(null);
+        }
       }
 
       setCart([]);
@@ -431,16 +700,48 @@ export function MobilePOS() {
         <div className="flex-1 flex flex-col h-full overflow-hidden relative pt-6 md:pt-10">
           {/* Mobile Header */}
           <header className="bg-white px-6 pt-4 pb-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-            <Store size={20} />
-          </div>
-          <div>
-            <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">{settings.businessName}</h1>
-            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">POS Móvil</p>
-          </div>
-        </div>
-      </header>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                <Store size={20} />
+              </div>
+              <div>
+                <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">{settings.businessName}</h1>
+                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">POS Móvil</p>
+              </div>
+            </div>
+            {/* Dynamic Connectivity Controls (Paso 2.2) */}
+            <div className="flex items-center space-x-2">
+              {offlineQueue.length > 0 && (
+                <button 
+                  onClick={handleSyncOfflineSales}
+                  disabled={isSyncingOfflineSales}
+                  className="px-2 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition animate-pulse"
+                  title="Sincronizar ventas offline"
+                >
+                  {isSyncingOfflineSales ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                  <span>Sync ({offlineQueue.length})</span>
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const newVal = !isOffline;
+                  setIsOffline(newVal);
+                  alert(newVal 
+                    ? "☁️ Modo Fuera de Línea Activado: Las ventas se guardarán localmente y habrá cero llamadas a Firebase." 
+                    : "🌐 Modo En Línea Activado: Las llamadas a la base de datos se restablecerán.");
+                }}
+                className={cn(
+                  "p-2 rounded-xl flex items-center justify-center transition-all border",
+                  isOffline 
+                    ? "bg-rose-50 border-rose-250 text-rose-500" 
+                    : "bg-emerald-50 border-emerald-250 text-emerald-600"
+                )}
+                title={isOffline ? "Modo Offline (Haga clic para conectar)" : "Modo Online (Haga clic para desconectar)"}
+              >
+                {isOffline ? <WifiOff size={16} /> : <Wifi size={16} />}
+              </button>
+            </div>
+          </header>
 
         <AnimatePresence>
           {isScanning && (
@@ -979,38 +1280,248 @@ export function MobilePOS() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="p-6 space-y-8"
+              className="p-6 space-y-6"
             >
-              <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm text-center">
-                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-4 text-2xl font-black">
-                  {profile?.name?.charAt(0)}
+              {/* VENDEDOR BANNER & TARGETS */}
+              <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-[2.2rem] p-6 text-white shadow-xl flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center font-black text-lg border border-white/10">
+                    {profile?.name?.charAt(0)}
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black tracking-tight">{profile?.name}</h2>
+                    <p className="text-[9px] font-black tracking-widest uppercase opacity-70">
+                      {profile?.role === "seller" ? "Asesor Comercial" : "Administrador / Cajero"}
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-xl font-black text-slate-800 tracking-tight">{profile?.name}</h2>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                  {profile?.role === "admin" ? "Administrador de Sistemas" :
-                   profile?.role === "manager" ? "Jefe de Local / Administración" :
-                   profile?.role === "seller" ? "Vendedor / Cajero" :
-                   profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role}
-                </p>
-                
-                <div className="mt-8 pt-8 border-t border-slate-50 flex flex-col gap-3">
-                  {profile?.role !== "seller" && (
-                    <button 
-                      onClick={() => window.location.href = "/"}
-                      className="flex items-center justify-center space-x-3 w-full py-4 bg-slate-50 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest border border-slate-100"
-                    >
-                      <Store size={16} />
-                      <span>Ir a Versión PC</span>
-                    </button>
-                  )}
+                <button 
+                  onClick={logout} 
+                  className="p-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-xl transition"
+                  title="Cerrar Siniestro"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+
+              {/* PASO 2.3: COMISIONES DEL DÍA Y METAS DE VENTA */}
+              <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Rendimiento Diario</h3>
+                    <p className="text-[10px] font-black text-slate-400 capitalize">Comisiones y cuotas en tiempo real</p>
+                  </div>
+                  <TrendingUp className="text-indigo-500 w-5 h-5 animate-pulse" />
+                </div>
+
+                {/* Progress bar towards target */}
+                <div className="space-y-1.5 pt-2">
+                  <div className="flex justify-between items-baseline text-[9px] font-black uppercase tracking-wider text-slate-400">
+                    <span>Meta de Ventas</span>
+                    <span className="text-indigo-600 font-bold">
+                      {formatCurrency(shiftData.salesTotal || 0)} / {formatCurrency(SALES_TARGET)}
+                    </span>
+                  </div>
+                  <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-50">
+                    <div 
+                      className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.round(((shiftData.salesTotal || 0) / SALES_TARGET) * 100))}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center text-[8px] font-black uppercase text-indigo-500">
+                    <span>Avance Comercial</span>
+                    <span>{Math.round(((shiftData.salesTotal || 0) / SALES_TARGET) * 100)}% Completado</span>
+                  </div>
+                </div>
+
+                {/* Lifetime Commission feedback box */}
+                <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                      <Coins size={18} />
+                    </div>
+                    <div>
+                      <p className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tu Comisión Acumulada</p>
+                      <p className="text-lg font-black text-indigo-950 tracking-tight">
+                        {formatCurrency((shiftData.salesTotal || 0) * COMMISSION_RATE)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-[9px] font-black text-indigo-600 bg-white border border-indigo-100 px-2 py-1 rounded-lg">
+                    Tasa: {(COMMISSION_RATE * 100).toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+
+              {/* PASO 2.1: APERTURA, RETIRO Y CIERRE DE CAJA (SHIFTS & ARQUEO) */}
+              {!registerOpen ? (
+                /* CAJA CERRADA / APERTURA REQUERIDA */
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleOpenRegister(Number(openingCashInput) || 0);
+                  }}
+                  className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-4"
+                >
+                  <div className="text-center py-4 space-y-2">
+                    <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+                      <Lock size={20} />
+                    </div>
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Caja Cerrada / Sin Turno</h3>
+                    <p className="text-[10px] font-bold text-slate-400 leading-tight">
+                      Para empezar a procesar ventas, debe abrir su turno y declarar el saldo de reserva inicial en efectivo.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-2 block">
+                      Efectivo de Apertura (Sencillo)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold">$</span>
+                      <input 
+                        type="number"
+                        className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-8 pr-4 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                        placeholder="Ej: 100000"
+                        value={openingCashInput}
+                        onChange={e => setOpeningCashInput(e.target.value)}
+                        required
+                        min="0"
+                      />
+                    </div>
+                  </div>
+
                   <button 
-                    onClick={logout}
-                    className="flex items-center justify-center space-x-3 w-full py-4 bg-rose-50 text-rose-600 rounded-2xl text-xs font-black uppercase tracking-widest border border-rose-100"
+                    type="submit"
+                    className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 shadow-lg hover:shadow-indigo-500/10"
                   >
-                    <LogOut size={16} />
-                    <span>Cerrar Sesión</span>
+                    <Unlock size={14} />
+                    <span>Iniciar Turno y Abrir Caja</span>
                   </button>
+                </form>
+              ) : (
+                /* CAJA ABIERTA / ACCIONES DE TURNO */
+                <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Control del Turno</h3>
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">🟢 Turno en Curso</p>
+                    </div>
+                    <div className="text-[9px] font-mono text-slate-400 text-right">
+                      Abierto: {new Date(shiftData.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+
+                  {/* Shift stats cards */}
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Fondo Inicial</p>
+                      <p className="text-xs font-black text-slate-700">{formatCurrency(shiftData.efectivoInicial || 0)}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Total Ventas ({shiftData.salesCount || 0})</p>
+                      <p className="text-xs font-black text-indigo-600">{formatCurrency(shiftData.salesTotal || 0)}</p>
+                    </div>
+                  </div>
+
+                  {/* Payment Methods Audit logs */}
+                  <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 space-y-2">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Arqueo por Tipo de Pago</p>
+                    <div className="space-y-1.5 text-[10px] font-bold text-slate-600">
+                      <div className="flex justify-between">
+                        <span>💵 Efectivo Registrado:</span>
+                        <span className="text-slate-805 text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.efectivo || 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>💳 Tarjetas:</span>
+                        <span className="text-slate-805 text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.tarjeta || 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>🔄 Transferencias:</span>
+                        <span className="text-slate-805 text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.transferencia || 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>📱 Billeteras Virtuales:</span>
+                        <span className="text-slate-805 text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.digital || 0)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Current Estimated Cash in Drawer calculation */}
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex justify-between items-center">
+                    <div>
+                      <p className="text-[8px] font-black text-emerald-800 uppercase tracking-widest">Efectivo Estimado en Caja</p>
+                      <p className="text-[9px] text-slate-400 font-bold leading-tight">Inicial + Ventas Efectivo - Retiros</p>
+                    </div>
+                    <p className="text-sm font-black text-emerald-950">
+                      {formatCurrency(
+                        (shiftData.efectivoInicial || 0) + 
+                        (shiftData.salesByMethod?.efectivo || 0) - 
+                        (shiftData.retiros || []).reduce((sum: number, r: any) => sum + r.amount, 0)
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Show previous withdrawals if they exist */}
+                  {(shiftData.retiros || []).length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Retiros Registrados ({(shiftData.retiros || []).length})</div>
+                      <div className="max-h-24 overflow-y-auto space-y-1 text-[9px] font-mono leading-tight">
+                        {shiftData.retiros.map((r: any, idx: number) => (
+                          <div key={idx} className="flex justify-between bg-rose-50/40 border border-rose-100 p-2 rounded-xl text-slate-600 font-bold">
+                            <span className="truncate max-w-[120px]">⚠️ {r.reason}</span>
+                            <span className="text-rose-600 font-black">-{formatCurrency(r.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CTA Register withdrawals or shift closes */}
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setRetiroAmountInput("");
+                        setRetiroReasonInput("Retiro parcial de resguardo");
+                        setShowRetiroModal(true);
+                      }}
+                      className="h-12 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 rounded-2xl text-[9px] font-black uppercase tracking-wider transition flex items-center justify-center gap-1 shadow-sm active:scale-95"
+                    >
+                      <Banknote size={12} />
+                      <span>Retiro Parcial</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const estimated = (shiftData.efectivoInicial || 0) + 
+                          (shiftData.salesByMethod?.efectivo || 0) - 
+                          (shiftData.retiros || []).reduce((sum: number, r: any) => sum + r.amount, 0);
+                        setCountedCashInput(String(estimated));
+                        setShowCierreModal(true);
+                      }}
+                      className="h-12 bg-slate-900 hover:bg-black text-white rounded-2xl text-[9px] font-black uppercase tracking-wider transition flex items-center justify-center gap-1 shadow-sm active:scale-95"
+                    >
+                      <Lock size={12} />
+                      <span>Cerrar Turno</span>
+                    </button>
+                  </div>
                 </div>
+              )}
+
+              {/* RETORNO A MÓVIL PC LINK (PC PANEL) */}
+              <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-3">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1 leading-none">Accesos de Plataforma Empresarial</p>
+                {profile?.role !== "seller" && (
+                  <button 
+                    onClick={() => window.location.href = "/"}
+                    className="flex items-center justify-center space-x-3 w-full py-4 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-100 shadow-inner"
+                  >
+                    <Store size={14} />
+                    <span>Ir a Versión PC</span>
+                  </button>
+                )}
+                <div className="text-center font-mono text-[8px] text-slate-300 uppercase tracking-widest pt-1">STOKI LOGISTICS ERP v3.12</div>
               </div>
             </motion.div>
           )}
@@ -1244,6 +1755,173 @@ export function MobilePOS() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Retiro de Caja Modal (Paso 2.1) */}
+      <AnimatePresence>
+        {showRetiroModal && (
+          <div className="fixed inset-0 z-[200] flex flex-col justify-end">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowRetiroModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              className="bg-white rounded-t-[2.5rem] relative z-10 p-8 max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl"
+            >
+              <div>
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">Registrar Retiro Parcial</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Retiro de resguardo / Egreso</p>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleRegisterRetiro(Number(retiroAmountInput) || 0, retiroReasonInput);
+              }} className="space-y-4">
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Monto a Retirar</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold">$</span>
+                    <input 
+                      required
+                      type="number"
+                      className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-8 pr-4 text-xs font-black text-slate-800"
+                      value={retiroAmountInput}
+                      onChange={e => setRetiroAmountInput(e.target.value)}
+                      placeholder="Ej: 50000"
+                      min="1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Motivo o Destino</label>
+                  <input 
+                    required
+                    type="text"
+                    className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-black text-slate-800"
+                    value={retiroReasonInput}
+                    onChange={e => setRetiroReasonInput(e.target.value)}
+                    placeholder="Ej: Depósito parcial en buzón de seguridad"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowRetiroModal(false)}
+                    className="h-14 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="h-14 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md"
+                  >
+                    Confirmar Retiro
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Cierre de Caja Modal (Paso 2.1) */}
+      <AnimatePresence>
+        {showCierreModal && (
+          <div className="fixed inset-0 z-[200] flex flex-col justify-end">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCierreModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              className="bg-white rounded-t-[2.5rem] relative z-10 p-8 max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl"
+            >
+              <div>
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">Arqueo y Cierre Diario</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cuadratura fiduciaria de fondos de calle</p>
+              </div>
+
+              {/* Quick Summary comparison */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[10px] font-bold text-slate-550 space-y-1.5 text-slate-500">
+                <div className="flex justify-between">
+                  <span>💵 Efectivo Inicial:</span>
+                  <span className="text-slate-900 font-extrabold">{formatCurrency(shiftData.efectivoInicial || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>📈 Ventas registradas en Efectivo:</span>
+                  <span className="text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.efectivo || 0)}</span>
+                </div>
+                <div className="flex justify-between text-rose-500">
+                  <span>📉 Retiros Parciales:</span>
+                  <span className="font-extrabold">-{formatCurrency((shiftData.retiros || []).reduce((sum: number, r: any) => sum + r.amount, 0))}</span>
+                </div>
+                <hr className="border-slate-200" />
+                <div className="flex justify-between text-emerald-800 text-[11px]">
+                  <span>⭐ Efectivo Teórico Esperado:</span>
+                  <span className="font-black">
+                    {formatCurrency(
+                      (shiftData.efectivoInicial || 0) + 
+                      (shiftData.salesByMethod?.efectivo || 0) - 
+                      (shiftData.retiros || []).reduce((sum: number, r: any) => sum + r.amount, 0)
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleCierreRegister(Number(countedCashInput) || 0);
+              }} className="space-y-4">
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">
+                    Efectivo Real Físico Contado ($)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold">$</span>
+                    <input 
+                      required
+                      type="number"
+                      className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-8 pr-4 text-xs font-black text-slate-800"
+                      value={countedCashInput}
+                      onChange={e => setCountedCashInput(e.target.value)}
+                      placeholder="Ingrese los fondos reales arqueados"
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowCierreModal(false)}
+                    className="h-14 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="h-14 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg"
+                  >
+                    Confirmar Arqueo y Cerrar
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

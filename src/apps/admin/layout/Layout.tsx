@@ -122,32 +122,24 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     // Listen for low stock notifications
     if (!settings.notificationsEnabled) return;
 
-    const q = query(collection(db, "products"));
+    // TODO: Cloud Function must maintain this collection to avoid O(N) product reads (Fix HIGH 2)
+    const q = query(collection(db, "notifications"), where("type", "==", "low_stock"), limit(20));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const lowStockAlerts: Notification[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        const stock = Number(data.stock) || 0;
-        const minThreshold = Number(data.minThreshold) || 0;
-        
-        if (stock <= minThreshold && data.name) {
-          lowStockAlerts.push({
-            id: `low-stock-${doc.id}`,
-            title: 'Stock Bajo',
-            message: `El producto "${data.name}" tiene stock bajo (${stock} unidades).`,
-            type: 'warning',
-            time: 'Ahora',
-            read: false,
-            link: 'inventory'
-          });
-        }
+        lowStockAlerts.push({
+          id: `low-stock-${doc.id}`,
+          title: data.title || 'Stock Bajo',
+          message: data.message || 'Producto requiere reposición.',
+          type: 'warning',
+          time: 'Ahora',
+          read: false,
+          link: 'inventory'
+        });
       });
       
-      setNotifications(prev => {
-        // Keep read notifications that aren't in the new list?
-        // Actually for simplicity, just show the current low stock alerts
-        return lowStockAlerts;
-      });
+      setNotifications(lowStockAlerts);
     });
 
     return () => unsubscribe();
