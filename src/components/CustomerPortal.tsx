@@ -44,7 +44,11 @@ import {
   Clock,
   Grid,
   List,
-  X
+  X,
+  Trophy,
+  Mail,
+  Landmark,
+  Ticket
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../lib/utils";
@@ -92,9 +96,19 @@ export function CustomerPortal() {
   const [secureToken, setSecureToken] = useState("");
   const [securePin, setSecurePin] = useState("000000");
   const [timeLeft, setTimeLeft] = useState(30);
+
+  // States for Claims Support (Paso 3.1)
+  const [claimsList, setClaimsList] = useState<any[]>([]);
+  const [activeHistorySubTab, setActiveHistorySubTab] = useState<"receipts" | "claims">("receipts");
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [claimOrderId, setClaimOrderId] = useState("");
+  const [claimReason, setClaimReason] = useState("Llegó roto");
+  const [claimDescription, setClaimDescription] = useState("");
+  const [claimPhoto, setClaimPhoto] = useState("");
+  const [isSubmittingClaim, setIsSubmittingClaim] = useState(false);
   
   // States for Point Rewards (Physical Products Catalogue)
-  const [rewardViewTab, setRewardViewTab] = useState<"available" | "vouchers">("available");
+  const [rewardViewTab, setRewardViewTab] = useState<"available" | "vouchers" | "desafios">("available");
   const [confirmReward, setConfirmReward] = useState<PhysicalReward | null>(null);
   const [rewardCategory, setRewardCategory] = useState<string>("Todos");
 
@@ -367,7 +381,8 @@ export function CustomerPortal() {
 
     const generateNewToken = async () => {
       const expiresAt = Date.now() + 30000;
-      const token = `STK:ID:${customer.taxId}:${expiresAt}`;
+      const currentBalance = customer.balance !== undefined ? customer.balance : 25000;
+      const token = `STK:ID:${customer.taxId}:${expiresAt}:${currentBalance}`;
       setSecureToken(token);
       
       const randomPin = Math.floor(100000 + Math.random() * 900000).toString();
@@ -953,6 +968,27 @@ export function CustomerPortal() {
             return dateB.getTime() - dateA.getTime();
           });
         setRedemptions(sorted);
+      });
+      return unsub;
+    }
+  }, [customer?.id]);
+
+  // Sync customer claims in real-time
+  useEffect(() => {
+    if (customer?.id) {
+      const q = query(
+        collection(db, "claims"),
+        where("customerId", "==", customer.id)
+      );
+      const unsub = onSnapshot(q, (snapshot) => {
+        const sorted = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .sort((a: any, b: any) => {
+            const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
+            const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
+            return dateB.getTime() - dateA.getTime();
+          });
+        setClaimsList(sorted);
       });
       return unsub;
     }
@@ -2126,15 +2162,82 @@ export function CustomerPortal() {
                   </div>
                 </div>
 
-                {/* 6-Digit visual OTP pin fallback */}
-                <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center space-y-1 shadow-inner">
-                  <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase">Token Numérico de Entrada</p>
-                  <p className="font-mono text-2xl font-black text-indigo-600 tracking-[0.2em]">{securePin.slice(0,3)} {securePin.slice(3)}</p>
-                  <p className="text-[8px] font-bold text-slate-400 leading-normal">
-                    Ingreso manual en caja si el lector óptico está apagado
-                  </p>
-                </div>
-              </div>
+                 {/* 6-Digit visual OTP pin fallback */}
+                 <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center space-y-1 shadow-inner">
+                   <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase">Token Numérico de Entrada</p>
+                   <p className="font-mono text-2xl font-black text-indigo-600 tracking-[0.2em]">{securePin.slice(0,3)} {securePin.slice(3)}</p>
+                   <p className="text-[8px] font-bold text-slate-400 leading-normal">
+                     Ingreso manual en caja si el lector óptico está apagado
+                   </p>
+                 </div>
+               </div>
+ 
+               {/* Prepaid Balance Section (Paso 3.2) */}
+               <div className="bg-white p-6 rounded-[2.5rem] border border-slate-150 shadow-sm max-w-[320px] mx-auto text-left space-y-4">
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <p className="text-[9px] font-black tracking-wider text-slate-400 uppercase">Billetera Prepago Digital</p>
+                     <h4 className="text-xl font-black text-slate-900 mt-1">
+                       {formatCurrency(customer.balance !== undefined ? customer.balance : 25000)}
+                     </h4>
+                   </div>
+                   <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                     <Wallet size={18} />
+                   </div>
+                 </div>
+ 
+                 <div className="flex gap-2">
+                   <button
+                     type="button"
+                     onClick={async () => {
+                       // Simulate rechargeable loading of +$10.000 CLP
+                       try {
+                         const currentBal = customer.balance !== undefined ? customer.balance : 25000;
+                         await updateDoc(doc(db, "customers", customer.id), {
+                           balance: currentBal + 10000
+                         });
+                         setAlertConfig({
+                           isOpen: true,
+                           type: "success",
+                           title: "Carga Exitosa",
+                           message: "Se han cargado $10.000 CLP de forma simulada vía Flow. ¡Tu saldo se actualizó al instante!"
+                         });
+                       } catch (err) {
+                         console.error(err);
+                       }
+                     }}
+                     className="flex-1 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 transition-colors rounded-xl font-bold text-[10px] text-center"
+                   >
+                     + $10k CLP
+                   </button>
+                   <button
+                     type="button"
+                     onClick={async () => {
+                       // Simulate rechargeable loading of +$50.000 CLP
+                       try {
+                         const currentBal = customer.balance !== undefined ? customer.balance : 25000;
+                         await updateDoc(doc(db, "customers", customer.id), {
+                           balance: currentBal + 50000
+                         });
+                         setAlertConfig({
+                           isOpen: true,
+                           type: "success",
+                           title: "Carga Exitosa",
+                           message: "Se han cargado $50.000 CLP de forma simulada vía Flow. ¡Tu saldo se actualizó al instante!"
+                         });
+                       } catch (err) {
+                         console.error(err);
+                       }
+                     }}
+                     className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white transition-colors rounded-xl font-bold text-[10px] text-center"
+                   >
+                     + $50k CLP
+                   </button>
+                 </div>
+                 <p className="text-[8px] font-bold text-slate-400 text-center leading-normal">
+                   Recarga instantánea simulada para validar la unificación del saldo electrónico con el punto de venta (POS) en tiempo real.
+                 </p>
+               </div>
 
               <div className="flex flex-col space-y-2 max-w-[280px] mx-auto">
                 <p className="text-[9px] font-bold text-emerald-600 bg-emerald-50 py-1.5 px-3 rounded-full flex items-center justify-center gap-1 border border-emerald-100">
@@ -2156,60 +2259,195 @@ export function CustomerPortal() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
+              className="space-y-6 text-left"
             >
-              <div className="flex items-center space-x-3 mb-6">
+              <div className="flex items-center space-x-3 mb-4">
                 <button onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Mi Historial</h3>
               </div>
-              <div className="space-y-3">
-                {groupedTransactions.map(receipt => {
-                  const qtyTotal = receipt.items.reduce((sum: number, i: any) => sum + i.quantity, 0);
-                  const displayTitle = receipt.items.map((i: any) => i.productName).join(", ");
-                  const displayPoints = Math.floor(receipt.finalOrderTotal / 1000);
 
-                  return (
-                    <button 
-                      key={receipt.orderId}
-                      onClick={() => setSelectedReceipt(receipt)}
-                      className="w-full text-left bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-100 hover:shadow-md transition-all active:scale-[0.99] duration-200"
-                    >
-                      <div className="flex items-center space-x-4 min-w-0 flex-1">
-                        <div className="w-12 h-12 bg-indigo-50/50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
-                          <Receipt size={20} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-xs truncate text-slate-800 pr-1" title={displayTitle}>
-                            {receipt.items.length === 1 
-                              ? receipt.items[0].productName 
-                              : `${receipt.items[0].productName} y ${receipt.items.length - 1} más`}
-                          </h4>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                            {toDate(receipt.timestamp).toLocaleDateString('es-CL')} • {receipt.documentType}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0 flex items-center space-x-3 ml-2">
-                        <div>
-                          <p className="text-xs font-black text-slate-800">
-                            {formatCurrency(receipt.finalOrderTotal)}
-                          </p>
-                          <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">
-                            +{displayPoints} Puntos
-                          </p>
-                        </div>
-                        <ChevronRight size={16} className="text-slate-350 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
-                      </div>
-                    </button>
-                  );
-                })}
-                {groupedTransactions.length === 0 && (
-                  <div className="text-center py-20 opacity-30">
-                    <Search size={48} className="mx-auto mb-4" />
-                    <p className="text-xs font-black uppercase tracking-widest">Aún no tienes compras</p>
-                  </div>
-                )}
+              {/* History Sub-Tabs */}
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setActiveHistorySubTab("receipts")}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    activeHistorySubTab === "receipts"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-400 hover:text-slate-700"
+                  )}
+                >
+                  Mis Boletas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveHistorySubTab("claims")}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative flex items-center justify-center gap-1.5",
+                    activeHistorySubTab === "claims"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-400 hover:text-slate-700"
+                  )}
+                >
+                  Soporte y Reclamos
+                  {claimsList.length > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-rose-500 border border-white" />
+                  )}
+                </button>
               </div>
+
+              {activeHistorySubTab === "receipts" ? (
+                <div className="space-y-3">
+                  {groupedTransactions.map(receipt => {
+                    const qtyTotal = receipt.items.reduce((sum: number, i: any) => sum + i.quantity, 0);
+                    const displayTitle = receipt.items.map((i: any) => i.productName).join(", ");
+                    const displayPoints = Math.floor(receipt.finalOrderTotal / 1000);
+
+                    return (
+                      <button 
+                        key={receipt.orderId}
+                        onClick={() => setSelectedReceipt(receipt)}
+                        className="w-full text-left bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-100 hover:shadow-md transition-all active:scale-[0.99] duration-200"
+                      >
+                        <div className="flex items-center space-x-4 min-w-0 flex-1">
+                          <div className="w-12 h-12 bg-indigo-50/50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
+                            <Receipt size={20} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-xs truncate text-slate-800 pr-1" title={displayTitle}>
+                              {receipt.items.length === 1 
+                                ? receipt.items[0].productName 
+                                : `${receipt.items[0].productName} y ${receipt.items.length - 1} más`}
+                            </h4>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                              {toDate(receipt.timestamp).toLocaleDateString('es-CL')} • {receipt.documentType}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 flex items-center space-x-3 ml-2">
+                          <div>
+                            <p className="text-xs font-black text-slate-800">
+                              {formatCurrency(receipt.finalOrderTotal)}
+                            </p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">
+                              +{displayPoints} Puntos
+                            </p>
+                          </div>
+                          <ChevronRight size={16} className="text-slate-350 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {groupedTransactions.length === 0 && (
+                    <div className="text-center py-20 opacity-30">
+                      <Search size={48} className="mx-auto mb-4" />
+                      <p className="text-xs font-black uppercase tracking-widest">Aún no tienes compras</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Informational intro card */}
+                  <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-950 shadow-md">
+                    <div className="flex items-start space-x-3.5">
+                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-amber-400">
+                        <AlertCircle size={20} />
+                      </div>
+                      <div className="text-left space-y-1">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">Garantía de Satisfacción</h4>
+                        <p className="text-[10px] font-medium leading-relaxed opacity-80">
+                          ¿Un producto llegó dañado o faltó en tu envío? No te preocupes. Selecciona una boleta en "Mis Boletas" e inicia tu reclamo con foto de evidencia para reembolso inmediato.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {claimsList.map(claim => {
+                    const statusText = 
+                      claim.status === "approved" ? "Aceptado - Solucionado" :
+                      claim.status === "rejected" ? "Cerrado - Rechazado" :
+                      "Pendiente de Revisión";
+
+                    const statusColor = 
+                      claim.status === "approved" ? "bg-emerald-50 text-emerald-700 border-emerald-250" :
+                      claim.status === "rejected" ? "bg-rose-50 text-rose-700 border-rose-250" :
+                      "bg-amber-50 text-amber-700 border-amber-250";
+
+                    return (
+                      <div 
+                        key={claim.id} 
+                        className="bg-white p-5 rounded-[2rem] border border-slate-150 shadow-sm flex flex-col gap-4 text-left hover:border-slate-300 transition-all"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest inline-block">
+                              Reclamo de Compra
+                            </span>
+                            <h4 className="text-xs font-black text-slate-900 tracking-tight mt-1">
+                              Motivo: {claim.reason}
+                            </h4>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                              Orden: #{claim.orderId.substring(0,8).toUpperCase()} • {toDate(claim.timestamp).toLocaleDateString('es-CL')}
+                            </p>
+                          </div>
+                          
+                          <span className={cn("px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border", statusColor)}>
+                            {statusText}
+                          </span>
+                        </div>
+
+                        {/* Description */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          <p className="text-xs text-slate-650 font-bold leading-normal break-words">
+                            "{claim.description}"
+                          </p>
+                        </div>
+
+                        {/* Thumbnail & Resolution Note */}
+                        <div className="flex flex-col gap-3">
+                          {claim.photo && (
+                            <div className="space-y-1.5 text-left">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Evidencia Adjunta</p>
+                              <div className="relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-150 shadow-sm bg-slate-50 group shrink-0">
+                                <img 
+                                  src={claim.photo} 
+                                  alt="Evidencia" 
+                                  className="w-full h-full object-cover cursor-zoom-in hover:scale-105 transition-transform" 
+                                  onClick={() => {
+                                    setAlertConfig({
+                                      isOpen: true,
+                                      type: "info",
+                                      title: "Evidencia de Reclamo",
+                                      message: "Fotografía cargada por el cliente como evidencia física del problema."
+                                    });
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {claim.resolutionNote && (
+                            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-1.5 text-left">
+                              <p className="text-[8.5px] font-black text-indigo-700 uppercase tracking-widest leading-none">Respuesta de Bodega</p>
+                              <p className="text-xs text-indigo-900 font-extrabold leading-normal">
+                                "{claim.resolutionNote}"
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {claimsList.length === 0 && (
+                    <div className="text-center py-16 opacity-30">
+                      <AlertCircle size={40} className="mx-auto mb-3" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">No has ingresado ningún reclamo</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -2255,39 +2493,54 @@ export function CustomerPortal() {
               </div>
 
               {/* Sub Tab Buttons */}
-              <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto no-scrollbar gap-1">
                 <button
+                  type="button"
                   onClick={() => setRewardViewTab("available")}
                   className={cn(
-                    "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all",
+                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-all whitespace-nowrap",
                     rewardViewTab === "available"
                       ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-500 hover:text-slate-800"
                   )}
                 >
-                  <Gift size={14} />
-                  <span>Catálogo de Premios</span>
+                  <Gift size={13} />
+                  <span>Catálogo</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setRewardViewTab("vouchers")}
                   className={cn(
-                    "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all relative",
+                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-all relative whitespace-nowrap",
                     rewardViewTab === "vouchers"
                       ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-500 hover:text-slate-800"
                   )}
                 >
-                  <Wallet size={14} />
-                  <span>Mis Canjes Realizados</span>
+                  <Wallet size={13} />
+                  <span>Mis Vales</span>
                   {redemptions.filter(r => r.status === "pending").length > 0 && (
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white animate-bounce">
                       {redemptions.filter(r => r.status === "pending").length}
                     </span>
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setRewardViewTab("desafios")}
+                  className={cn(
+                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-all whitespace-nowrap",
+                    rewardViewTab === "desafios"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  )}
+                >
+                  <Trophy size={13} className="text-amber-500" />
+                  <span>Logros y Desafíos</span>
+                </button>
               </div>
 
-              {rewardViewTab === "available" ? (
+              {rewardViewTab === "available" && (
                 <div className="space-y-6">
                   {/* Category chips */}
                   <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4">
@@ -2360,7 +2613,9 @@ export function CustomerPortal() {
                       })}
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {rewardViewTab === "vouchers" && (
                 <div className="space-y-4">
                   {redemptions.length === 0 ? (
                     <div className="p-12 text-center bg-white rounded-[2.5rem] border border-slate-150 shadow-sm">
@@ -2440,6 +2695,157 @@ export function CustomerPortal() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {rewardViewTab === "desafios" && (
+                <div className="space-y-4 text-left">
+                  <div className="bg-gradient-to-br from-indigo-900 to-slate-900 p-6 rounded-[2.5rem] text-white space-y-2 shadow-lg relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-450/15 blur-3xl rounded-full -mr-12 -mt-12 animate-pulse" />
+                    <div className="flex items-center space-x-3 relative z-10">
+                      <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-400 border border-white/10 shrink-0">
+                        <Trophy size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black tracking-tight text-white">Academia de Desafíos Semanales</h4>
+                        <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">¡Completa misiones y suma puntos!</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* List of Challenges */}
+                  {[
+                    {
+                      id: "comprador_estrella",
+                      title: "Comprador Estrella ⭐",
+                      desc: "Acumula un mínimo de $50.000 CLP en compras totales en el local.",
+                      target: 50000,
+                      current: customer.totalSpent || 0,
+                      pointsAward: 500,
+                      icon: ShoppingBag,
+                      style: "indigo"
+                    },
+                    {
+                      id: "eco_boleta",
+                      title: "Eco-Comprador Boleta Digital 🌱",
+                      desc: "Mantén un correo registrado para recibir tus boletas y facturas 100% digitales.",
+                      target: 1,
+                      current: customer.email ? 1 : 0,
+                      pointsAward: 150,
+                      icon: Mail,
+                      style: "emerald"
+                    },
+                    {
+                      id: "mayorista_pro",
+                      title: "Inversionista Mayorista 📦",
+                      desc: "Suma un acumulado histórico de 1.000 Puntos de Fidelidad.",
+                      target: 1000,
+                      current: customer.points || 0,
+                      pointsAward: 300,
+                      icon: Landmark,
+                      style: "amber"
+                    },
+                    {
+                      id: "socio_pionero",
+                      title: "Socio Pionero Dorado 🏆",
+                      desc: "Registra al menos 3 transacciones o boletas en el historial.",
+                      target: 3,
+                      current: transactions.length,
+                      pointsAward: 400,
+                      icon: Ticket,
+                      style: "purple"
+                    }
+                  ].map((ch) => {
+                    const isClaimed = customer.claimedChallenges && customer.claimedChallenges.includes(ch.id);
+                    const pct = Math.min(100, Math.round((ch.current / ch.target) * 100));
+                    const canClaim = pct >= 100 && !isClaimed;
+
+                    return (
+                      <div 
+                        key={ch.id} 
+                        className="bg-white rounded-[2.5rem] border border-slate-150 p-6 shadow-sm flex flex-col space-y-4"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3.5">
+                            <div className={cn(
+                              "w-12 h-12 rounded-[1.2rem] flex items-center justify-center shrink-0 border border-slate-100",
+                              ch.style === "indigo" ? "bg-indigo-50 text-indigo-600" :
+                              ch.style === "emerald" ? "bg-emerald-50 text-emerald-600" :
+                              ch.style === "amber" ? "bg-amber-50 text-amber-600" :
+                              "bg-purple-50 text-purple-600"
+                            )}>
+                              <ch.icon size={22} />
+                            </div>
+                            <div>
+                              <h5 className="font-black text-slate-800 text-sm tracking-tight leading-snug">{ch.title}</h5>
+                              <p className="text-[10px] font-bold text-slate-400 mt-1 leading-normal max-w-[210px]">{ch.desc}</p>
+                            </div>
+                          </div>
+                          <div className="bg-amber-50 border border-amber-250 px-2.5 py-1 rounded-full text-right shrink-0">
+                            <span className="text-[9px] font-black text-amber-700">+{ch.pointsAward} PTS</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                            <span>{pct === 100 ? "Completado" : `Progreso: ${pct}%`}</span>
+                            <span>
+                              {ch.id === "comprador_estrella" 
+                                ? `$${ch.current.toLocaleString('es-CL')} / $${ch.target.toLocaleString('es-CL')}`
+                                : `${ch.current} / ${ch.target}`}
+                            </span>
+                          </div>
+                          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                              className={cn(
+                                "h-full rounded-full transition-all duration-500",
+                                pct === 100 ? "bg-emerald-500" : "bg-indigo-600"
+                              )}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {isClaimed ? (
+                          <div className="w-full py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-center text-slate-400 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
+                            ✓ Desafío Reclamado con Éxito
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!canClaim}
+                            onClick={async () => {
+                              if (!canClaim) return;
+                              try {
+                                const currentPoints = customer.points || 0;
+                                const claimed = customer.claimedChallenges || [];
+                                await updateDoc(doc(db, "customers", customer.id), {
+                                  points: currentPoints + ch.pointsAward,
+                                  claimedChallenges: [...claimed, ch.id]
+                                });
+                                setAlertConfig({
+                                  isOpen: true,
+                                  type: "success",
+                                  title: "✨ ¡Desafío Reclamado! ✨",
+                                  message: `Felicidades, has desbloqueado "${ch.title}" y ganado un bono de +${ch.pointsAward} Puntos extra para canjear regalos.`
+                                });
+                              } catch (e) {
+                                console.error("Error claiming points:", e);
+                              }
+                            }}
+                            className={cn(
+                              "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-all",
+                              canClaim 
+                                ? "bg-slate-900 hover:bg-slate-850 text-white shadow-xl active:scale-95 cursor-pointer animate-bounce" 
+                                : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+                            )}
+                          >
+                            {canClaim ? "Reclamar Premio Extra" : "Bloqueado"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -3192,31 +3598,47 @@ export function CustomerPortal() {
               </div>
 
               {/* Action buttons */}
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex space-x-3 shrink-0">
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3.5 shrink-0">
                 <button
+                  type="button"
                   onClick={() => {
-                    // Create a style-trimmed receipt plain print format
-                    const itemLines = selectedReceipt.items.map((item: any) => 
-                      `${item.productName} [x${item.quantity}] \t\t ${formatCurrency(item.amount)}`
-                    ).join('\n');
-                    
-                    const docTypeLabel = selectedReceipt.documentType === "Factura" || selectedReceipt.documentType === "Factura Electrónica" 
-                      ? "FACTURA ELECTRÓNICA" 
-                      : "BOLETA ELECTRÓNICA";
-                    
-                    const deliveryMethodText = selectedReceipt.type === "app_purchase" 
-                      ? "Retiro en Local" 
-                      : "Entrega Presencial en Caja";
-                    
-                    const purchaseTypeText = selectedReceipt.type === "app_purchase" 
-                      ? "Pedido Online (App)" 
-                      : "Compra Presencial (POS)";
-                    
-                    const attendedByText = selectedReceipt.type === "app_purchase" 
-                      ? "Auto-Atención App" 
-                      : (selectedReceipt.userName ? `Cajero: ${selectedReceipt.userName}` : "Cajero de Turno");
+                    setClaimOrderId(selectedReceipt.orderId);
+                    setClaimReason("Llegó roto");
+                    setClaimDescription("");
+                    setClaimPhoto("");
+                    setShowClaimModal(true);
+                    setSelectedReceipt(null);
+                  }}
+                  className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white transition-all rounded-xl font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-1.5 shadow-md shadow-rose-100 dark:shadow-none hover:translate-y-[-1px] active:translate-y-0"
+                >
+                  <AlertCircle size={14} />
+                  Iniciar Reclamo / Soporte
+                </button>
+                <div className="flex space-x-3 w-full">
+                  <button
+                    onClick={() => {
+                      // Create a style-trimmed receipt plain print format
+                      const itemLines = selectedReceipt.items.map((item: any) => 
+                        `${item.productName} [x${item.quantity}] \t\t ${formatCurrency(item.amount)}`
+                      ).join('\n');
+                      
+                      const docTypeLabel = selectedReceipt.documentType === "Factura" || selectedReceipt.documentType === "Factura Electrónica" 
+                        ? "FACTURA ELECTRÓNICA" 
+                        : "BOLETA ELECTRÓNICA";
+                      
+                      const deliveryMethodText = selectedReceipt.type === "app_purchase" 
+                        ? "Retiro en Local" 
+                        : "Entrega Presencial en Caja";
+                      
+                      const purchaseTypeText = selectedReceipt.type === "app_purchase" 
+                        ? "Pedido Online (App)" 
+                        : "Compra Presencial (POS)";
+                      
+                      const attendedByText = selectedReceipt.type === "app_purchase" 
+                        ? "Auto-Atención App" 
+                        : (selectedReceipt.userName ? `Cajero: ${selectedReceipt.userName}` : "Cajero de Turno");
 
-                    const receiptText = `
+                      const receiptText = `
 ----------------------------------------
    ${(settings.businessName || "NUESTRA TIENDA").toUpperCase()}
 ----------------------------------------
@@ -3241,29 +3663,216 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
 ----------------------------------------
       ¡Gracias por tu preferencia!
 ----------------------------------------
-                    `;
-                    const win = window.open("", "_blank");
-                    if (win) {
-                      win.document.write(`<pre style="font-family: monospace; font-size: 14px; padding: 20px;">${receiptText}</pre>`);
-                      win.document.close();
-                      win.print();
-                    }
-                  }}
-                  className="flex-1 py-3 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-colors rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5"
-                >
-                  <Printer size={14} />
-                  Imprimir
-                </button>
-                <button
-                  onClick={() => setSelectedReceipt(null)}
-                  className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white transition-colors rounded-xl font-black uppercase tracking-widest text-[10px]"
-                >
-                  Cerrar
-                </button>
+                      `;
+                      const win = window.open("", "_blank");
+                      if (win) {
+                        win.document.write(`<pre style="font-family: monospace; font-size: 14px; padding: 20px;">${receiptText}</pre>`);
+                        win.document.close();
+                        win.print();
+                      }
+                    }}
+                    className="flex-1 py-3 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-colors rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5"
+                  >
+                    <Printer size={14} />
+                    Imprimir
+                  </button>
+                  <button
+                    onClick={() => setSelectedReceipt(null)}
+                    className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white transition-colors rounded-xl font-black uppercase tracking-widest text-[10px]"
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </div>
 
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Claim Submission Modal Overlay (Paso 3.1) */}
+      <AnimatePresence>
+        {showClaimModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-end sm:items-center justify-center p-4">
+            <motion.div
+              initial={{ y: 150, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 150, opacity: 0 }}
+              className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] border border-slate-100"
+            >
+              <div className="bg-rose-600 text-white p-6 text-center relative shrink-0">
+                <button 
+                  onClick={() => setShowClaimModal(false)} 
+                  className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full text-white/80 transition-colors"
+                >
+                  <ArrowLeft size={18} className="-rotate-90" />
+                </button>
+                <div className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <AlertCircle size={24} className="text-white" />
+                </div>
+                <h3 className="text-lg font-black tracking-tight">Iniciar Reclamo / Soporte</h3>
+                <p className="text-[10px] font-bold opacity-75 uppercase tracking-widest mt-1">
+                  Pedido #{claimOrderId.substring(0, 10).toUpperCase()}
+                </p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
+                {/* Form fields */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Motivo del Inconveniente</label>
+                  <select 
+                    value={claimReason}
+                    onChange={(e) => setClaimReason(e.target.value)}
+                    className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 text-xs font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all shadow-sm appearance-none"
+                  >
+                    <option value="Llegó roto">Llegó roto / dañado</option>
+                    <option value="Faltó un producto">Faltó un producto en el envío</option>
+                    <option value="Producto incorrecto">Recibí un producto equivocado</option>
+                    <option value="Defecto de fábrica">Defecto de calidad/fábrica</option>
+                    <option value="Otro motivo">Otro inconveniente</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detalle del Problema</label>
+                  <textarea 
+                    placeholder="Explica detalladamente qué sucedió con tu producto o pedido..."
+                    rows={4}
+                    value={claimDescription}
+                    onChange={(e) => setClaimDescription(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl p-4 text-xs font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all shadow-sm placeholder-slate-400 leading-normal resize-none"
+                    maxLength={500}
+                    required
+                  />
+                  <div className="flex justify-end text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                    {claimDescription.length}/500 caracteres
+                  </div>
+                </div>
+
+                {/* Evidence Photo upload */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Foto de Evidencia (Físico/Empaque)</label>
+                  
+                  <div className="flex items-center space-x-4">
+                    <input 
+                      type="file" 
+                      id="claim-photo-input"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setClaimPhoto(reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden" 
+                    />
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById("claim-photo-input");
+                        if (el) el.click();
+                      }}
+                      className="w-16 h-16 bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 hover:border-rose-300 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-rose-500 transition-all active:scale-95 shadow-sm"
+                    >
+                      <Camera size={20} />
+                      <span className="text-[8px] font-black mt-1 uppercase tracking-wider">CÁMARA</span>
+                    </button>
+
+                    {claimPhoto ? (
+                      <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-slate-150 shadow-sm shrink-0 bg-slate-100">
+                        <img src={claimPhoto} alt="Previsualización" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setClaimPhoto("")}
+                          className="absolute -top-1 -right-1 p-1 bg-red-500 text-white rounded-full hover:scale-105 transition-transform"
+                          title="Eliminar foto"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[9px] font-bold text-slate-400 leading-normal max-w-[180px]">
+                        Toma una fotografía clara del producto roto, vencido o del empaque completo.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex space-x-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowClaimModal(false)}
+                  className="flex-1 py-3.5 bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 transition-colors rounded-xl font-bold text-[10px]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmittingClaim || !claimDescription.trim()}
+                  onClick={async () => {
+                    if (!claimDescription.trim()) return;
+                    setIsSubmittingClaim(true);
+                    try {
+                      await addDoc(collection(db, "claims"), {
+                        customerId: customer.id,
+                        customerName: customer.name || "Cliente",
+                        customerRUT: customer.taxId || "Sin RUT",
+                        orderId: claimOrderId,
+                        reason: claimReason,
+                        description: claimDescription.trim(),
+                        photo: claimPhoto || null,
+                        status: "pending",
+                        resolutionNote: "",
+                        timestamp: serverTimestamp()
+                      });
+
+                      setAlertConfig({
+                        isOpen: true,
+                        type: "success",
+                        title: "¡Reclamo Registrado!",
+                        message: "Tu caso fue subido con éxito y enviado a bodega. Estaremos evaluando tu caso de inmediato."
+                      });
+                      setShowClaimModal(false);
+                      setActiveTab("history");
+                      setActiveHistorySubTab("claims");
+                    } catch (err: any) {
+                      console.error("Error submitting claim: ", err);
+                      setAlertConfig({
+                        isOpen: true,
+                        type: "error",
+                        title: "Error de Envío",
+                        message: "No se pudo registrar el reclamo. Verifica tu conexión a internet e intenta nuevamente."
+                      });
+                    } finally {
+                      setIsSubmittingClaim(false);
+                    }
+                  }}
+                  className={cn(
+                    "flex-1 py-3.5 text-white transition-all rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-1.5 shadow-md",
+                    claimDescription.trim() 
+                      ? "bg-rose-600 hover:bg-rose-700 shadow-rose-100 dark:shadow-none"
+                      : "bg-slate-300 shadow-none cursor-not-allowed"
+                  )}
+                >
+                  {isSubmittingClaim ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>Enviar Caso</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

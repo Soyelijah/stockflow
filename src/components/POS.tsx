@@ -330,14 +330,16 @@ export function POS() {
         
         const found = customers.find(c => c.taxId === taxId);
         if (found) {
-          setSelectedCustomer(found);
+          const scannedBalance = parts[4] !== undefined ? Number(parts[4]) : (found.balance ?? 25000);
+          const updatedFound = { ...found, balance: scannedBalance };
+          setSelectedCustomer(updatedFound);
           setCustomerSearch("");
           setShowCustomerModal(false);
           setAlertConfig({
             isOpen: true,
             type: "success",
-            title: "🔐 Cliente Verificado",
-            message: `Identidad verificada de forma segura para ${found.name}. Token dinámico válido.`
+            title: "🔐 Wallet Unificada",
+            message: `Identidad verificada para ${found.name}. Token dinámico válido. Saldo disponible: $${scannedBalance.toLocaleString("es-CL")}.`
           });
         } else {
           setAlertConfig({
@@ -664,6 +666,12 @@ export function POS() {
           updatedAt: serverTimestamp()
         };
 
+        // Deduct spent dynamic balance from current electronic wallet
+        if (payments.digital > 0) {
+          const currentBal = selectedCustomer.balance !== undefined ? selectedCustomer.balance : 25000;
+          customerUpdates.balance = Math.max(0, currentBal - payments.digital);
+        }
+
         if (appliedCoupon?.code) {
           customerUpdates.usedCoupons = arrayUnion(appliedCoupon.code);
         }
@@ -965,12 +973,15 @@ export function POS() {
                   {selectedCustomer ? selectedCustomer.name : "Venta General (Boleta/Ticket)"}
                 </p>
                 {selectedCustomer && (
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter", getCustomerTier(selectedCustomer.points).bg, getCustomerTier(selectedCustomer.points).color)}>
+                  <div className="flex flex-wrap gap-1.5 items-center mt-1">
+                    <span className={cn("text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter", getCustomerTier(selectedCustomer.points).bg, getCustomerTier(selectedCustomer.points).color)}>
                       {getCustomerTier(selectedCustomer.points).name}
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded tracking-tighter">
+                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded tracking-tighter">
                       {selectedCustomer.points || 0} PTS
+                    </span>
+                    <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded tracking-tighter flex items-center gap-0.5">
+                      💳 {formatCurrency(selectedCustomer.balance !== undefined ? selectedCustomer.balance : 25000)} Saldo
                     </span>
                   </div>
                 )}
@@ -1030,14 +1041,52 @@ export function POS() {
 
           {/* Payment Breakdown */}
           <div className="space-y-4 pt-6 border-t border-slate-50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Métodos de Pago (Split)</span>
-              <button 
-                onClick={quickPay}
-                className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
-              >
-                Pago Total Efectivo
-              </button>
+            <div className="flex flex-col gap-2.5 mb-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Métodos de Pago (Split)</span>
+                <button 
+                  type="button"
+                  onClick={quickPay}
+                  className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+                >
+                  Pago Total Efectivo
+                </button>
+              </div>
+              {selectedCustomer && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const balance = selectedCustomer.balance !== undefined ? selectedCustomer.balance : 25000;
+                    if (balance >= finalTotal) {
+                      setPayments({ efectivo: 0, tarjeta: 0, transferencia: 0, digital: finalTotal });
+                      setAlertConfig({
+                        isOpen: true,
+                        type: "success",
+                        title: "¡Billetera Electrónica Aplicada!",
+                        message: `Se descontarán $${finalTotal.toLocaleString('es-CL')} del saldo disponible de la billetera del cliente (${formatCurrency(balance)}) para el pago total de la compra.`
+                      });
+                    } else if (balance > 0) {
+                      setPayments({ efectivo: 0, tarjeta: 0, transferencia: 0, digital: balance });
+                      setAlertConfig({
+                        isOpen: true,
+                        type: "warning",
+                        title: "Saldo Wallet Parcial",
+                        message: `El cliente solo tiene $${balance.toLocaleString('es-CL')} de saldo. Se aplicó el saldo total, falta un remanente de $${(finalTotal - balance).toLocaleString('es-CL')} que debe pagar con otro medio.`
+                      });
+                    } else {
+                      setAlertConfig({
+                        isOpen: true,
+                        type: "error",
+                        title: "Billetera sin Saldo",
+                        message: "El cliente no tiene saldo disponible en su billetera digital prepago."
+                      });
+                    }
+                  }}
+                  className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all text-center animate-pulse"
+                >
+                  <span>💳</span> Use Wallet de Cliente (${formatCurrency(selectedCustomer.balance !== undefined ? selectedCustomer.balance : 25000)})
+                </button>
+              )}
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
