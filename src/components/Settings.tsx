@@ -20,7 +20,19 @@ import {
   Tag,
   Plus,
   Trash2,
-  Truck
+  Truck,
+  Server,
+  Database,
+  Shuffle,
+  Activity,
+  Cpu,
+  Layers,
+  Wifi,
+  Flame,
+  Zap,
+  TrendingUp,
+  Lock,
+  Compass
 } from "lucide-react";
 import { collection, getDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -34,6 +46,77 @@ export function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+
+  // Interactive Hybrid Architecture States
+  const [nodesScale, setNodesScale] = useState<number>(3); // Desired containers count per service (autoscaling)
+  const [dbConnectionLimit, setDbConnectionLimit] = useState<number>(200); // DB connections upper limit pool
+  const [activeServices, setActiveServices] = useState({
+    authGateway: true,
+    posService: true,
+    logisticEngine: true,
+    smartAI: true
+  });
+  
+  // Simulated stats state
+  const [simRPS, setSimRPS] = useState<number>(45);
+  const [simLatency, setSimLatency] = useState<number>(14);
+  const [simCpuCurrent, setSimCpuCurrent] = useState<number>(18);
+  const [simStatus, setSimStatus] = useState<"IDLE" | "LOAD_BALANCING" | "STRESS_TEST" | "CRITICAL_SPIKE" | "AUTO_SCALED">("LOAD_BALANCING");
+  const [simLogs, setSimLogs] = useState<string[]>([
+    "ℹ️ [API Gateway/Nginx Engine] Gateway inicializado correctamente.",
+    "🔌 [Central DB/Firestore] Conexión establecida con pools de réplica de baja latencia.",
+    "🛡️ [JWT Auth Server] Middleware de validación criptográfica activo."
+  ]);
+  const [stressIntervalActive, setStressIntervalActive] = useState<boolean>(false);
+
+  // Auto-simulation log runner effect
+  useEffect(() => {
+    let interval: any = null;
+    if (stressIntervalActive) {
+      setSimStatus("STRESS_TEST");
+      let count = 0;
+      interval = setInterval(() => {
+        count++;
+        // Generate stress levels
+        const currentRPS = Math.floor(250 + Math.random() * 850);
+        setSimRPS(currentRPS);
+        const cpuCurrent = Math.min(98, Math.floor(45 + (currentRPS / 1100) * 45 - (nodesScale * 4)));
+        setSimCpuCurrent(cpuCurrent);
+        
+        let calculatedLatency = Math.floor(10 + (currentRPS / 24) - (nodesScale * 3.5));
+        if (calculatedLatency < 8) calculatedLatency = 8;
+        setSimLatency(calculatedLatency);
+
+        // Build log message
+        const timestamp = new Date().toLocaleTimeString();
+        let logMsg = "";
+        if (currentRPS > 900) {
+          logMsg = `⚠️ [${timestamp}] ¡Pico Crítico de Tráfico! ${currentRPS} RPS. Balanceador de Carga redirigiendo flujos...`;
+          setSimStatus("CRITICAL_SPIKE");
+        } else if (cpuCurrent > 75) {
+          logMsg = `⚡ [${timestamp}] Alerta de Autoscale activada. CPU: ${cpuCurrent}%. Solicitando aprovisionamiento de nodos en Cloud Run...`;
+          setSimStatus("AUTO_SCALED");
+        } else {
+          logMsg = `📡 [${timestamp}] Respuesta exitosa de microservicio en ${calculatedLatency}ms. Carga actual de red: ${currentRPS} RPS.`;
+          setSimStatus("STRESS_TEST");
+        }
+
+        setSimLogs(prev => [logMsg, ...prev.slice(0, 7)]);
+      }, 1500);
+    } else {
+      setSimStatus("LOAD_BALANCING");
+      // Slower ambient traffic simulation
+      interval = setInterval(() => {
+        const ambientRPS = Math.floor(25 + Math.random() * 30);
+        setSimRPS(ambientRPS);
+        const cpuCurrent = Math.max(10, Math.floor(12 + Math.random() * 8 - (nodesScale * 0.5)));
+        setSimCpuCurrent(cpuCurrent);
+        setSimLatency(Math.max(6, Math.floor(12 + Math.random() * 5 - (nodesScale * 0.4))));
+      }, 3500);
+    }
+
+    return () => clearInterval(interval);
+  }, [stressIntervalActive, nodesScale]);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [couponError, setCouponError] = useState("");
   const [newCoupon, setNewCoupon] = useState({
@@ -408,6 +491,321 @@ export function Settings() {
                 )} />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Interactive Hybrid Architecture and Scalability Control Room */}
+        <div className="bg-slate-900 rounded-[2.5rem] border border-slate-800 shadow-2xl overflow-hidden text-white font-sans">
+          <div className="p-8 border-b border-slate-800/80 bg-slate-950 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-2xl border border-indigo-500/10">
+                <Cpu size={24} className="animate-spin-slow" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                  Centro de Control: Arquitectura Híbrida 🌟
+                </h2>
+                <p className="text-[10px] font-black text-[#10b981] uppercase tracking-widest mt-1">
+                  Base de Datos Inteligente + Microservicios de Backends Modulares
+                </p>
+              </div>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => setStressIntervalActive(!stressIntervalActive)}
+                className={cn(
+                  "px-5 h-11 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center gap-2 active:scale-95",
+                  stressIntervalActive 
+                    ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-950/20" 
+                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-950/20"
+                )}
+              >
+                <Flame size={14} className={cn(stressIntervalActive && "animate-bounce")} />
+                <span>{stressIntervalActive ? "Detener Stress Test" : "Lanzar Stress Test"}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="p-8 space-y-8">
+            {/* Conceptual Interactive Visual Map of the Hybrid Architecture */}
+            <div className="space-y-3 text-left">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">
+                Esquema Interactivo de Flujo de Datos Híbrido
+              </span>
+              
+              <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 relative overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-center">
+                  
+                  {/* Column 1: Client Interfaces */}
+                  <div className="space-y-3 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/40 text-center">
+                    <p className="text-[9px] font-black text-[#10b981] tracking-widest uppercase">1. Apps Cliente</p>
+                    <div className="space-y-2">
+                      <div className="p-2 bg-slate-950 rounded-xl border border-slate-800 text-xs font-semibold text-slate-300">
+                        📱 App Móvil POS
+                      </div>
+                      <div className="p-2 bg-slate-950 rounded-xl border border-slate-800 text-xs font-semibold text-slate-300">
+                        💻 Panel Operativo
+                      </div>
+                      <div className="p-2 bg-slate-950 rounded-xl border border-slate-800 text-xs font-semibold text-slate-300">
+                        🌐 Portal de Clientes
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 2: Load Balancer & API Gateway */}
+                  <div className="flex flex-col items-center justify-center p-3">
+                    <div className="w-12 h-12 bg-indigo-600/10 border-2 border-indigo-500 rounded-full flex items-center justify-center text-indigo-400 font-bold shadow-lg animate-pulse">
+                      <Shuffle size={20} />
+                    </div>
+                    <p className="text-[9px] font-black text-indigo-400 tracking-widest uppercase mt-2">2. API Gateway</p>
+                    <p className="text-[8px] text-slate-400 font-semibold mt-0.5 text-center">Balanceo y Filtros JWT</p>
+                    {/* Visual trace animation */}
+                    <div className="w-full h-0.5 bg-gradient-to-r from-indigo-500 to-emerald-500 mt-2 rounded animate-pulse" />
+                  </div>
+
+                  {/* Column 3: Modular Backends / Docker Containers */}
+                  <div className="space-y-3 text-center bg-slate-900/40 p-4 rounded-2xl border border-slate-800/40 col-span-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black text-[#10b981] tracking-widest uppercase">3. Microservicios Cloud Run</span>
+                      <span className="text-[8px] font-bold text-slate-400">({nodesScale} Pods x Serv)</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-left">
+                      <div className={cn(
+                        "p-2 rounded-xl text-[9.5px] font-semibold border flex items-center justify-between transition-colors duration-150",
+                        activeServices.authGateway ? "bg-slate-950 border-indigo-500/30 text-slate-200" : "bg-slate-900/30 border-slate-800/40 text-slate-600"
+                      )} onClick={() => setActiveServices({...activeServices, authGateway: !activeServices.authGateway})}>
+                        <span>🔑 Auth Router</span>
+                        <span className={cn("w-1.5 h-1.5 rounded-full", activeServices.authGateway ? "bg-[#10b981] animate-ping" : "bg-slate-600")} />
+                      </div>
+
+                      <div className={cn(
+                        "p-2 rounded-xl text-[9.5px] font-semibold border flex items-center justify-between transition-colors duration-150",
+                        activeServices.posService ? "bg-slate-950 border-emerald-500/30 text-slate-200" : "bg-slate-900/30 border-slate-800/40 text-slate-600"
+                      )} onClick={() => setActiveServices({...activeServices, posService: !activeServices.posService})}>
+                        <span>📊 Ventas POS</span>
+                        <span className={cn("w-1.5 h-1.5 rounded-full", activeServices.posService ? "bg-[#10b981] animate-ping" : "bg-slate-600")} />
+                      </div>
+
+                      <div className={cn(
+                        "p-2 rounded-xl text-[9.5px] font-semibold border flex items-center justify-between transition-colors duration-150",
+                        activeServices.logisticEngine ? "bg-slate-950 border-amber-500/30 text-slate-200" : "bg-slate-900/30 border-slate-800/40 text-slate-600"
+                      )} onClick={() => setActiveServices({...activeServices, logisticEngine: !activeServices.logisticEngine})}>
+                        <span>🚚 Logística API</span>
+                        <span className={cn("w-1.5 h-1.5 rounded-full", activeServices.logisticEngine ? "bg-[#10b981] animate-ping" : "bg-slate-600")} />
+                      </div>
+
+                      <div className={cn(
+                        "p-2 rounded-xl text-[9.5px] font-semibold border flex items-center justify-between transition-colors duration-150",
+                        activeServices.smartAI ? "bg-slate-950 border-indigo-500/30 text-slate-200" : "bg-slate-900/30 border-slate-800/40 text-slate-600"
+                      )} onClick={() => setActiveServices({...activeServices, smartAI: !activeServices.smartAI})}>
+                        <span>🤖 Predicciones AI</span>
+                        <span className={cn("w-1.5 h-1.5 rounded-full", activeServices.smartAI ? "bg-[#10b981] animate-ping" : "bg-slate-600")} />
+                      </div>
+                    </div>
+
+                    {/* Show scaled container instances visually */}
+                    <div className="pt-2 border-t border-slate-800/60 flex items-center justify-start gap-1 flex-wrap">
+                      {Array.from({ length: nodesScale }).map((_, i) => (
+                        <div 
+                          key={i} 
+                          className="w-4 h-4 bg-emerald-500/10 border border-emerald-500/30 rounded flex items-center justify-center text-[10px] animate-pulse"
+                          title={`Contenedor Docker instance #${i+1} en producción`}
+                        >
+                          🐳
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Column 4: Firestore Unified Database Storage */}
+                  <div className="space-y-2 text-center bg-indigo-950/20 p-4 rounded-2xl border border-indigo-500/10 flex flex-col items-center">
+                    <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
+                      <Database size={20} />
+                    </div>
+                    <p className="text-[9px] font-black text-indigo-400 tracking-widest uppercase">4. Base de Datos Centralizada</p>
+                    <p className="text-[10px] text-slate-300 font-bold bg-slate-950 py-1 px-3 rounded-lg border border-indigo-500/10 mt-1 max-w-full truncate">
+                      🗄️ Firestore (Global)
+                    </p>
+                    <div className="flex gap-1.5 text-[8px] font-black uppercase text-slate-400 tracking-wider pt-1.5">
+                      <span className="text-[#10b981] bg-emerald-500/10 px-1 py-0.5 rounded">Replicada</span>
+                      <span className="text-indigo-400 bg-indigo-500/10 px-1 py-0.5 rounded">En tiempo real</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            {/* Performance and Latency Statistics Board */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+              
+              <div className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Tráfico de Red</span>
+                <p className="text-xl font-black text-white mt-1 flex items-center gap-1.5">
+                  <Activity size={16} className="text-indigo-500 animate-pulse" />
+                  <span>{simRPS} RPS</span>
+                </p>
+                <div className="w-full bg-slate-800 h-1 rounded overflow-hidden mt-2.5">
+                  <div 
+                    className="bg-indigo-500 h-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (simRPS / 1200) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Latencia API</span>
+                <p className="text-xl font-black text-[#10b981] mt-1 flex items-center gap-1.5">
+                  <Wifi size={16} className="text-[#10b981] animate-pulse" />
+                  <span>{simLatency} ms</span>
+                </p>
+                <p className="text-[8px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Altísima Velocidad (HTTP/3)</p>
+              </div>
+
+              <div className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Carga Promedio Nodos</span>
+                <p className={cn(
+                  "text-xl font-black mt-1 flex items-center gap-1.5",
+                  simCpuCurrent > 80 ? "text-rose-500" : simCpuCurrent > 60 ? "text-amber-500" : "text-white"
+                )}>
+                  <Cpu size={16} className="text-slate-400 animate-bounce" />
+                  <span>{simCpuCurrent}%</span>
+                </p>
+                <div className="w-full bg-slate-800 h-1 rounded overflow-hidden mt-2.5">
+                  <div 
+                    className={cn(
+                      "h-full transition-all duration-300",
+                      simCpuCurrent > 80 ? "bg-rose-500" : simCpuCurrent > 60 ? "bg-amber-500" : "bg-emerald-500"
+                    )}
+                    style={{ width: `${simCpuCurrent}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Tasa de Disponibilidad</span>
+                <p className="text-xl font-black text-yellow-400 mt-1 flex items-center gap-1.5">
+                  <Sparkles size={16} className="text-yellow-400 animate-pulse" />
+                  <span>99.998%</span>
+                </p>
+                <p className="text-[8px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Multi-región act-act</p>
+              </div>
+
+            </div>
+
+            {/* Interactive Control Configuration Sliders */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left border-t border-slate-800/60 pt-6">
+              
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Layers size={14} className="text-indigo-400" /> Escalado de Contenedores Docker (Pods Cloud Run)
+                  </label>
+                  <span className="text-xs font-black text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/10">
+                    {nodesScale} {nodesScale === 1 ? "instancia" : "instancias"}
+                  </span>
+                </div>
+                
+                <input 
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={nodesScale}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setNodesScale(val);
+                    setSimLogs(prev => [
+                      `⚙️ [Ajuste de Carga] Kubernetes / Cloud run configurado para un mínimo de ${val} pods activos.`,
+                      ...prev.slice(0, 7)
+                    ]);
+                  }}
+                  className="w-full accent-indigo-500 cursor-pointer"
+                />
+                <p className="text-[9px] text-slate-450 leading-relaxed font-semibold">
+                  Aprovisiona dinámicamente más contenedores Docker independientes para mitigar picos altos de solicitudes (RPS) durante promociones, posibilitando una concurrencia ilimitada.
+                </p>
+              </div>
+
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Database size={14} className="text-[#10b981]" /> Pool de Conexión a Base de Datos (Firestore)
+                  </label>
+                  <span className="text-xs font-black text-[#10b981] bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/10">
+                    Max: {dbConnectionLimit} oyentes
+                  </span>
+                </div>
+                
+                <input 
+                  type="range"
+                  min="50"
+                  max="500"
+                  step="50"
+                  value={dbConnectionLimit}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setDbConnectionLimit(val);
+                    setSimLogs(prev => [
+                      `🖥️ [Parámetro de Red] Límite máximo de conexiones concurrentes establecido en ${val} sockets.`,
+                      ...prev.slice(0, 7)
+                    ]);
+                  }}
+                  className="w-full accent-emerald-500 cursor-pointer"
+                />
+                <p className="text-[9px] text-slate-450 leading-relaxed font-semibold">
+                  Evita que picos imprevistos saturen las lecturas. El almacenamiento modular de Firestore escala de forma nativa sin cuellos de botella ni bloqueos de transacciones.
+                </p>
+              </div>
+
+            </div>
+
+            {/* Real-time Simulated Network and Firestore Logs Console */}
+            <div className="space-y-3 text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <Lock size={12} className="text-amber-500" /> Registro de Transacciones Sincrónicas & Seguridad JWT
+                </span>
+                <span className="text-[8px] font-bold text-slate-500 font-mono tracking-widest">
+                  ESTADO: {simStatus}
+                </span>
+              </div>
+
+              <div className="bg-black/80 rounded-2xl p-4 border border-slate-800/80 font-mono text-[9.5px] leading-relaxed text-emerald-400 space-y-1.5 max-h-44 overflow-y-auto font-semibold scrollbar-none">
+                {simLogs.map((log, idx) => (
+                  <p key={idx} className="truncate border-b border-white/5 pb-1 last:border-0">{log}</p>
+                ))}
+              </div>
+            </div>
+
+            {/* Explanatory Cards detailing Quality, Security and Scalability */}
+            <div className="hidden md:grid grid-cols-3 gap-6 text-left border-t border-slate-800/60 pt-6">
+              
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">🛡️ Seguridad</span>
+                <p className="text-[10px] text-slate-300 font-bold leading-relaxed">
+                  Autenticación asimétrica + Reglas de control en Firestore garantizan que los datos estén aislados por rol (POS, Manager, Logística) protegiendo el negocio contra filtraciones.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-[#10b981] uppercase tracking-widest">📋 Calidad</span>
+                <p className="text-[10px] text-slate-300 font-bold leading-relaxed">
+                  Modularidad absoluta del código. Cada API o microservicio posee su propio alcance y manejo de excepciones, evitando fallas en cascada y facilitando el mantenimiento.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">🚀 Escalabilidad</span>
+                <p className="text-[10px] text-slate-300 font-bold leading-relaxed">
+                  Docker containers en Cloud Run escalan a cero cuando no se usan (ahorrando costos) y se duplican automáticamente en milisegundos ante ráfagas de ventas concurrentes.
+                </p>
+              </div>
+
+            </div>
+
           </div>
         </div>
 

@@ -50,6 +50,35 @@ interface LayoutProps {
   onNavigate: (page: any) => void;
 }
 
+function playNotificationChime() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    
+    const playTone = (frequency: number, startTime: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(frequency, startTime);
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    playTone(523.25, now, 0.3);
+    playTone(659.25, now + 0.1, 0.3);
+    playTone(783.99, now + 0.2, 0.45);
+  } catch (e) {
+    console.warn("Audio Context playback blocked:", e);
+  }
+}
+
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { profile, logout } = useAuth();
   const { settings } = useSettings();
@@ -57,6 +86,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [activeToast, setActiveToast] = useState<{
+    id: string;
+    title: string;
+    message: string;
+    type: 'info' | 'warning' | 'success' | 'alert';
+    link?: string;
+  } | null>(null);
 
   const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
     try {
@@ -119,11 +155,20 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   };
 
   useEffect(() => {
-    // Listen for low stock notifications
+    if (activeToast) {
+      const timer = setTimeout(() => {
+        setActiveToast(null);
+      }, 5500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeToast]);
+
+  useEffect(() => {
     if (!settings.notificationsEnabled) return;
 
-    const q = query(collection(db, "products"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    // 1. Sub for low stock alerts
+    const qProducts = query(collection(db, "products"));
+    const unsubProducts = onSnapshot(qProducts, (snapshot) => {
       const lowStockAlerts: Notification[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -142,16 +187,114 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           });
         }
       });
-      
+
       setNotifications(prev => {
-        // Keep read notifications that aren't in the new list?
-        // Actually for simplicity, just show the current low stock alerts
-        return lowStockAlerts;
+        const nonProductNotifs = prev.filter(n => !n.id.startsWith("low-stock-"));
+        return [...lowStockAlerts, ...nonProductNotifs];
       });
     });
 
-    return () => unsubscribe();
-  }, [settings.notificationsEnabled]);
+    // 2. Sub for real-time customer/logistic notifications inside the db
+    const qNotifs = query(collection(db, "client_notifications"), orderBy("timestamp", "desc"), limit(25));
+    
+    let isFirstLoad = true;
+    const initialLoadedIds = new Set<string>();
+
+    const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
+      const realTimeNotifs: Notification[] = [];
+      const incomingToasts: Notification[] = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const docId = docSnap.id;
+        
+        const targetUserId = data.userId;
+        const isTargeted = !targetUserId || 
+                           targetUserId === "all" || 
+                           (profile?.uid && targetUserId === profile.uid) || 
+                           (profile?.role && targetUserId === profile.role);
+
+        if (isTargeted) {
+          let timestamp = new Date();
+          if (data.timestamp?.toDate) {
+            timestamp = data.timestamp.toDate();
+          } else if (data.timestamp) {
+            timestamp = new Date(data.timestamp);
+          }
+          
+          let timeText = "Hace un momento";
+          try {
+            const diffMs = Date.now() - timestamp.getTime();
+            const diffMins = Math.floor(diffMs / 60000);
+            if (diffMins > 0) {
+              if (diffMins < 60) {
+                timeText = `Hace ${diffMins} min`;
+              } else if (diffMins < 1440) {
+                timeText = `Hace ${Math.floor(diffMins / 60)} hr`;
+              } else {
+                timeText = timestamp.toLocaleDateString("es-CL");
+              }
+            }
+          } catch {}
+
+          const newNotif: Notification = {
+            id: docId,
+            title: data.title || "Notificación de Sistema",
+            message: data.message || "",
+            type: data.type === "logistic" ? "info" : (data.type === "alert" ? "alert" : (data.type === "success" ? "success" : "info")),
+            time: timeText,
+            read: data.read || false,
+            link: data.link || (data.type === "logistic" ? "driver" : undefined)
+          };
+
+          realTimeNotifs.push(newNotif);
+
+          if (!isFirstLoad && !initialLoadedIds.has(docId)) {
+            const isRecent = (Date.now() - timestamp.getTime()) < 120000; // within 2 mins
+            if (isRecent) {
+              incomingToasts.push(newNotif);
+            }
+          }
+          initialLoadedIds.add(docId);
+        }
+      });
+
+      if (isFirstLoad) {
+        snapshot.forEach((docSnap) => {
+          initialLoadedIds.add(docSnap.id);
+        });
+        isFirstLoad = false;
+      } else if (incomingToasts.length > 0) {
+        const latest = incomingToasts[0];
+        setActiveToast({
+          id: latest.id,
+          title: latest.title,
+          message: latest.message,
+          type: latest.type,
+          link: latest.link
+        });
+        playNotificationChime();
+      }
+
+      setNotifications(prev => {
+        const productNotifs = prev.filter(n => n.id.startsWith("low-stock-"));
+        const merged = [...productNotifs];
+        realTimeNotifs.forEach(rn => {
+          if (!merged.some(m => m.id === rn.id)) {
+            merged.push(rn);
+          }
+        });
+        return merged;
+      });
+    }, (err) => {
+      console.warn("Error listening to real-time notifications:", err);
+    });
+
+    return () => {
+      unsubProducts();
+      unsubNotifs();
+    };
+  }, [settings.notificationsEnabled, profile?.uid, profile?.role]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ id: string; type: 'product' | 'customer'; name: string; detail: string }[]>([]);
@@ -633,6 +776,80 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           </div>
         </>
       )}
+
+      {/* Floating FCM Push Notification simulation banner overlay */}
+      <AnimatePresence>
+        {activeToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, x: 20, scale: 0.85 }}
+            animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -25, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 350, damping: 26 }}
+            className="fixed top-6 right-6 z-[250] max-w-sm w-[calc(100vw-32px)] bg-slate-900 border border-slate-700/50 text-white rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col"
+          >
+            <div className="p-4 flex items-start gap-3.5">
+              <div className="relative shrink-0 flex items-center justify-center">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-20 animate-ping" />
+                <div className={cn(
+                  "w-10 h-10 rounded-2xl flex items-center justify-center border text-white relative z-10 shadow-lg",
+                  activeToast.type === 'warning' ? "bg-amber-600 border-amber-500 shadow-amber-900/40" :
+                  activeToast.type === 'alert' ? "bg-rose-600 border-rose-500 shadow-rose-900/40" :
+                  activeToast.type === 'success' ? "bg-emerald-600 border-emerald-500 shadow-emerald-950/40" : "bg-indigo-600 border-indigo-500 shadow-indigo-950/40"
+                )}>
+                  {activeToast.type === 'warning' ? <AlertTriangle size={18} /> :
+                   activeToast.type === 'alert' ? <X size={18} /> :
+                   activeToast.type === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}
+                </div>
+              </div>
+
+              <div className="flex-1 min-w-0 font-sans text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[9px] font-black tracking-widest text-[#10b981] uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/10 active-pulse">
+                    🔔 FCM PUSH LIVE
+                  </span>
+                  <button
+                    onClick={() => setActiveToast(null)}
+                    className="text-slate-400 hover:text-white transition-colors p-0.5 rounded-lg hover:bg-white/5"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <h4 className="font-extrabold text-sm text-white mt-1.5 leading-snug tracking-tight animate-pulse">
+                  {activeToast.title}
+                </h4>
+                <p className="text-xs text-slate-300 leading-normal mt-1 font-medium">
+                  {activeToast.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-950 px-4 py-2.5 flex items-center justify-between border-t border-slate-800/80 text-[10px] uppercase font-black tracking-widest">
+              <span className="text-slate-500 font-bold">Estado: Recibido</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveToast(null)}
+                  className="px-3 py-1 text-slate-400 hover:text-white transition-colors"
+                >
+                  Cerrar
+                </button>
+                {activeToast.link && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onNavigate(activeToast.link);
+                      setActiveToast(null);
+                    }}
+                    className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all active:scale-95"
+                  >
+                    Ver Detalle
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
