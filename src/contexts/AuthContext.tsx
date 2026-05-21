@@ -14,7 +14,7 @@ import { auth, db } from "../lib/firebase";
 interface UserProfile {
   uid: string;
   email: string | null;
-  role: "admin" | "manager" | "seller" | "logistics";
+  role: string; // TODO(day2): align union to 7 roles: customer, cashier, inventory_manager, logistics, delivery, admin, owner
   name: string;
   photoURL?: string;
   phone?: string;
@@ -64,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const newProfile: UserProfile = {
               uid: authUser.uid,
               email: authUser.email,
+              // TODO(day2): remove email-based role inference — replace with custom claim
               role: authUser.email === "solier.elijah@gmail.com" ? "admin" : "seller",
               name: authUser.displayName || "Usuario",
             };
@@ -107,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Send verification email
     await sendEmailVerification(userCredential.user);
 
+    // TODO(day2): remove email-based role inference — replace with custom claim
     const isAdmin = email === "solier.elijah@gmail.com";
     const profileData: UserProfile = {
       uid: userCredential.user.uid,

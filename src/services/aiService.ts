@@ -1,7 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export interface StockInsight {
   analysis: string;
   recommendations: Array<{
@@ -12,71 +8,46 @@ export interface StockInsight {
   summary: string;
 }
 
-export async function getStockInsights(products: any[], transactions: any[], expenses: any[] = []): Promise<StockInsight> {
-  const model = "gemini-3-flash-preview";
-  
-  // Format data for AI to minimize tokens but keep context
-  const inventoryData = products.map(p => ({
-    name: p.name,
-    stock: p.stock,
-    min: p.minThreshold,
-    price: p.price,
-    cost: p.costPrice
-  }));
+import { auth } from '../lib/firebase';
 
-  const salesData = transactions
-    .filter(t => t.type === "sale")
-    .slice(0, 50) // Last 50 sales for trend
-    .map(t => ({
-      name: t.productName,
-      qty: t.quantity,
-      time: t.timestamp?.toDate ? t.timestamp.toDate().toISOString() : new Date().toISOString()
-    }));
-
-  const expenseData = expenses.map(e => ({
-    cat: e.category,
-    amt: e.amount,
-    desc: e.description
-  }));
-
-  const prompt = `Analiza el estado del negocio retail. 
-    Datos de inventario: ${JSON.stringify(inventoryData)}
-    Datos de ventas recientes: ${JSON.stringify(salesData)}
-    Gastos operacionales: ${JSON.stringify(expenseData)}
-    
-    Proporciona un análisis estratégico sobre rentabilidad neta (Ventas - Costos de productos - Gastos), recomendaciones específicas y un resumen ejecutivo.`;
-
+export async function getStockInsights(transactions: any[], expenses: any[] = []): Promise<StockInsight> {
   try {
-    const result = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        systemInstruction: "Eres un experto analista de inventarios y negocios retail. Tu objetivo es ayudar al dueño a optimizar su stock, evitar quiebres y maximizar ganancias. Responde SIEMPRE en formato JSON.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            analysis: { type: Type.STRING, description: "Análisis general del estado de las ventas y stock." },
-            summary: { type: Type.STRING, description: "Resumen ejecutivo de 2 oraciones." },
-            recommendations: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  productName: { type: Type.STRING },
-                  action: { type: Type.STRING, enum: ["RESTOCK", "DISCOUNT", "MONITOR"] },
-                  reason: { type: Type.STRING }
-                }
-              }
-            }
-          }
-        }
-      }
+    const user = auth.currentUser;
+    const token = user ? await user.getIdToken() : '';
+
+    const response = await fetch('/api/ai/insights', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ transactions, expenses })
     });
 
-    return JSON.parse(result.text || "{}");
+    if (!response.ok) {
+      if (response.status === 503) {
+        return {
+          analysis: "API Key no configurada.",
+          recommendations: [],
+          summary: "Configura tu API Key de Gemini en el archivo .env.local del servidor para obtener análisis."
+        };
+      }
+      const errData = await response.json().catch(() => ({}));
+      console.warn("AI insights failed:", errData);
+      return {
+        analysis: "No se pudieron obtener insights en este momento.",
+        recommendations: [],
+        summary: errData.error || "Error de comunicación con el servidor."
+      };
+    }
+
+    return await response.json();
   } catch (error) {
-    console.error("AI Insight Error:", error);
-    throw error;
+    console.error("AI Insight Fetch Error:", error);
+    return {
+      analysis: "Error de red al consultar la IA.",
+      recommendations: [],
+      summary: "Error de red."
+    };
   }
 }

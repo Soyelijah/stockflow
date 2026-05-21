@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { GoogleGenAI, Type } from "@google/genai";
 
-dotenv.config();
+dotenv.config({ path: '.env.local' });
 
 // Gemini Config
 const ai = process.env.GEMINI_API_KEY 
@@ -198,7 +198,7 @@ async function startServer() {
           Formato de respuesta: ÚNICAMENTE JSON puro.`;
 
           const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: "gemini-2.5-flash",
             contents: prompt,
             config: {
               tools: [{ googleSearch: {} }],
@@ -404,7 +404,7 @@ async function startServer() {
       const { customerEmail, orderDetails, businessName } = req.body;
       
       console.log(`[RECEIPT] Sending email to ${customerEmail} for order from ${businessName}`);
-      console.log(`[RECEIPT] Details:`, JSON.stringify(orderDetails, null, 2));
+      console.log(`[RECEIPT] Details:`, JSON.stringify({ id: orderDetails?.id || 'unknown', total: orderDetails?.total || 0 }));
 
       // Simulate a small delay for email processing
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -416,6 +416,121 @@ async function startServer() {
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Initialize Firebase Admin if needed
+  let admin: any;
+  try {
+    admin = await import("firebase-admin");
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault()
+      });
+    }
+  } catch(e) {
+    console.warn("Firebase Admin Initialization fallback.");
+  }
+
+  // AI Insights Endpoint
+  app.post("/api/ai/insights", async (req, res) => {
+    try {
+      // Security: Validate Bearer token via Firebase Admin
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Unauthorized. Missing Bearer token." });
+      }
+      
+      const token = authHeader.split('Bearer ')[1];
+      let decodedToken: any;
+      try {
+        decodedToken = await admin.auth().verifyIdToken(token);
+      } catch (err) {
+        return res.status(401).json({ error: "Unauthorized. Invalid token." });
+      }
+
+      const role = decodedToken.role || "customer";
+      // TODO(day2): remove email-based role inference — replace with custom claim
+      if (!['admin', 'owner', 'inventory_manager'].includes(role) && decodedToken.email !== 'solier.elijah@gmail.com') {
+        return res.status(403).json({ error: "Forbidden. Insufficient permissions." });
+      }
+
+      if (!ai) {
+        return res.status(503).json({ error: "Gemini API no configurada en el servidor." });
+      }
+
+      // Security: Validate payload size
+      const { transactions, expenses } = req.body;
+      if (transactions && transactions.length > 50) {
+        return res.status(400).json({ error: "Demasiadas transacciones en el payload." });
+      }
+
+      // Security: Read products directly from Firestore to avoid costPrice leak
+      const productsSnap = await admin.firestore().collection('products').limit(500).get();
+      const inventoryData = productsSnap.docs.map((d: any) => {
+        const p = d.data();
+        return {
+          name: p.name,
+          stock: p.stock,
+          min: p.minThreshold,
+          price: p.price
+          // costPrice safely omitted here since it's an AI read payload
+        };
+      });
+
+      const salesData = (transactions || [])
+        .filter((t: any) => t.type === "sale")
+        .slice(0, 50)
+        .map((t: any) => ({
+          name: t.productName,
+          qty: t.quantity,
+          time: t.timestamp?.toDate ? t.timestamp.toDate().toISOString() : new Date().toISOString()
+        }));
+
+      const expenseData = (expenses || []).map((e: any) => ({
+        cat: e.category,
+        amt: e.amount,
+        desc: e.description
+      }));
+
+      const prompt = `Analiza el estado del negocio retail. 
+        Datos de inventario: ${JSON.stringify(inventoryData)}
+        Datos de ventas recientes: ${JSON.stringify(salesData)}
+        Gastos operacionales: ${JSON.stringify(expenseData)}
+        
+        Proporciona un análisis estratégico sobre rentabilidad neta (Ventas - Costos de productos - Gastos), recomendaciones específicas y un resumen ejecutivo.`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction: "Eres un experto analista de inventarios y negocios retail. Tu objetivo es ayudar al dueño a optimizar su stock, evitar quiebres y maximizar ganancias. Responde SIEMPRE en formato JSON.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              analysis: { type: Type.STRING, description: "Análisis general del estado de las ventas y stock." },
+              summary: { type: Type.STRING, description: "Resumen ejecutivo de 2 oraciones." },
+              recommendations: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    productName: { type: Type.STRING },
+                    action: { type: Type.STRING, enum: ["RESTOCK", "DISCOUNT", "MONITOR"] },
+                    reason: { type: Type.STRING }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      res.json(JSON.parse(result.text || "{}"));
+    } catch (error: any) {
+      console.error("AI Insight Server Error:", error);
+      res.status(500).json({ error: error.message || "Error al generar insights" });
     }
   });
 
