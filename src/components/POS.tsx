@@ -832,7 +832,7 @@ export function POS() {
           }}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pr-2 pb-10 max-h-[calc(100vh-320px)]"
+          className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 overflow-y-auto pr-1 sm:pr-2 pb-10 max-h-[calc(100vh-320px)]"
         >
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((product) => (
@@ -845,36 +845,38 @@ export function POS() {
                 exit={{ opacity: 0, scale: 0.95 }}
                 key={product.id}
                 onClick={() => addToCart(product)}
-                className="group bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1.5 transition-all relative overflow-hidden flex flex-col items-center text-center"
+                className="group bg-white p-3 xs:p-4 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1.5 transition-all relative overflow-hidden flex flex-col items-center text-center justify-between"
               >
-                {/* Product Icon/Image */}
-                <div className="w-20 h-20 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-all mb-4 relative overflow-hidden capitalize font-black text-3xl">
-                   {product.image ? (
-                     <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                   ) : (
-                     product.name.charAt(0)
-                   )}
-                   <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                
-                <div className="space-y-1">
-                  <h4 className="font-black text-slate-800 text-xs leading-tight line-clamp-2 min-h-[2rem]">
-                    {product.name}
-                  </h4>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    SKU: {product.sku || 'N/A'}
-                  </p>
-                  <p className="text-[9px] font-bold text-indigo-500 truncate">
-                    EAN: {product.barcode || (product.barcodes && product.barcodes[0]) || 'Sin código'}
-                  </p>
+                <div className="flex flex-col items-center w-full">
+                  {/* Product Icon/Image */}
+                  <div className="w-14 h-14 sm:w-20 sm:h-20 bg-slate-50 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-all mb-3 sm:mb-4 relative overflow-hidden capitalize font-black text-2xl sm:text-3xl">
+                     {product.image ? (
+                       <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                     ) : (
+                       product.name.charAt(0)
+                     )}
+                     <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  
+                  <div className="space-y-0.5 sm:space-y-1 w-full">
+                    <h4 className="font-black text-slate-800 text-[11px] sm:text-xs leading-tight line-clamp-2 min-h-[2rem]">
+                      {product.name}
+                    </h4>
+                    <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400 truncate">
+                      SKU: {product.sku || 'N/A'}
+                    </p>
+                    <p className="text-[8px] sm:text-[9px] font-bold text-indigo-500 truncate">
+                      EAN: {product.barcode || (product.barcodes && product.barcodes[0]) || 'Sin código'}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-50 w-full flex items-center justify-between">
-                  <span className="text-sm font-black text-indigo-600">
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-50 w-full flex items-center justify-between">
+                  <span className="text-xs sm:text-sm font-black text-indigo-600">
                     {formatCurrency(product.price)}
                   </span>
                   <div className={cn(
-                    "px-2 py-1 rounded-lg text-[10px] font-black tabular-nums",
+                    "px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg text-[9px] sm:text-[10px] font-black tabular-nums",
                     Number(product.stock) <= Number(product.minThreshold) 
                       ? "bg-rose-50 text-rose-600" 
                       : "bg-emerald-50 text-emerald-600"
@@ -885,8 +887,8 @@ export function POS() {
 
                 {/* Hover Add Indicator */}
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                  <div className="bg-indigo-600 text-white rounded-xl p-2 shadow-lg shadow-indigo-200">
-                    <Plus size={14} />
+                  <div className="bg-indigo-600 text-white rounded-lg sm:rounded-xl p-1.5 sm:p-2 shadow-lg shadow-indigo-200">
+                    <Plus size={12} className="sm:w-[14px] sm:h-[14px]" />
                   </div>
                 </div>
               </motion.div>
@@ -1038,7 +1040,7 @@ export function POS() {
               </button>
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { id: "efectivo", label: "Efectivo", icon: Banknote, color: "text-emerald-500" },
                 { id: "tarjeta", label: "Tarjeta", icon: CreditCard, color: "text-blue-500" },

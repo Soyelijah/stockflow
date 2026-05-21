@@ -131,7 +131,7 @@ function AppContent() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
-          className="container mx-auto p-4 md:p-6"
+          className="container mx-auto p-1 sm:p-4 md:p-6"
         >
           {renderPage()}
         </motion.div>

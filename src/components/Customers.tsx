@@ -744,8 +744,8 @@ export function Customers() {
               </div>
 
               <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 text-slate-700">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre / Empresa *</label>
                     <input 
                       required
@@ -803,7 +803,7 @@ export function Customers() {
                       onChange={e => setFormData({...formData, phone: formatChileanPhone(e.target.value)})}
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Dirección de Despacho</label>
                     <input 
                       type="text" 
@@ -812,7 +812,7 @@ export function Customers() {
                       onChange={e => setFormData({...formData, address: e.target.value})}
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Tipo de Cliente</label>
                     <div className="flex gap-4">
                        {[
@@ -835,7 +835,7 @@ export function Customers() {
                        ))}
                     </div>
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Clasificación de Fidelidad</label>
                     <div className="flex gap-4">
                        {["regular", "vip", "churn"].map((seg) => (
@@ -855,7 +855,7 @@ export function Customers() {
                        ))}
                     </div>
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Notas Estratégicas</label>
                     <textarea 
                       rows={3}

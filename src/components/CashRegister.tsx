@@ -391,16 +391,17 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
           <motion.div 
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-bounce-slow"
+            className="fixed bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 z-50 animate-bounce-slow w-full max-w-[90vw] sm:w-auto px-4 sm:px-0 flex justify-center"
           >
             <button 
               onClick={() => setIsMinimized(false)}
-              className="bg-rose-600 text-white px-8 py-4 rounded-full font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-rose-200 flex items-center space-x-3 group"
+              className="bg-rose-600 text-white px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-full font-black uppercase tracking-widest text-[9px] sm:text-[10px] shadow-2xl shadow-rose-200 flex items-center space-x-2 sm:space-x-3 group justify-center text-center"
             >
-              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform">
-                <Lock size={14} />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform shrink-0">
+                <Lock size={12} className="sm:w-[14px] sm:h-[14px]" />
               </div>
-              <span>Modo Lectura - Haz clic para Abrir Caja</span>
+              <span className="hidden sm:inline">Modo Lectura - Haz clic para Abrir Caja</span>
+              <span className="inline sm:hidden">Modo Lectura - Abrir Caja</span>
             </button>
           </motion.div>
         )}
@@ -408,15 +409,15 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
 
       {/* Floating Close Button in POS */}
       {session && (
-        <div className="fixed bottom-10 right-10 z-30">
+        <div className="fixed bottom-4 right-4 sm:bottom-10 sm:right-10 z-30">
           <button 
             onClick={() => {
               fetchSessionStats(session);
               setIsClosing(true);
             }}
-            className="flex items-center space-x-2 bg-rose-600 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-rose-200 hover:scale-105 active:scale-95 transition-all"
+            className="flex items-center space-x-1.5 sm:space-x-2 bg-rose-600 text-white px-4 py-3 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[10px] shadow-2xl shadow-rose-200 hover:scale-105 active:scale-95 transition-all"
           >
-            <Lock size={16} />
+            <Lock size={14} className="sm:w-[16px] sm:h-[16px]" />
             <span>Cerrar Turno</span>
           </button>
         </div>
@@ -430,71 +431,71 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white max-w-2xl w-full rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-white max-w-2xl w-full rounded-[2.5rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]"
             >
-              <div className="p-8 bg-rose-600 text-white flex items-center justify-between">
+              <div className="p-6 md:p-8 bg-rose-600 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-white/10 rounded-2xl">
-                    <Calculator size={24} />
+                  <div className="p-2 bg-white/10 rounded-xl">
+                    <Calculator size={20} md:size={24} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black tracking-tight">Arqueo de Caja</h2>
-                    <p className="text-xs font-black text-rose-200 uppercase tracking-widest mt-0.5">Finalización de Turno</p>
+                    <h2 className="text-lg md:text-2xl font-black tracking-tight">Arqueo de Caja</h2>
+                    <p className="text-[9px] md:text-xs font-black text-rose-200 uppercase tracking-widest mt-0.5">Finalización de Turno</p>
                   </div>
                 </div>
                 <button onClick={() => setIsClosing(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
-                  <X size={24} />
+                  <X size={20} md:size={24} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-10 space-y-8">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 md:space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                  <div className="bg-slate-50 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Efectivo Inicial</p>
-                    <p className="text-xl font-black text-slate-800">{formatCurrency(session?.initialAmount)}</p>
+                    <p className="text-lg md:text-xl font-black text-slate-800">{formatCurrency(session?.initialAmount)}</p>
                   </div>
-                  <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
+                  <div className="bg-emerald-50 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-emerald-100">
                     <p className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest mb-1">Ventas Efectivo</p>
-                    <p className="text-xl font-black text-emerald-700">{formatCurrency(sessionStats.cash)}</p>
+                    <p className="text-lg md:text-xl font-black text-emerald-700">{formatCurrency(sessionStats.cash)}</p>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden">
+                <div className="bg-slate-900 text-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full" />
                   <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-2">Efectivo que DEBERÍA haber</p>
-                  <p className="text-4xl font-black">{formatCurrency(session?.initialAmount + sessionStats.cash)}</p>
+                  <p className="text-2xl md:text-4xl font-black">{formatCurrency(session?.initialAmount + sessionStats.cash)}</p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Declaración de Efectivo Contado</h3>
                   <div className="relative">
-                    <Banknote className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={24} />
+                    <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} md:size={24} />
                     <input 
                       type="number" 
                       placeholder="Ingrese monto contado..."
-                      className="w-full bg-slate-50 border-2 border-transparent rounded-[2rem] py-6 pl-16 pr-8 text-2xl font-black text-slate-800 focus:ring-0 focus:border-rose-500/30 transition-all shadow-inner"
+                      className="w-full bg-slate-50 border-2 border-transparent rounded-2xl md:rounded-[2rem] py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-lg md:text-2xl font-black text-slate-800 focus:ring-0 focus:border-rose-500/30 transition-all shadow-inner"
                       value={finalCash}
                       onChange={(e) => setFinalCash(e.target.value)}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center space-x-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                  <div className="p-3 md:p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center space-x-3">
                     <CreditCard size={18} className="text-indigo-500" />
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase">Tarjeta</p>
                       <p className="text-xs font-black">{formatCurrency(sessionStats.card)}</p>
                     </div>
                   </div>
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center space-x-3">
+                  <div className="p-3 md:p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center space-x-3">
                     <Smartphone size={18} className="text-purple-500" />
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase">Digital</p>
                       <p className="text-xs font-black">{formatCurrency(sessionStats.digital)}</p>
                     </div>
                   </div>
-                  <div className="p-4 bg-indigo-600 rounded-2xl text-white flex items-center space-x-3">
+                  <div className="p-3 md:p-4 bg-indigo-600 rounded-2xl text-white flex items-center space-x-3">
                     <TrendingUp size={18} />
                     <div>
                       <p className="text-[9px] font-black text-indigo-200 uppercase">Total Turno</p>
@@ -504,17 +505,17 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                 </div>
               </div>
 
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+              <div className="p-6 md:p-8 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-3 md:gap-4 shrink-0">
                 <button 
                   onClick={() => setIsClosing(false)}
-                  className="flex-1 py-5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all"
+                  className="w-full sm:flex-1 py-4 md:py-5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={handleCloseRegister}
                   disabled={!finalCash || loading}
-                  className="flex-[2] py-5 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-700 transition-all shadow-xl shadow-rose-100 disabled:opacity-30"
+                  className="w-full sm:flex-[2] py-4 md:py-5 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-700 transition-all shadow-xl shadow-rose-100 disabled:opacity-30"
                 >
                   Finalizar Turno y Cerrar Caja
                 </button>

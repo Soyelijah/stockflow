@@ -577,7 +577,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 md:p-10">
+        <main className="flex-1 overflow-y-auto p-2 sm:p-6 md:p-8">
           {children}
         </main>
       </div>
@@ -600,7 +600,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               </button>
             </div>
             
-            <nav className="flex-1 space-y-2">
+            <nav className="flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-none">
               {filteredNavItems.map((item) => (
                 <button
                   key={item.id}

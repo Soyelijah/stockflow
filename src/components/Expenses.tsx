@@ -391,7 +391,7 @@ export function Expenses() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto ($)</label>
                     <div className="relative">
@@ -431,18 +431,18 @@ export function Expenses() {
                   </select>
                 </div>
 
-                <div className="pt-6 flex space-x-4">
+                <div className="pt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 shrink-0">
                   <button 
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 h-16 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
+                    className="w-full sm:flex-1 h-14 md:h-16 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
                   >
                     Cancelar
                   </button>
                   <button 
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-[2] h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 shadow-xl transition-all flex items-center justify-center space-x-2"
+                    className="w-full sm:flex-[2] h-14 md:h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 shadow-xl transition-all flex items-center justify-center space-x-2"
                   >
                     {isSubmitting ? (
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />

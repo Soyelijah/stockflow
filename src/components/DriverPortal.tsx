@@ -273,22 +273,37 @@ export function DriverPortal({ onBackToDashboard }: { onBackToDashboard?: () => 
     window.addEventListener("mouseup", handleMouseUp);
   };
 
+  const isEmbedded = Boolean(onBackToDashboard);
+
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col font-sans select-none overflow-x-hidden md:py-6 md:px-4 items-center justify-center relative">
+    <div className={cn(
+      "w-full text-white flex flex-col font-sans select-none overflow-hidden items-center justify-center relative",
+      isEmbedded ? "h-[calc(100vh-140px)] min-h-[500px]" : "h-screen md:min-h-screen md:bg-slate-900 md:py-6 md:px-4"
+    )}>
       {/* Background ambient mesh gradient on desktop */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/40 via-slate-950 to-slate-950 pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/40 via-slate-950 to-slate-950 pointer-events-none z-0 hidden md:block" />
       
       {/* Device frame wrapper for Desktop display */}
-      <div className="w-full max-w-md h-full md:h-[860px] bg-slate-950 md:rounded-[3rem] md:border-[10px] md:border-slate-800 md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] flex flex-col relative overflow-hidden z-10 shrink-0">
+      <div className={cn(
+        "w-full h-full bg-slate-950 flex flex-col relative overflow-hidden z-10 shrink-0",
+        isEmbedded 
+          ? "max-w-md rounded-2xl border border-slate-800 shadow-xl" 
+          : "md:h-[min(840px,calc(100vh-50px))] md:max-w-md md:rounded-[3rem] md:border-[10px] md:border-slate-800 md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)]"
+      )}>
         
         {/* Dynamic notch bar mockup */}
-        <div className="hidden md:flex absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 bg-slate-800 rounded-b-2xl z-50 items-center justify-center">
-          <div className="w-3 h-3 bg-black rounded-full mr-2" />
-          <div className="w-16 h-1.5 bg-slate-900 rounded-full" />
-        </div>
+        {!isEmbedded && (
+          <div className="hidden md:flex absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 bg-slate-800 rounded-b-2xl z-50 items-center justify-center">
+            <div className="w-3 h-3 bg-black rounded-full mr-2" />
+            <div className="w-16 h-1.5 bg-slate-900 rounded-full" />
+          </div>
+        )}
 
         {/* App Internal Body wrapper */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden relative pt-6 md:pt-10">
+        <div className={cn(
+          "flex-1 flex flex-col h-full overflow-hidden relative",
+          isEmbedded ? "pt-0" : "pt-0 md:pt-10"
+        )}>
           
           {/* Header */}
           <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-slate-950/80 backdrop-blur z-20">

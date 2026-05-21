@@ -426,12 +426,12 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
           <p className="text-xs md:text-slate-500 font-medium mt-1">Recepción y despacho profesional.</p>
         </div>
         
-        <div className="bg-white p-1 rounded-2xl md:rounded-[1.5rem] border border-slate-200 flex shadow-sm w-full md:w-auto">
+        <div className="bg-white p-1 rounded-2xl md:rounded-[1.5rem] border border-slate-200 flex shadow-sm w-full md:w-auto overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap shrink-0">
           <button 
             type="button"
             onClick={() => setMode("reception")}
             className={cn(
-              "flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-2 flex items-center justify-center",
+              "flex-1 md:flex-none shrink-0 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-2 flex items-center justify-center whitespace-nowrap",
               mode === "reception" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" : "text-slate-400 hover:bg-slate-50"
             )}
           >
@@ -442,7 +442,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             type="button"
             onClick={() => setMode("dispatch")}
             className={cn(
-              "flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-2 flex items-center justify-center",
+              "flex-1 md:flex-none shrink-0 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-2 flex items-center justify-center whitespace-nowrap",
               mode === "dispatch" ? "bg-rose-600 text-white shadow-lg shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
             )}
           >
@@ -453,7 +453,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             type="button"
             onClick={() => setMode("tracking")}
             className={cn(
-              "flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-2 flex items-center justify-center",
+              "flex-1 md:flex-none shrink-0 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-2 flex items-center justify-center whitespace-nowrap",
               mode === "tracking" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
             )}
           >
@@ -464,7 +464,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <button 
               type="button"
               onClick={() => onNavigate("driver")}
-              className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-2 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 border border-dashed border-indigo-200"
+              className="flex-1 md:flex-none shrink-0 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-2 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 border border-dashed border-indigo-200 whitespace-nowrap"
             >
               <Truck size={14} className="animate-bounce" />
               <span>Vista Repartidor</span>

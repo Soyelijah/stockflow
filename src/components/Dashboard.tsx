@@ -612,28 +612,28 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
         {/* Sales Chart Area - Restricted to Admin or simplified for Seller */}
         <div className={cn(isAdmin ? "lg:col-span-8" : "lg:col-span-12")}>
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm h-full">
-            <div className="flex items-center justify-between mb-8">
+          <div className="bg-white p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-sm h-full">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
               <div className="flex items-center space-x-3">
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
                   {isAdmin ? <BarChart3 size={20} /> : <Zap size={20} />}
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">
+                  <h2 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">
                     {isAdmin ? "Rendimiento de Ventas" : "Resumen de Actividad"}
                   </h2>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Últimos 7 días</p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                   {isAdmin ? "Ventas vs Utilidad" : "Tendencia de Ventas"}
                 </p>
                 <div className="flex items-center space-x-4">
-                   <div className="flex items-center space-x-1.5"><div className="w-2 h-2 rounded-full bg-indigo-600" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Ventas</span></div>
-                   {isAdmin && (
-                     <div className="flex items-center space-x-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Utilidad</span></div>
-                   )}
+                    <div className="flex items-center space-x-1.5"><div className="w-2 h-2 rounded-full bg-indigo-600" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Ventas</span></div>
+                    {isAdmin && (
+                      <div className="flex items-center space-x-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Utilidad</span></div>
+                    )}
                 </div>
               </div>
             </div>
@@ -641,7 +641,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <div className="h-[300px] w-full relative overflow-hidden" style={{ minHeight: '300px' }}>
               {isMounted && chartData.length > 0 && chartData[0]?.sales !== undefined && (
                 <ResponsiveContainer width="100%" height={300} minWidth={0}>
-                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
@@ -665,7 +665,12 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <YAxis 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                      tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }}
+                      tickFormatter={(val) => {
+                        if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
+                        if (val >= 1000) return `$${Math.round(val / 1000)}k`;
+                        return `$${val}`;
+                      }}
                     />
                     <Tooltip 
                       contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '16px' }}
@@ -781,21 +786,21 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {topCustomers.map((cust, i) => (
-                  <div key={cust.id || i} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between hover:border-emerald-200 transition-all group">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-lg">
+                  <div key={cust.id || i} className="bg-white p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between hover:border-emerald-200 transition-all group gap-2">
+                    <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 rounded-xl sm:rounded-2xl flex items-center justify-center text-emerald-600 font-black text-sm sm:text-lg shrink-0">
                         {cust.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
-                      <div>
-                        <h4 className="font-bold text-slate-800 text-sm truncate max-w-[150px]">{cust.name}</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{cust.visits} compras totales</p>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate max-w-[100px] xs:max-w-[130px] sm:max-w-[150px]">{cust.name}</h4>
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{cust.visits} compras</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-black text-emerald-600 text-sm">{formatCurrency(cust.total)}</p>
-                      <div className="flex items-center justify-end space-x-1 mt-1">
-                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Frecuente</span>
+                    <div className="text-right shrink-0">
+                      <p className="font-black text-emerald-600 text-xs sm:text-sm">{formatCurrency(cust.total)}</p>
+                      <div className="flex items-center justify-end space-x-1 mt-0.5">
+                        <div className="w-1 h-1 bg-emerald-500 rounded-full" />
+                        <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-tight">VIP</span>
                       </div>
                     </div>
                   </div>
@@ -823,11 +828,11 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 onClick={() => onNavigate?.("transactions")}
                 className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-400 transition-colors"
               >
-                {isAdmin ? "Ver Registro Completo" : "Ver Mi Historial"}
+                {isAdmin ? "Ver Registro" : "Ver Mi Historial"}
               </button>
             </div>
 
-            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-2">
+            <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-1.5">
               <div className="divide-y divide-slate-50">
                 {recentTransactions.map((tx, i) => (
                   <motion.div 
@@ -835,39 +840,43 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
                     key={tx.id} 
-                    className="flex items-center justify-between p-5 hover:bg-slate-50/80 transition-all rounded-3xl group"
+                    className="flex items-center justify-between p-3 sm:p-5 hover:bg-slate-50/80 transition-all rounded-2xl sm:rounded-3xl group gap-3"
                   >
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                       <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110",
+                        "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shrink-0",
                         tx.type === "sale" || tx.type === "out" ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
                       )}>
-                        {tx.type === "sale" ? <ShoppingCart size={22} /> : 
-                         tx.type === "in" ? <ArrowDownRight size={22} /> : <ArrowUpRight size={22} />}
+                        {tx.type === "sale" ? <ShoppingCart size={20} className="sm:w-[22px] sm:h-[22px]" /> : 
+                         tx.type === "in" ? <ArrowDownRight size={20} className="sm:w-[22px] sm:h-[22px]" /> : <ArrowUpRight size={20} className="sm:w-[22px] sm:h-[22px]" />}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-bold text-slate-800 text-sm truncate">{tx.productName}</p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Clock size={12} className="text-slate-400" />
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            {tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleTimeString() : "Reciente"} • {tx.customerName || "General"}
-                          </p>
+                        <p className="font-bold text-slate-800 text-xs sm:text-sm truncate">{tx.productName}</p>
+                        <div className="flex items-center space-x-1 sm:space-x-2 mt-1 min-w-0">
+                          <Clock size={10} className="text-slate-400 shrink-0" />
+                          <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wide flex items-center gap-1 truncate">
+                            <span>{tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Reciente"}</span>
+                            <span>•</span>
+                            <span className="truncate max-w-[80px] xs:max-w-[120px]">{tx.customerName || "General"}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className={cn(
-                        "font-black text-sm",
+                        "font-black text-xs sm:text-sm",
                         tx.type === "sale" || tx.type === "out" ? "text-rose-600" : "text-emerald-600"
                       )}>
                         {tx.type === "sale" || tx.type === "out" ? "-" : "+"}{tx.quantity}
                       </p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{tx.userName || "Sistema"}</p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wide mt-0.5 max-w-[70px] xs:max-w-[110px] truncate" title={tx.userName}>
+                        {tx.userName || "Sistema"}
+                      </p>
                     </div>
                   </motion.div>
                 ))}
                 {recentTransactions.length === 0 && (
-                  <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                  <div className="p-16 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
                     Sin actividad registrada
                   </div>
                 )}
