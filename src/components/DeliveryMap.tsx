@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
-import { collection, onSnapshot, query, doc, updateDoc, setDoc, serverTimestamp, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, updateDoc, setDoc, serverTimestamp, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
-import { MapPin, Navigation, Truck, User, Phone, CheckCircle, Package, Plus, Map as MapIcon, Loader2 } from "lucide-react";
+import { MapPin, Navigation, Truck, User, Phone, CheckCircle, Package, Plus, Map as MapIcon, Loader2, Sparkles, RefreshCw, Save, ArrowRight } from "lucide-react";
 
 // Default coordinate (Santiago, Chile) for warehouse
 const WAREHOUSE_COORDS = { lat: -33.4449, lng: -70.6562 };
@@ -66,11 +66,149 @@ function RoutePolyline({ origin, destination }: { origin: { lat: number; lng: nu
   return null;
 }
 
+// Inner component to handle multi-stop optimized path computing and drawing using Route.computeRoutes
+interface OptimizedRouteDisplayProps {
+  origin: { lat: number; lng: number };
+  intermediates: { lat: number; lng: number }[];
+  returnToWarehouse: boolean;
+  onOptimizationComplete: (indices: number[], distance: number, duration: number) => void;
+  onOptimizationError: (err: string) => void;
+  triggerCount: number;
+}
+
+function OptimizedRouteDisplay({
+  origin,
+  intermediates,
+  returnToWarehouse,
+  onOptimizationComplete,
+  onOptimizationError,
+  triggerCount
+}: OptimizedRouteDisplayProps) {
+  const map = useMap();
+  const routesLib = useMapsLibrary("routes");
+  const polylinesRef = useRef<google.maps.Polyline[]>([]);
+
+  useEffect(() => {
+    if (!routesLib || !map || !origin || intermediates.length === 0) return;
+
+    // Clear any previous polylines
+    polylinesRef.current.forEach((p) => p.setMap(null));
+    polylinesRef.current = [];
+
+    // Decide terminal destination
+    const travelDestination = returnToWarehouse ? origin : intermediates[intermediates.length - 1];
+    const stops = returnToWarehouse 
+      ? intermediates.map(wp => ({ location: wp as any }))
+      : intermediates.slice(0, -1).map(wp => ({ location: wp as any }));
+
+    if (!returnToWarehouse && intermediates.length === 1) {
+      // 1-stop special case without return (just origin -> stop1)
+      routesLib.Route.computeRoutes({
+        origin: { location: origin as any },
+        destination: { location: intermediates[0] as any },
+        travelMode: "DRIVING",
+        fields: ["path", "distanceMeters", "durationMillis", "viewport"],
+      } as any)
+        .then(({ routes }) => {
+          if (routes?.[0]) {
+            const newPolylines = routes[0].createPolylines();
+            newPolylines.forEach((p) => {
+              p.setOptions({
+                strokeColor: "#22c55e",
+                strokeWeight: 6,
+                strokeOpacity: 0.9,
+              });
+              p.setMap(map);
+            });
+            polylinesRef.current = newPolylines;
+            if (routes[0].viewport) map.fitBounds(routes[0].viewport);
+            onOptimizationComplete([0], routes[0].distanceMeters || 0, routes[0].durationMillis || 0);
+          }
+        })
+        .catch((err) => {
+          console.error("Error computing single route:", err);
+          onOptimizationError("Error al calcular ruta sencilla.");
+        });
+      return;
+    }
+
+    // Call dynamic Route.computeRoutes with intermediate waypoint optimization
+    routesLib.Route.computeRoutes({
+      origin: { location: origin as any },
+      destination: { location: travelDestination as any },
+      intermediates: stops as any,
+      travelMode: "DRIVING",
+      optimizeWaypointOrder: true,
+      fields: [
+        "path",
+        "optimizedIntermediateWaypointIndices",
+        "distanceMeters",
+        "durationMillis",
+        "viewport"
+      ],
+    } as any)
+      .then(({ routes }) => {
+        if (routes?.[0]) {
+          const newPolylines = routes[0].createPolylines();
+          newPolylines.forEach((p) => {
+            p.setOptions({
+              strokeColor: "#10b981", // Beautiful Emerald Green for optimized loop
+              strokeWeight: 6,
+              strokeOpacity: 0.9,
+            });
+            p.setMap(map);
+          });
+          polylinesRef.current = newPolylines;
+
+          if (routes[0].viewport) {
+            map.fitBounds(routes[0].viewport);
+          }
+
+          const rawIndices = routes[0].optimizedIntermediateWaypointIndices || [];
+          let finalIndices = [...rawIndices];
+          if (!returnToWarehouse) {
+            // Append the last destination waypoint because we didn't include it in intermediates
+            finalIndices.push(intermediates.length - 1);
+          }
+
+          onOptimizationComplete(
+            finalIndices,
+            routes[0].distanceMeters || 0,
+            routes[0].durationMillis || 0
+          );
+        } else {
+          onOptimizationError("No se encontraron rutas para la combinación.");
+        }
+      })
+      .catch((err) => {
+        console.error("Error computing optimized routes:", err);
+        onOptimizationError("No se pudo conectar con el servicio de cálculo de rutas de Google Maps.");
+      });
+
+    return () => {
+      polylinesRef.current.forEach((p) => p.setMap(null));
+    };
+  }, [routesLib, map, origin, intermediates, returnToWarehouse, triggerCount]);
+
+  return null;
+}
+
 export function DeliveryMap() {
   const { profile } = useAuth();
   const [shipments, setShipments] = useState<any[]>([]);
   const [selectedShipment, setSelectedShipment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // States for multi-stop route optimization
+  const [isOptimizedMode, setIsOptimizedMode] = useState(false);
+  const [optimizedIndices, setOptimizedIndices] = useState<number[]>([]);
+  const [optimizedDistance, setOptimizedDistance] = useState<number>(0);
+  const [optimizedDuration, setOptimizedDuration] = useState<number>(0);
+  const [returnToWarehouse, setReturnToWarehouse] = useState<boolean>(true);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [triggerCount, setTriggerCount] = useState<number>(0);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
 
   // Form states to register a mockup shipment (Real coordinates in Santiago for demo/production delivery)
   const [showAddForm, setShowAddForm] = useState(false);
@@ -177,6 +315,58 @@ export function DeliveryMap() {
 
     } catch (err) {
       console.error("Error updating shipment status:", err);
+    }
+  };
+
+  const activeShipments = shipments.filter(s => s.status !== "delivered");
+
+  const getStopSequence = () => {
+    if (isOptimizedMode && optimizedIndices.length > 0 && activeShipments.length > 0) {
+      return optimizedIndices.map(idx => activeShipments[idx]).filter(Boolean);
+    }
+    return activeShipments;
+  };
+
+  const stopSequence = getStopSequence();
+
+  const handleOptimizeRoute = () => {
+    if (activeShipments.length === 0) {
+      setErrorMessage("No hay despachos preparados o en ruta para optimizar hoy.");
+      return;
+    }
+    setErrorMessage(null);
+    setIsOptimizing(true);
+    setOptimizedIndices([]);
+    setTriggerCount(prev => prev + 1);
+  };
+
+  const handleOptimizationComplete = (indices: number[], distance: number, duration: number) => {
+    setOptimizedIndices(indices);
+    setOptimizedDistance(distance);
+    setOptimizedDuration(duration);
+    setIsOptimizing(false);
+  };
+
+  const handleOptimizationError = (err: string) => {
+    setErrorMessage(err);
+    setIsOptimizing(false);
+  };
+
+  const handleSaveRouteIndices = async () => {
+    if (stopSequence.length === 0 || optimizedIndices.length === 0) return;
+    setSaveStatus("saving");
+    try {
+      const batch = writeBatch(db);
+      stopSequence.forEach((ship, idx) => {
+        const docRef = doc(db, "shipments", ship.id);
+        batch.update(docRef, { routeIndex: idx + 1 });
+      });
+      await batch.commit();
+      setSaveStatus("success");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch (err) {
+      console.error("Error saving optimized route indexes:", err);
+      setSaveStatus("error");
     }
   };
 
@@ -311,82 +501,291 @@ export function DeliveryMap() {
           </form>
         )}
 
-        {/* Shipment list */}
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-slate-800">
-          {shipments.map((s) => (
-            <div
-              key={s.id}
-              onClick={() => setSelectedShipment(s)}
-              className={cn(
-                "p-4 rounded-3xl border text-left transition-all cursor-pointer relative overflow-hidden",
-                selectedShipment?.id === s.id
-                  ? "bg-slate-900 border-transparent text-white shadow-lg"
-                  : "bg-slate-50 border-slate-100 hover:bg-slate-100"
-              )}
-            >
-              {selectedShipment?.id === s.id && (
-                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-2xl rounded-full" />
-              )}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[9px] font-black tracking-widest px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 uppercase">
-                  #{s.orderId}
-                </span>
-                <span
+        {/* Tab/Toggle Header */}
+        <div className="flex bg-slate-100 p-1 rounded-2xl shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsOptimizedMode(false)}
+            className={cn(
+              "flex-1 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+              !isOptimizedMode ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Ficha Individual
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsOptimizedMode(true);
+              setErrorMessage(null);
+            }}
+            className={cn(
+              "flex-1 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1",
+              isOptimizedMode ? "bg-indigo-600 text-white shadow-sm" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Sparkles size={11} /> Optimizar Ruta ({activeShipments.length})
+          </button>
+        </div>
+
+        {/* Sidebar panels content conditionally */}
+        {isOptimizedMode ? (
+          <div className="flex-1 flex flex-col space-y-4 text-left min-h-0">
+            <div className="p-4 bg-indigo-50/50 rounded-3xl border border-indigo-100 space-y-3 shrink-0">
+              <div className="flex items-center space-x-2 text-indigo-700 font-extrabold text-xs">
+                <Sparkles size={14} className="shrink-0" />
+                <span>Optimizador de Ruta Diario</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
+                Esta herramienta calcula la secuencia óptima de paradas usando la API de Google Maps, reduciendo tiempos de reparto y consumo de combustible.
+              </p>
+
+              <div className="pt-1 flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="return_wh"
+                  checked={returnToWarehouse}
+                  onChange={(e) => {
+                    setReturnToWarehouse(e.target.checked);
+                    setOptimizedIndices([]); // Re-compute necessary
+                  }}
+                  className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                />
+                <label htmlFor="return_wh" className="text-[10px] font-black text-slate-600 uppercase tracking-wider cursor-pointer select-none">
+                  Retornar a bodega al terminar
+                </label>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOptimizeRoute}
+                disabled={activeShipments.length === 0 || isOptimizing}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2"
+              >
+                {isOptimizing ? (
+                  <>
+                    <Loader2 className="animate-spin" size={12} />
+                    <span>Calculando con Google Maps...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={12} />
+                    <span>Calcular Ruta Óptima</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {errorMessage && (
+              <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-bold border border-rose-100 font-sans">
+                {errorMessage}
+              </div>
+            )}
+
+            {optimizedIndices.length > 0 && (
+              <div className="flex-1 flex flex-col min-h-0 space-y-3">
+                {/* Stats panel */}
+                <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 grid grid-cols-2 gap-2 text-center shrink-0">
+                  <div>
+                    <p className="text-[9px] font-black uppercase text-emerald-600/60 tracking-wider">Distancia</p>
+                    <p className="text-base font-black text-slate-800">
+                      {(optimizedDistance / 1000).toFixed(1)} km
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase text-emerald-600/60 tracking-wider">Duración Est.</p>
+                    <p className="text-base font-black text-slate-800">
+                      {Math.round(optimizedDuration / 60000)} min
+                    </p>
+                  </div>
+                </div>
+
+                {/* Stop by stop checklist */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0 border-y border-slate-50 py-2">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Secuencia de Reparto:</p>
+                  
+                  {/* Origin */}
+                  <div className="p-2 bg-slate-50 rounded-xl border border-dashed text-xs font-bold text-slate-500 flex items-center space-x-2">
+                    <span className="w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">🏢</span>
+                    <span className="truncate">Bodega Principal (Partida)</span>
+                  </div>
+
+                  {stopSequence.map((ship, index) => (
+                    <div
+                      key={ship.id}
+                      className="p-3 bg-white hover:bg-slate-50 rounded-2xl border border-slate-100 text-xs flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2.5 min-w-0">
+                        <span className="w-5 h-5 flex items-center justify-center bg-emerald-500 text-white rounded-full text-[10px] font-black shrink-0 shadow-sm shadow-emerald-500/20">
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0 font-sans">
+                          <p className="font-extrabold text-slate-800 truncate leading-tight">{ship.customerName}</p>
+                          <p className="text-[9px] text-slate-400 truncate leading-tight mt-0.5">{ship.address}</p>
+                        </div>
+                      </div>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 shrink-0 font-sans">
+                        #{ship.orderId}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* Return optionally */}
+                  {returnToWarehouse && (
+                    <div className="p-2 bg-slate-50 rounded-xl border border-dashed text-xs font-bold text-slate-500 flex items-center space-x-2">
+                      <span className="w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">🏢</span>
+                      <span className="truncate">Bodega Principal (Retorno)</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Button to save order for driver portal */}
+                <button
+                  type="button"
+                  onClick={handleSaveRouteIndices}
+                  disabled={saveStatus === "saving"}
                   className={cn(
-                    "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
-                    s.status === "delivered"
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : s.status === "in_route"
-                      ? "bg-indigo-500/20 text-indigo-400 animate-pulse"
-                      : "bg-amber-500/20 text-amber-400"
+                    "w-full py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm",
+                    saveStatus === "success"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-slate-900 text-white hover:bg-slate-800"
                   )}
                 >
-                  {s.status === "delivered" ? "Entregado" : s.status === "in_route" ? "En Ruta" : "Preparado"}
-                </span>
+                  <Save size={12} />
+                  {saveStatus === "saving" && "Guardando Secuencia..."}
+                  {saveStatus === "success" && "¡Guardado con Éxito!"}
+                  {saveStatus === "error" && "Error al Guardar"}
+                  {saveStatus === "idle" && "Publicar Ruta para Chofer"}
+                </button>
               </div>
-              <p className="text-xs font-extrabold tracking-tight truncate leading-tight">
-                {s.customerName}
-              </p>
-              <div className="flex items-center space-x-1 mt-1 text-[10px] opacity-60">
-                <MapPin size={10} className="shrink-0" />
-                <span className="truncate">{s.address}</span>
+            )}
+
+            {optimizedIndices.length === 0 && !isOptimizing && (
+              <div className="p-8 text-center border border-dashed border-slate-200 rounded-3xl bg-slate-50/50 flex-1 flex flex-col justify-center items-center">
+                <Navigation size={24} className="text-slate-300 mb-2" />
+                <p className="text-xs text-slate-400 font-extrabold text-center leading-relaxed">
+                  Presione el botón superior para calcular el recorrido más eficiente.
+                </p>
               </div>
-            </div>
-          ))}
+            )}
+          </div>
+        ) : (
+          /* Normal Shipment list */
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-slate-800 min-h-0">
+            {shipments.map((s) => (
+              <div
+                key={s.id}
+                onClick={() => setSelectedShipment(s)}
+                className={cn(
+                  "p-4 rounded-3xl border text-left transition-all cursor-pointer relative overflow-hidden",
+                  selectedShipment?.id === s.id
+                    ? "bg-slate-900 border-transparent text-white shadow-lg"
+                    : "bg-slate-50 border-slate-100 hover:bg-slate-100"
+                )}
+              >
+                {selectedShipment?.id === s.id && (
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-2xl rounded-full" />
+                )}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] font-black tracking-widest px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 uppercase font-sans">
+                    #{s.orderId}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans",
+                      s.status === "delivered"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : s.status === "in_route"
+                        ? "bg-indigo-505 bg-opacity-20 text-indigo-400 animate-pulse"
+                        : "bg-amber-500/20 text-yellow-500"
+                    )}
+                  >
+                    {s.status === "delivered" ? "Entregado" : s.status === "in_route" ? "En Ruta" : "Preparado"}
+                  </span>
+                </div>
+                <p className="text-xs font-extrabold tracking-tight truncate leading-tight font-sans">
+                  {s.customerName}
+                </p>
+                <div className="flex items-center space-x-1 mt-1 text-[10px] opacity-60 font-sans">
+                  <MapPin size={10} className="shrink-0" />
+                  <span className="truncate">{s.address}</span>
+                </div>
+              </div>
+            ))}
 
-          {shipments.length === 0 && !loading && (
-            <div className="p-8 text-center border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
-              <Package size={24} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-xs text-slate-400 font-bold italic">No hay despachos registrados hoy</p>
-            </div>
-          )}
+            {shipments.length === 0 && !loading && (
+              <div className="p-8 text-center border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+                <Package size={24} className="mx-auto text-slate-300 mb-2" />
+                <p className="text-xs text-slate-400 font-bold italic">No hay despachos registrados hoy</p>
+              </div>
+            )}
 
-          {loading && (
-            <div className="flex justify-center p-8">
-              <Loader2 className="animate-spin text-slate-300" />
-            </div>
-          )}
-        </div>
+            {loading && (
+              <div className="flex justify-center p-8">
+                <Loader2 className="animate-spin text-slate-300" />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Interactive Map Layout */}
       <div className="lg:col-span-3 flex flex-col h-full min-h-[500px]">
-        {/* Selected shipment overlay details */}
-        {selectedShipment ? (
+        {/* Dynamic header details based on mode */}
+        {isOptimizedMode ? (
           <div className="p-4 bg-slate-900 text-white rounded-t-3xl border-b border-white/5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center space-x-3 text-left font-sans">
+              <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h4 className="text-sm font-black tracking-tight uppercase">Ruta de Reparto Optimizada</h4>
+                  <span className="text-[9px] font-black bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Google Maps Activo
+                  </span>
+                </div>
+                <p className="text-[10px] text-white/50 font-medium mt-0.5">
+                  Planificación de ruta consolidada para {activeShipments.length} entregas pendientes.
+                </p>
+              </div>
+            </div>
+
+            {optimizedIndices.length > 0 && (
+              <div className="flex items-center gap-4 shrink-0 bg-white/5 px-4 py-2 rounded-2xl border border-white/5 text-right font-sans">
+                <div className="text-left">
+                  <p className="text-[8px] text-white/40 font-black uppercase tracking-wider">Plan de Viaje</p>
+                  <p className="text-xs font-black text-emerald-400">
+                    {(optimizedDistance / 1000).toFixed(1)} km ({Math.round(optimizedDuration / 60000)} min)
+                  </p>
+                </div>
+                <div className="h-6 w-px bg-white/10" />
+                <button
+                  type="button"
+                  onClick={handleSaveRouteIndices}
+                  disabled={saveStatus === "saving"}
+                  className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {saveStatus === "saving" ? "Guardando..." : "Confirmar Recorrido"}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : selectedShipment ? (
+          <div className="p-4 bg-slate-900 text-white rounded-t-3xl border-b border-white/5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-left font-semibold">
             <div>
               <div className="flex items-center space-x-2">
-                <h4 className="text-sm font-black tracking-tight">{selectedShipment.customerName}</h4>
-                <span className="text-[10px] font-black bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded">
+                <h4 className="text-sm font-black tracking-tight font-sans">{selectedShipment.customerName}</h4>
+                <span className="text-[10px] font-black bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-sans">
                   Pedido #{selectedShipment.orderId}
                 </span>
               </div>
-              <p className="text-[10px] text-white/50 font-bold mt-1 max-w-md truncate">
+              <p className="text-[10px] text-white/50 font-bold mt-1 max-w-md truncate font-sans">
                 Dirección registrada: {selectedShipment.address}
               </p>
             </div>
 
-            <div className="flex items-center space-x-2 shrink-0">
+            <div className="flex items-center space-x-2 shrink-0 font-sans">
               <span className="text-xs font-black text-white/40 uppercase tracking-widest mr-2">Control Logístico:</span>
               <button
                 onClick={() => handleUpdateStatus(selectedShipment.id, "prepared")}
@@ -418,7 +817,7 @@ export function DeliveryMap() {
             </div>
           </div>
         ) : (
-          <div className="p-4 bg-slate-900 text-slate-400 text-xs font-black uppercase tracking-wider rounded-t-3xl text-center">
+          <div className="p-4 bg-slate-900 text-slate-400 text-xs font-black uppercase tracking-wider rounded-t-3xl text-center font-sans">
             Seleccione un despacho para ver estado georreferenciado
           </div>
         )}
@@ -440,39 +839,93 @@ export function DeliveryMap() {
                 </Pin>
               </AdvancedMarker>
 
-              {/* Customer Pin marker */}
-              {selectedShipment && selectedShipment.lat && (
-                <AdvancedMarker position={{ lat: selectedShipment.lat, lng: selectedShipment.lng }}>
-                  <Pin background={selectedShipment.status === "delivered" ? "#10b981" : "#f59e0b"} glyphColor="#fff">
-                    <div className="text-xs">🚚</div>
-                  </Pin>
-                </AdvancedMarker>
-              )}
+              {/* All Customer Pin markers with optimized ordering if applicable */}
+              {shipments.map((s) => {
+                if (!s.lat || !s.lng) return null;
+                
+                // Get optimization order position if optimized mode is active
+                const stopIndex = stopSequence.findIndex(os => os.id === s.id);
+                const isOptimizedStop = isOptimizedMode && stopIndex !== -1 && optimizedIndices.length > 0;
+                const isSelected = selectedShipment?.id === s.id;
 
-              {/* Dynamic route computation overlay */}
-              {selectedShipment && selectedShipment.lat && (
+                return (
+                  <AdvancedMarker 
+                    key={s.id} 
+                    position={{ lat: s.lat, lng: s.lng }}
+                    onClick={() => {
+                      setSelectedShipment(s);
+                      if (isOptimizedMode) {
+                        // Switch tab to allow detailed actions
+                        setIsOptimizedMode(false);
+                      }
+                    }}
+                  >
+                    <Pin 
+                      background={
+                        isOptimizedStop 
+                          ? "#10b981" // Active optimized stop: emerald green
+                          : s.status === "delivered"
+                          ? "#64748b" // Slated grey if delivered
+                          : isSelected
+                          ? "#6366f1" // Active selected: indigo
+                          : "#f59e0b" // Normal prepared: amber
+                      } 
+                      glyphColor="#fff"
+                      scale={isSelected ? 1.25 : 1.0}
+                    >
+                      {isOptimizedStop ? (
+                        <div className="text-[11px] font-black text-white h-5 w-5 flex items-center justify-center font-sans">
+                          {stopIndex + 1}
+                        </div>
+                      ) : (
+                        <div className="text-[10px]">🚚</div>
+                      )}
+                    </Pin>
+                  </AdvancedMarker>
+                );
+              })}
+
+              {/* Dynamic single route computation overlay */}
+              {!isOptimizedMode && selectedShipment && selectedShipment.lat && (
                 <RoutePolyline
                   origin={WAREHOUSE_COORDS}
                   destination={{ lat: selectedShipment.lat, lng: selectedShipment.lng }}
+                />
+              )}
+
+              {/* Optimized multi-stop route computation overlay */}
+              {isOptimizedMode && activeShipments.length > 0 && (
+                <OptimizedRouteDisplay
+                  origin={WAREHOUSE_COORDS}
+                  intermediates={activeShipments.map(s => ({ lat: s.lat, lng: s.lng }))}
+                  returnToWarehouse={returnToWarehouse}
+                  onOptimizationComplete={handleOptimizationComplete}
+                  onOptimizationError={handleOptimizationError}
+                  triggerCount={triggerCount}
                 />
               )}
             </Map>
           </APIProvider>
 
           {/* Quick info-tag floating on the map */}
-          {selectedShipment && (
-            <div className="absolute bottom-6 right-6 bg-slate-900/95 backdrop-blur text-white p-4 rounded-3xl shadow-2xl max-w-xs border border-white/10 space-y-2 z-10 text-left">
+          {selectedShipment && !isOptimizedMode && (
+            <div className="absolute bottom-6 right-6 bg-slate-900/95 backdrop-blur text-white p-4 rounded-3xl shadow-2xl max-w-xs border border-white/10 space-y-2 z-10 text-left font-sans">
               <div className="flex items-center space-x-2 text-indigo-400 font-black text-[10px] uppercase tracking-wider">
                 <Truck size={12} />
                 <span>Hoja de Ruta Real</span>
               </div>
               <p className="text-xs font-extrabold">{selectedShipment.driverName || "Repartidor No Asignado"}</p>
-              <p className="text-[10px] text-white/60 flex items-center space-x-1">
+              <p className="text-[10px] text-white/60 flex items-center space-x-1 font-semibold">
                 <Phone size={10} />
                 <span>{selectedShipment.driverPhone || "Sin fono"}</span>
               </p>
+              {selectedShipment.routeIndex !== undefined && (
+                <div className="py-1 px-2.5 bg-indigo-505 bg-opacity-25 text-indigo-400 border border-indigo-500/20 rounded-xl text-[10px] font-black uppercase tracking-wider inline-block">
+                  Parada #{selectedShipment.routeIndex} de Ruta
+                </div>
+              )}
               <div className="pt-2 border-t border-white/5">
-                <p className="text-[9px] text-white/40 font-black uppercase tracking-widest">Paquete de Pedido:</p>
+                <p className="text-[9px] text-white/40 font-black uppercase tracking-widest font-semibold">Paquete de Pedido:</p>
                 <div className="max-h-20 overflow-y-auto mt-1 space-y-1">
                   {selectedShipment.items?.map((item: string, idx: number) => (
                     <p key={idx} className="text-[10px] text-white/80 font-medium truncate">• {item}</p>

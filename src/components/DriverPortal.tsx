@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { collection, onSnapshot, query, doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, updateDoc, setDoc, serverTimestamp, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
@@ -106,6 +106,83 @@ export function DriverPortal({ onBackToDashboard }: { onBackToDashboard?: () => 
       spread: 70,
       origin: { y: 0.7 }
     });
+  };
+
+  const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
+
+  const handleLoadSimulation = async () => {
+    setIsGeneratingSimulation(true);
+    try {
+      const mockShipments = [
+        {
+          id: `SHIP_DEMO_1_${Date.now()}`,
+          orderId: "2251",
+          customerId: "CUST_DEMO_1",
+          customerName: "Carlos Mendoza",
+          address: "Av. Providencia 1240, Providencia",
+          lat: -33.425,
+          lng: -70.615,
+          status: "prepared",
+          driverName: profile?.name || "Pierre Solier",
+          driverPhone: "+56 9 8472 9183",
+          total: 45000,
+          items: ["3x Pisco El Gobernador", "1x Pack Bebida Ginger Ale"],
+          timestamp: new Date().toISOString()
+        },
+        {
+          id: `SHIP_DEMO_2_${Date.now()}`,
+          orderId: "2252",
+          customerId: "CUST_DEMO_2",
+          customerName: "María Elena Ruíz",
+          address: "Av. Apoquindo 4500, Las Condes",
+          lat: -33.411,
+          lng: -70.575,
+          status: "prepared",
+          driverName: profile?.name || "Pierre Solier",
+          driverPhone: "+56 9 7361 9284",
+          total: 89000,
+          items: ["1x Balde Hielo Aluminio", "2x Botánica Gin Sólido", "4x Tónica Original"],
+          timestamp: new Date().toISOString()
+        },
+        {
+          id: `SHIP_DEMO_3_${Date.now()}`,
+          orderId: "2253",
+          customerId: "CUST_DEMO_3",
+          customerName: "Gonzalo Valenzuela",
+          address: "San Diego 825, Santiago Centro",
+          lat: -33.454,
+          lng: -70.651,
+          status: "prepared",
+          driverName: profile?.name || "Pierre Solier",
+          driverPhone: "+56 9 9123 4567",
+          total: 32000,
+          items: ["1x Vodka Stolichnaya", "2x Jugo Naranja Premium"],
+          timestamp: new Date().toISOString()
+        }
+      ];
+
+      for (const ship of mockShipments) {
+        await setDoc(doc(db, "shipments", ship.id), ship);
+      }
+      playConfetti();
+    } catch (err) {
+      console.error("Error generating simulation shipments:", err);
+    } finally {
+      setIsGeneratingSimulation(false);
+    }
+  };
+
+  const handleClearAllShipments = async () => {
+    if (!window.confirm("¿Seguro que deseas limpiar todos los despachos para reiniciar la prueba?")) return;
+    try {
+      const q = query(collection(db, "shipments"));
+      const snap = await getDocs(q);
+      const deletePromises = snap.docs.map(d => deleteDoc(doc(db, "shipments", d.id)));
+      await Promise.all(deletePromises);
+      setSelectedShipment(null);
+    } catch (err) {
+      console.error("Error clearing shipments:", err);
+    }
   };
 
   useEffect(() => {
@@ -391,6 +468,27 @@ export function DriverPortal({ onBackToDashboard }: { onBackToDashboard?: () => 
                       Cambie el estado de los pedidos asignados deslizando el gatillo inferior en la ficha detallada. Los clientes verán la actualización en tiempr real desde su portal con alertas push.
                     </p>
                   </div>
+
+                  <div className="bg-slate-900 p-4 rounded-2xl border border-white/5 space-y-2">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                      <Sparkles size={10} className="text-indigo-400" /> Acciones de Prueba
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button 
+                        onClick={handleLoadSimulation}
+                        disabled={isGeneratingSimulation}
+                        className="py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800 text-[10px] font-black uppercase tracking-widest rounded-xl text-white flex items-center justify-center gap-1 transition-all"
+                      >
+                        <Sparkles size={10} /> Cargar Ruta
+                      </button>
+                      <button 
+                        onClick={handleClearAllShipments}
+                        className="py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-455 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-400 flex items-center justify-center gap-1 transition-all"
+                      >
+                        <RefreshCw size={10} /> Limpiar Todo
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-auto">
@@ -660,9 +758,43 @@ export function DriverPortal({ onBackToDashboard }: { onBackToDashboard?: () => 
               ))}
 
               {filteredShipments.length === 0 && (
-                <div className="p-8 text-center border border-dashed border-white/10 rounded-2xl bg-white/2">
-                  <Truck size={24} className="mx-auto text-white/20 mb-2" />
-                  <p className="text-xs text-white/40 font-bold italic">No hay envíos que coincidan</p>
+                <div className="p-8 text-center border border-dashed border-white/10 rounded-2xl bg-white/2 space-y-4">
+                  <Truck size={28} className="mx-auto text-indigo-400 mb-1" />
+                  {shipments.length === 0 ? (
+                    <>
+                      <div>
+                        <p className="text-xs text-white/70 font-bold">Sin Envíos Asignados</p>
+                        <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">Cargue una ruta de prueba de simulación para ensayar el slide-to-confirm, visualizar el mapa de navegación GPS de reparto, y enviar notificaciones de estado en tiempo real.</p>
+                      </div>
+                      <button 
+                        onClick={handleLoadSimulation}
+                        disabled={isGeneratingSimulation}
+                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800 text-[10px] font-black uppercase tracking-widest rounded-xl text-white flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-indigo-500/20"
+                      >
+                        {isGeneratingSimulation ? (
+                          <>
+                            <RefreshCw className="animate-spin" size={12} />
+                            Generando demostración...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={12} />
+                            Cargar Ruta de Prueba (Simulación)
+                          </>
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <div>
+                      <p className="text-xs text-slate-400 font-bold italic">No hay envíos que coincidan</p>
+                      <button 
+                        onClick={() => { setSearchTerm(""); setActiveFilter("all"); }}
+                        className="mt-2 text-[9px] bg-slate-850 px-2.5 py-1 rounded font-black uppercase text-slate-300 tracking-wider hover:bg-slate-800 active:scale-95 transition-all"
+                      >
+                        Limpiar Filtros
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
