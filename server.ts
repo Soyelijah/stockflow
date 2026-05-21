@@ -422,7 +422,8 @@ async function startServer() {
   // Initialize Firebase Admin if needed
   let admin: any;
   try {
-    admin = await import("firebase-admin");
+    const adminModule = await import("firebase-admin");
+    admin = adminModule.default || adminModule;
     if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.applicationDefault()

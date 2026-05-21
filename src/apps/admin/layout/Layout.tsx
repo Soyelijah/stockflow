@@ -260,7 +260,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   ];
 
   const filteredNavItems = navItems
-    .filter(item => item.roles.includes(profile?.role || ""))
+    .filter(item => item.roles.includes(profile?.role || "") || profile?.role === "owner")
     .filter(item => item.id !== "logistics" || settings.deliveryEnabled !== false);
 
   return (

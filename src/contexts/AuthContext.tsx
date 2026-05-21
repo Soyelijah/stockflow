@@ -55,30 +55,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (authUser) {
-        const docRef = doc(db, "users", authUser.uid);
-        
-        unsubscribeProfile = onSnapshot(docRef, async (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            const newProfile: UserProfile = {
-              uid: authUser.uid,
-              email: authUser.email,
-              // TODO(day2): remove email-based role inference — replace with custom claim
-              role: authUser.email === "solier.elijah@gmail.com" ? "admin" : "seller",
-              name: authUser.displayName || "Usuario",
-            };
-            await setDoc(docRef, {
-              ...newProfile,
-              createdAt: new Date().toISOString(),
-            });
-            setProfile(newProfile);
-          }
-          setLoading(false);
+        try {
+          // Leer Custom Claim desde el token de autenticación (Día 2)
+          const tokenResult = await authUser.getIdTokenResult(true);
+          const customRole = (tokenResult.claims.role as string) || "customer";
+
+          const docRef = doc(db, "users", authUser.uid);
+          
+          unsubscribeProfile = onSnapshot(docRef, async (docSnap) => {
+            if (docSnap.exists()) {
+              // El token manda sobre el documento
+              setProfile({ ...(docSnap.data() as UserProfile), role: customRole });
+            } else {
+              const newProfile: UserProfile = {
+                uid: authUser.uid,
+                email: authUser.email,
+                role: customRole,
+                name: authUser.displayName || "Usuario",
+              };
+              try {
+                await setDoc(docRef, {
+                  ...newProfile,
+                  createdAt: new Date().toISOString(),
+                });
+              } catch (e) {
+                console.warn("No se pudo guardar el perfil inicial en Firestore:", e);
+              }
+              setProfile(newProfile);
+            }
+            setLoading(false);
         }, (error) => {
           console.error("Profile listener error:", error);
           setLoading(false);
         });
+        } catch (e) {
+          console.error("Error al obtener Custom Claims:", e);
+          setLoading(false);
+        }
       } else {
         setProfile(null);
         setLoading(false);

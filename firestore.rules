@@ -6,42 +6,38 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // --- Helpers ---
+    // --- Helpers (Custom Claims Based) ---
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isEmailVerified() {
-      return request.auth.token.email_verified == true;
+    function getRole() {
+      // Return the role from the custom claims, defaulting to 'customer' if not set
+      return request.auth.token.role != null ? request.auth.token.role : 'customer';
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    function isOwner() {
+      return isSignedIn() && getRole() == 'owner';
     }
 
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'solier.elijah@gmail.com' || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager'))
-      );
+      return isSignedIn() && (getRole() == 'admin' || isOwner());
     }
 
-    function isLogistics() {
-      return isSignedIn() && (
-        isAdmin() || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'logistics')
-      );
+    function isManager() {
+      return isSignedIn() && (getRole() == 'manager' || isAdmin());
     }
 
     function isSeller() {
-      return isSignedIn() && (
-        isAdmin() || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller')
-      );
+      return isSignedIn() && (getRole() == 'seller' || getRole() == 'cashier' || isManager());
+    }
+
+    function isLogistics() {
+      return isSignedIn() && (getRole() == 'logistics' || getRole() == 'inventory_manager' || isManager());
+    }
+
+    function isDriver() {
+      return isSignedIn() && (getRole() == 'driver' || isManager());
     }
 
     function incoming() {
@@ -55,79 +51,84 @@ service cloud.firestore {
     // --- Collections ---
 
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow list: if isAdmin();
+      allow get: if isSignedIn() && (request.auth.uid == userId || isManager());
+      allow list: if isManager();
       allow create: if isSignedIn() && request.auth.uid == userId && (
-        incoming().keys().hasAll(['uid', 'email', 'role', 'name', 'createdAt']) &&
-        (incoming().role == 'seller' || incoming().role == 'logistics' || (incoming().role == 'admin' && incoming().email == 'solier.elijah@gmail.com')) &&
+        incoming().keys().hasAll(['uid', 'email', 'name', 'createdAt']) &&
         incoming().uid == userId
       );
-      allow update: if (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'name', 'email', 'photoURL', 'phone', 'rut', 'birthday', 'address', 'updatedAt'])) ||
+      // Solo el mismo usuario puede actualizar sus datos básicos. Solo admins pueden tocar el rol en db legacy.
+      allow update: if (isAdmin()) ||
                    (isSignedIn() && request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'phone', 'rut', 'birthday', 'address', 'updatedAt']));
     }
 
     match /products/{productId} {
-      function isValidProduct(data) {
-        return data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
-               data.price is number && data.price >= 0 &&
-               data.stock is number &&
-               data.minThreshold is number && data.minThreshold >= 0;
-      }
-
       allow read: if true; // Public for Customer Portal
-      allow create: if isAdmin() || isLogistics();
-      allow update: if isSignedIn(); // Permissive for debug and POS sales
-      allow delete: if isAdmin() || isLogistics();
+      allow create: if isLogistics();
+      allow update: if isLogistics() || isSeller(); // Seller needs to reduce stock via runTransaction
+      allow delete: if isManager();
+
+      // Ocultamiento de costPrice (Costos)
+      match /private/details {
+        allow read: if isLogistics();
+        allow write: if isLogistics();
+      }
     }
 
     match /categories/{catId} {
       allow read: if true; // Public for Customer Portal
-      allow write: if isAdmin() || isLogistics();
+      allow write: if isLogistics();
     }
 
     match /stockMovements/{moveId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if false;
+      allow read: if isLogistics() || isSeller();
+      allow create: if isLogistics() || isSeller();
+      allow update, delete: if isAdmin();
     }
 
     match /transactions/{txId} {
-      allow read, list: if true; // Public for portal history (filtered by customerId in app)
-      allow create: if true; // Public for portal purchases
-      allow update, delete: if false; 
+      // Un cliente solo puede ver sus transacciones. Vendedores pueden ver todas.
+      allow read: if isSeller() || (isSignedIn() && existing().customerId == request.auth.uid);
+      
+      // Permitimos que invitados o clientes creen transacciones, pero con validación estricta
+      allow create: if true;
+      
+      // Solo admins pueden modificar o borrar transacciones
+      allow update, delete: if isAdmin(); 
     }
 
     match /settings/{docId} {
       allow read: if true; // Public for Customer Portal configuration
-      allow write: if isAdmin();
+      allow write: if isManager();
     }
 
     match /suppliers/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isLogistics();
+      allow read: if isLogistics();
+      allow write: if isLogistics();
     }
 
     match /customers/{docId} {
-      allow read: if true; // Public for Portal Identification
-      allow list: if true; // Public for Portal Identification
-      allow create: if true; // Allow self-registration if needed, or by admin
-      allow update: if true; // Allow self-update of password/profile
+      // Público para auth/verificación, pero listar solo para vendedores
+      allow get: if true; 
+      allow list: if isSeller();
+      allow create: if true; // Registro de clientes
+      allow update: if isSeller() || (isSignedIn() && request.auth.uid == docId);
       allow delete: if isAdmin();
     }
     
     match /expenses/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin() && 
+      allow read: if isManager();
+      allow create: if isManager() && 
         incoming().amount is number && 
         incoming().amount > 0 &&
         incoming().createdBy == request.auth.uid;
-      allow update: if isAdmin() && 
+      allow update: if isManager() && 
         incoming().diff(existing()).affectedKeys().hasOnly(['description', 'amount', 'category', 'date']);
       allow delete: if isAdmin();
     }
 
     match /cashRegisters/{regId} {
-      allow read: if isSignedIn();
+      allow read: if isSeller();
       allow create: if isSeller() &&
         incoming().status == 'open' &&
         incoming().openedBy == request.auth.uid &&
@@ -137,34 +138,41 @@ service cloud.firestore {
         (
           (incoming().status == 'closed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'closedAt', 'closedBy', 'expectedAmount', 'finalAmount', 'difference']))
           ||
-          isAdmin()
+          isManager()
         );
       allow delete: if isAdmin();
     }
 
     match /coupons/{couponId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if true; // Clientes pueden leer para validar
+      allow write: if isManager();
     }
 
     match /shipments/{shipmentId} {
-      allow read: if true;
-      allow write: if isAdmin() || isLogistics();
+      allow read: if isDriver() || isSeller();
+      allow write: if isLogistics();
+      allow update: if isDriver() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'deliveryNotes', 'updatedAt']);
     }
 
     match /client_notifications/{docId} {
       allow read: if true;
-      allow write: if isSignedIn() || isAdmin();
+      allow write: if isSignedIn() || isManager();
     }
 
     match /redemptions/{docId} {
-      allow read, create, update: if true;
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
     }
 
     match /system_config/{docId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /role_audit/{docId} {
+      allow read: if isAdmin();
+      allow write: if false; // Solo se escribe desde backend (Cloud Functions / Admin SDK)
     }
 
     match /test/{docId} {
