@@ -100,6 +100,25 @@ export function CustomerPortal() {
 
   // States for Claims Support (Paso 3.1)
   const [claimsList, setClaimsList] = useState<any[]>([]);
+  const [dismissedClaims, setDismissedClaims] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem("dismissed_claims");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const dismissClaim = (claimId: string) => {
+    const updated = [...dismissedClaims, claimId];
+    setDismissedClaims(updated);
+    try {
+      localStorage.setItem("dismissed_claims", JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const [activeHistorySubTab, setActiveHistorySubTab] = useState<"receipts" | "claims">("receipts");
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [claimOrderId, setClaimOrderId] = useState("");
@@ -1628,6 +1647,63 @@ export function CustomerPortal() {
       </header>
 
       <main className="flex-1 p-6 space-y-8 max-w-md mx-auto w-full">
+        {/* Banner de Reclamos Resueltos */}
+        <AnimatePresence>
+          {claimsList
+            .filter((c) => (c.status === "resolved" || c.status === "approved") && c.resolutionNote && !dismissedClaims.includes(c.id))
+            .map((claim) => (
+              <motion.div
+                key={claim.id}
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9, y: -20 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-emerald-600 text-white p-5 rounded-[2rem] border border-emerald-700 shadow-lg shadow-emerald-600/10 flex flex-col gap-3 relative text-left">
+                  <button
+                    type="button"
+                    onClick={() => dismissClaim(claim.id)}
+                    className="absolute top-4 right-4 text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-colors"
+                    title="Cerrar notificación"
+                  >
+                    <X size={14} />
+                  </button>
+                  
+                  <div className="flex items-start space-x-3 pr-6">
+                    <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-white">
+                      <CheckCircle size={18} />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Reclamo Resuelto</h4>
+                      <h3 className="text-xs font-black text-white leading-snug">Tu caso para el Pedido #{claim.orderId ? claim.orderId.substring(0,8).toUpperCase() : "S/N"} fue resuelto con éxito</h3>
+                      <p className="text-[9px] font-bold text-emerald-150 uppercase tracking-widest">Motivo: {claim.reason}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-black/10 p-4 rounded-2xl border border-white/5 space-y-1 mt-1">
+                    <span className="text-[8.5px] font-black text-emerald-250 uppercase tracking-widest leading-none">Respuesta de Bodega</span>
+                    <p className="text-xs text-white font-extrabold leading-normal">
+                      "{claim.resolutionNote}"
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-[8px] text-emerald-200 font-bold uppercase tracking-wider">
+                      ¡Gracias por preferir {settings.businessName || "nuestra tienda"}!
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => dismissClaim(claim.id)}
+                      className="px-4 py-1.5 bg-white text-emerald-700 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-50 transition-colors shadow-xs"
+                    >
+                      Entendido
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+        </AnimatePresence>
+
         <AnimatePresence mode="wait">
           {activeTab === "home" && (
             <motion.div 
@@ -2464,12 +2540,12 @@ export function CustomerPortal() {
 
                   {claimsList.map(claim => {
                     const statusText = 
-                      claim.status === "approved" ? "Aceptado - Solucionado" :
+                      claim.status === "resolved" || claim.status === "approved" ? "Resuelto / Solucionado" :
                       claim.status === "rejected" ? "Cerrado - Rechazado" :
                       "Pendiente de Revisión";
 
                     const statusColor = 
-                      claim.status === "approved" ? "bg-emerald-50 text-emerald-700 border-emerald-250" :
+                      claim.status === "resolved" || claim.status === "approved" ? "bg-emerald-50 text-emerald-700 border-emerald-250 shadow-sm" :
                       claim.status === "rejected" ? "bg-rose-50 text-rose-700 border-rose-250" :
                       "bg-amber-50 text-amber-700 border-amber-250";
 
