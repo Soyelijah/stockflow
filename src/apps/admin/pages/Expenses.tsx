@@ -287,57 +287,59 @@ export function Expenses() {
 
       {/* Expenses List */}
       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha</th>
-              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Descripción</th>
-              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoría</th>
-              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Monto</th>
-              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {filteredExpenses.map((exp) => (
-              <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-8 py-5">
-                  <div className="flex items-center space-x-2 text-slate-600">
-                    <Calendar size={14} className="text-slate-300" />
-                    <span className="text-xs font-bold">{exp.date}</span>
-                  </div>
-                </td>
-                <td className="px-8 py-5">
-                  <p className="text-sm font-bold text-slate-800">{exp.description}</p>
-                </td>
-                <td className="px-8 py-5">
-                  <div className="inline-flex items-center space-x-2 bg-slate-100 px-3 py-1 rounded-lg">
-                    <Tag size={12} className="text-slate-400" />
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-tight">{exp.category}</span>
-                  </div>
-                </td>
-                <td className="px-8 py-5 text-right">
-                  <span className="text-sm font-black text-rose-500">{formatCurrency(exp.amount)}</span>
-                </td>
-                <td className="px-8 py-5 text-right">
-                  <div className="flex items-center justify-end space-x-2">
-                    <button 
-                      onClick={() => handleEdit(exp)}
-                      className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-all"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(exp.id, exp.description)}
-                      className="p-2 hover:bg-rose-100 rounded-xl text-rose-400 hover:text-rose-600 transition-all"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[850px] text-left">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Descripción</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoría</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Monto</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filteredExpenses.map((exp) => (
+                <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center space-x-2 text-slate-600">
+                      <Calendar size={14} className="text-slate-300" />
+                      <span className="text-xs font-bold">{exp.date}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <p className="text-sm font-bold text-slate-800">{exp.description}</p>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="inline-flex items-center space-x-2 bg-slate-100 px-3 py-1 rounded-lg">
+                      <Tag size={12} className="text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-tight">{exp.category}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <span className="text-sm font-black text-rose-500">{formatCurrency(exp.amount)}</span>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <div className="flex items-center justify-end space-x-2">
+                      <button 
+                        onClick={() => handleEdit(exp)}
+                        className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-all"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(exp.id, exp.description)}
+                        className="p-2 hover:bg-rose-100 rounded-xl text-rose-400 hover:text-rose-600 transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {filteredExpenses.length === 0 && (
           <div className="py-20 text-center">
             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">

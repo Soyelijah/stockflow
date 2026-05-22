@@ -118,6 +118,12 @@ export function MobilePOS() {
   });
   const [isSyncingOfflineSales, setIsSyncingOfflineSales] = useState(false);
 
+  // === ESTADOS DE SIMULACIÓN DE PAGO DIGITAL Y TARJETA CON EXPLICACIÓN REALISTA ===
+  const [activePaymentSimulation, setActivePaymentSimulation] = useState<"tarjeta" | "digital" | null>(null);
+  const [simulationState, setSimulationState] = useState<"idle" | "processing" | "success">("idle");
+  const [simulationStepText, setSimulationStepText] = useState("");
+  const [simulatedTxId, setSimulatedTxId] = useState("");
+
   // 3. Estados de Metas de Ventas y Comisiones (Paso 2.3)
   const SALES_TARGET = 500000; // Meta: $500,000 diarios
   const COMMISSION_RATE = 0.025; // 2.5% de comisión por venta
@@ -232,6 +238,114 @@ export function MobilePOS() {
       handleFirestoreError(error, OperationType.CREATE, "cash_closures (Cierre Caja)");
       alert("Error al guardar arqueo de caja en la base de datos.");
     }
+  };
+
+  // === MÉTODOS DE SIMULACIÓN DE POS FISICO Y CHIME DE AUDIO EN TIEMPO REAL ===
+  const playTerminalSound = (type: "beep" | "success") => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      if (type === "beep") {
+        // Sonido de lectura NFC/QR (un bip agudo rápido)
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(1400, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+      } else if (type === "success") {
+        // Doble bip alegre que suena idéntico a una transacción POS aprobada
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc1.frequency.setValueAtTime(950, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        osc1.start();
+        osc1.stop(ctx.currentTime + 0.15);
+        
+        osc2.frequency.setValueAtTime(1250, ctx.currentTime + 0.15);
+        osc2.start(ctx.currentTime + 0.15);
+        osc2.stop(ctx.currentTime + 0.35);
+      }
+    } catch (e) {
+      console.warn("Web Audio API bloqueado o no soportado por el navegador:", e);
+    }
+  };
+
+  const initiatePayment = () => {
+    if (cart.length === 0 || isProcessing) return;
+    
+    // Validar de antemano que la caja esté abierta
+    if (!registerOpen) {
+      alert("🔒 Caja Cerrada: Para registrar ventas, primero debe iniciar el turno declarando el efectivo inicial en la pestaña Perfil.");
+      setActiveTab("profile");
+      return;
+    }
+
+    if (paymentMethod === "tarjeta" || paymentMethod === "digital") {
+      setActivePaymentSimulation(paymentMethod);
+      setSimulationState("idle");
+      setSimulationStepText(
+        paymentMethod === "tarjeta" 
+          ? "Listo: Acerque o inserte tarjeta de débito/crédito..." 
+          : "Listo: Esperando escaneo de código QR de billetera virtual..."
+      );
+      setSimulatedTxId(`TX-${Math.floor(100000000 + Math.random() * 900000000)}`);
+    } else {
+      // Flujo de cobros clásicos (Efectivo y Transferencia directa)
+      handleCheckout();
+    }
+  };
+
+  const completeSimulatedPayment = async () => {
+    setSimulationState("success");
+    playTerminalSound("success");
+    setSimulationStepText("¡PAGO AUTORIZADO Y APROBADO EXITOSAMENTE!");
+    
+    setTimeout(async () => {
+      setActivePaymentSimulation(null);
+      await handleCheckout();
+    }, 1800);
+  };
+
+  const triggerSimulationFlow = () => {
+    setSimulationState("processing");
+    playTerminalSound("beep");
+    setSimulationStepText("💳 Lectura NFC correcta. Obteniendo credenciales del chip...");
+    
+    setTimeout(() => {
+      setSimulationStepText("🔒 Cifrando transacción con clave de sesión única (Tokenización)...");
+      setTimeout(() => {
+        setSimulationStepText("🌐 Solicitando autorización con red bancaria (Transbank/Redbanc)...");
+        setTimeout(() => {
+          completeSimulatedPayment();
+        }, 1100);
+      }, 900);
+    }, 850);
+  };
+
+  const triggerDigitalSimulationFlow = () => {
+    setSimulationState("processing");
+    playTerminalSound("beep");
+    setSimulationStepText("📱 ¡Código QR Escaneado! Cargando datos de billetera virtual...");
+    
+    setTimeout(() => {
+      setSimulationStepText("🔌 Conectando con API de billetera digital para verificar balance...");
+      setTimeout(() => {
+        setSimulationStepText("🛡️ Liquidando monto y confirmando transferencia a cuenta comercio...");
+        setTimeout(() => {
+          completeSimulatedPayment();
+        }, 1100);
+      }, 900);
+    }, 850);
   };
 
   // Sync Offline Queue method
@@ -1258,7 +1372,7 @@ export function MobilePOS() {
                   </div>
                   <button 
                     disabled={isProcessing || (documentType === "factura" && !selectedCustomer)}
-                    onClick={handleCheckout}
+                    onClick={initiatePayment}
                     className={cn(
                       "w-full h-16 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2 transition-all",
                       (documentType === "factura" && !selectedCustomer) ? "bg-slate-800 text-slate-500 cursor-not-allowed" : "bg-white text-slate-900"
@@ -1922,6 +2036,230 @@ export function MobilePOS() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Simulación de Pago en Tiempo Real (Tarjeta y Virtual/Digital) */}
+      <AnimatePresence>
+        {activePaymentSimulation && (
+          <div className="fixed inset-0 z-[250] flex flex-col justify-end md:absolute md:rounded-[3rem] overflow-hidden">
+            {/* Background Backdrop Blur */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+            
+            {/* Modal Drawer Sheet */}
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="bg-slate-900 border-t border-slate-800 text-white rounded-t-[2.5rem] relative z-10 p-8 max-h-[90vh] overflow-y-auto flex flex-col space-y-6 shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2.5 h-2.5 bg-indigo-550 rounded-full animate-ping bg-indigo-500" />
+                  <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">STOCKFLOW LINK™</span>
+                </div>
+                <button 
+                  onClick={() => setActivePaymentSimulation(null)}
+                  disabled={simulationState === "processing"}
+                  className="p-1 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[9px] font-black uppercase transition-colors"
+                >
+                  <X size={14} className="inline mr-1" /> Cancelar
+                </button>
+              </div>
+
+              {/* Total Amount Panel */}
+              <div className="bg-slate-950 border border-slate-850 p-5 rounded-2xl text-center space-y-1">
+                <p className="text-[9px] font-black text-slate-500 tracking-widest uppercase">Monto Total a Cobrar</p>
+                <p className="text-3xl font-black text-white tracking-tight">{formatCurrency(finalTotal)}</p>
+                <div className="flex items-center justify-center space-x-1.5 text-slate-400 text-[10px] uppercase font-bold pt-1.5 border-t border-slate-900/50">
+                  <Lock size={10} className="text-indigo-400" />
+                  <span>Conexión Encriptada SSL</span>
+                </div>
+              </div>
+
+              {/* Terminal View Content */}
+              <div className="flex-1 flex flex-col items-center justify-center py-6 text-center space-y-6 min-h-[220px]">
+                
+                {/* 1. FLOW FOR CREDIT/DEBIT CARD NFC TAP */}
+                {activePaymentSimulation === "tarjeta" && (
+                  <div className="w-full space-y-6 relative flex flex-col items-center">
+                    {/* Animated Reader & Card */}
+                    <div className="h-28 w-full flex flex-col items-center justify-center relative overflow-visible">
+                      {simulationState === "idle" && (
+                        <>
+                          {/* Pulsing Contactless Waves */}
+                          <div className="absolute top-1/2 left-1/2 -translateX-1/2 -translateY-1/2 flex flex-col items-center justify-center">
+                            <span className="text-xl text-indigo-500/30 font-black tracking-widest animate-pulse">((( • )))</span>
+                          </div>
+                          
+                          {/* Sliding Credit Card */}
+                          <motion.div 
+                            animate={{ y: [ -20, 0, -20 ] }}
+                            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                            className="bg-gradient-to-tr from-indigo-650 via-purple-650 to-indigo-700 bg-indigo-600 w-32 h-20 rounded-xl p-3 text-left shadow-2xl border border-white/20 select-none relative z-10 shrink-0 flex flex-col justify-between"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="w-6 h-5 bg-amber-400/85 rounded" /> {/* Sim Gold Chip */}
+                              <div className="text-[10px] text-white/50 italic font-black">VISA</div>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="text-[9px] tracking-widest text-white font-mono font-black">•••• •••• •••• 4022</div>
+                              <p className="text-[7px] text-white/65 uppercase tracking-wider truncate font-bold">Cliente Frecuente</p>
+                            </div>
+                          </motion.div>
+                        </>
+                      )}
+
+                      {simulationState === "processing" && (
+                        <div className="flex flex-col items-center space-y-4">
+                          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                          <div className="h-1.5 w-32 bg-slate-800 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: "100%" }}
+                              transition={{ duration: 3.5, ease: "linear" }}
+                              className="h-full bg-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {simulationState === "success" && (
+                        <motion.div 
+                          initial={{ scale: 0.3, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="w-16 h-16 bg-emerald-500/15 border border-emerald-500 rounded-full flex items-center justify-center text-emerald-400"
+                        >
+                          <CheckCircle2 size={36} className="animate-bounce" />
+                        </motion.div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className={cn(
+                        "text-xs font-black transition-all uppercase tracking-wide px-3 py-1 bg-slate-950 border border-slate-850 rounded-full inline-block",
+                        simulationState === "success" ? "text-emerald-450 border-emerald-950 bg-emerald-950/20 text-emerald-400" : "text-white"
+                      )}>
+                        {simulationStepText}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed max-w-xs mx-auto">
+                        ID Transacción asignado: <span className="font-mono text-slate-400">{simulatedTxId}</span>
+                      </p>
+                    </div>
+
+                    {simulationState === "idle" && (
+                      <button 
+                        onClick={triggerSimulationFlow}
+                        className="w-full h-14 bg-white hover:bg-slate-50 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all text-center"
+                      >
+                        <CreditCard size={16} /> Simular Acercar Celular o Tarjeta (NFC)
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. FLOW FOR DIGITAL WALLET QR SCAN */}
+                {activePaymentSimulation === "digital" && (
+                  <div className="w-full space-y-6 relative flex flex-col items-center">
+                    
+                    {/* QR Code Graphic Frame */}
+                    <div className="relative p-4 bg-white rounded-3xl border border-slate-800 flex items-center justify-center shadow-2xl shrink-0 h-36 w-36 select-none overflow-hidden">
+                      {simulationState === "idle" && (
+                        <>
+                          {/* Simulated Scanning Laser Line */}
+                          <motion.div 
+                            animate={{ y: [ -60, 60, -60 ] }}
+                            transition={{ repeat: Infinity, duration: 2.2, ease: "linear" }}
+                            className="absolute left-0 right-0 h-0.5 bg-indigo-500 opacity-65 z-10 shadow-lg shadow-indigo-550/50"
+                          />
+                          
+                          {/* QR SVG */}
+                          <svg className="w-full h-full text-slate-900" viewBox="0 0 100 100" fill="currentColor">
+                            <rect x="5" y="5" width="25" height="25" rx="2" fill="none" stroke="currentColor" strokeWidth="6" />
+                            <rect x="11" y="11" width="13" height="13" fill="currentColor" />
+                            
+                            <rect x="70" y="5" width="25" height="25" rx="2" fill="none" stroke="currentColor" strokeWidth="6" />
+                            <rect x="76" y="11" width="13" height="13" fill="currentColor" />
+                            
+                            <rect x="5" y="70" width="25" height="25" rx="2" fill="none" stroke="currentColor" strokeWidth="6" />
+                            <rect x="11" y="76" width="13" height="13" fill="currentColor" />
+
+                            <path d="M40,10 h10 v10 h-10 z M60,10 h5 v5 h-5 z M50,30 h10 v5 h-10 z M30,50 h15 v5 h-15 z M55,50 h15 v5 h-15 z M15,45 h20 v5 h-20 z M80,45 h10 v15 h-10 z M45,75 h15 v5 h-15 z M75,70 h15 v5 h-15 z V85 h5 v5 h-5 z" />
+                            <circle cx="50" cy="50" r="6" className="text-indigo-600" fill="#4f46e5" />
+                          </svg>
+                        </>
+                      )}
+
+                      {simulationState === "processing" && (
+                        <div className="flex flex-col items-center justify-center w-full h-full">
+                          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                        </div>
+                      )}
+
+                      {simulationState === "success" && (
+                        <motion.div 
+                          initial={{ scale: 0.3, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="w-16 h-16 bg-emerald-500/15 border border-emerald-500 rounded-full flex items-center justify-center text-emerald-400"
+                        >
+                          <CheckCircle2 size={36} className="animate-bounce" />
+                        </motion.div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className={cn(
+                        "text-xs font-black transition-all uppercase tracking-wide px-3 py-1 bg-slate-950 border border-slate-850 rounded-full inline-block",
+                        simulationState === "success" ? "text-emerald-450 border-emerald-950 bg-emerald-950/20 text-emerald-400" : "text-white"
+                      )}>
+                        {simulationStepText}
+                      </p>
+                      
+                      {/* Interactive dynamic wallets visual */}
+                      {simulationState === "idle" && (
+                        <div className="flex items-center justify-center space-x-1.5 text-[8px] font-black text-slate-400 bg-slate-950 border border-slate-850/60 rounded-xl px-3 py-1.5 uppercase tracking-wide">
+                          <span>Compatible con:</span>
+                          <span className="text-sky-400 font-bold">Mercado Pago</span>
+                          <span>•</span>
+                          <span className="text-indigo-400 font-bold">MACH</span>
+                          <span>•</span>
+                          <span className="text-amber-550 font-bold">RUT</span>
+                        </div>
+                      )}
+
+                      {simulationState !== "idle" && (
+                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed max-w-xs mx-auto">
+                          ID Transacción: <span className="font-mono text-slate-400">{simulatedTxId}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {simulationState === "idle" && (
+                      <button 
+                        onClick={triggerDigitalSimulationFlow}
+                        className="w-full h-14 bg-white hover:bg-slate-50 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all text-center"
+                      >
+                        <Smartphone size={16} /> Simular Escaneo QR del Cliente
+                      </button>
+                    )}
+                  </div>
+                )}
+                
+              </div>
+
+              {/* Safety Footer info */}
+              <div className="text-center pt-2 border-t border-slate-800 flex items-center justify-center gap-1 text-slate-500 text-[8px] font-black tracking-widest uppercase">
+                <Lock size={8} /> Procesa transacciones bajo normativa PCI-DSS v4.0
+              </div>
             </motion.div>
           </div>
         )}

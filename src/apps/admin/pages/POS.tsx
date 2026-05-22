@@ -1147,23 +1147,22 @@ export function POS() {
             <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-6 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
               
-              <div className="flex items-center justify-between relative z-10">
-                <div>
-                  <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-1">Monto Recibido</p>
-                  <div className="flex items-baseline space-x-1">
-                    <span className="text-xl font-black text-white/20">$</span>
-                    <input 
-                      type="text" 
-                      readOnly
-                      className="bg-transparent border-none text-3xl font-black p-0 w-32 focus:ring-0 placeholder:text-white/10"
-                      placeholder="0"
-                      value={cashReceived}
-                    />
+              <div className="bg-slate-950/50 p-4 rounded-2xl border border-white/5 space-y-3 relative z-10">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-white/40 font-black uppercase tracking-widest">Monto Recibido</span>
+                  <div className="flex items-baseline space-x-0.5">
+                    <span className="text-xs font-black text-white/20 select-none mr-0.5">$</span>
+                    <span className="text-lg sm:text-xl font-black text-white tracking-tight">
+                      {cashReceived || "0"}
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-1">Vuelto</p>
-                  <p className="text-3xl font-black text-emerald-400">{formatCurrency(change)}</p>
+                <div className="h-[1px] bg-white/5 w-full" />
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-white/40 font-black uppercase tracking-widest">Vuelto</span>
+                  <span className="text-lg sm:text-xl font-black text-emerald-400 tracking-tight">
+                    {formatCurrency(change)}
+                  </span>
                 </div>
               </div>
 

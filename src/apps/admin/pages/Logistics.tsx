@@ -84,7 +84,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [unrecognizedBarcode, setUnrecognizedBarcode] = useState<string | null>(null);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   
-  const [mode, setMode] = useState<"reception" | "dispatch" | "checkout" | "audit" | "alerts" | "tracking">("reception");
+  const [mode, setMode] = useState<"reception" | "dispatch" | "audit" | "alerts">("reception");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -96,6 +96,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [auditBarcode, setAuditBarcode] = useState("");
   const [isAuditScanning, setIsAuditScanning] = useState(false);
   const [isAuditActive, setIsAuditActive] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [selectedProductForOC, setSelectedProductForOC] = useState<any | null>(null);
   const [ocQuantity, setOcQuantity] = useState(50);
 
@@ -506,18 +507,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
           </button>
           <button 
             type="button"
-            onClick={() => setMode("checkout")}
-            className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
-              mode === "checkout" ? "bg-amber-600 text-white shadow-lg shadow-amber-100" : "text-slate-400 hover:bg-slate-50"
-            )}
-            title="Verificación del bulto y reparto"
-          >
-            <ClipboardCheck size={13} />
-            <span>Control de Carga</span>
-          </button>
-          <button 
-            type="button"
             onClick={() => setMode("audit")}
             className={cn(
               "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
@@ -533,379 +522,25 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             onClick={() => setMode("alerts")}
             className={cn(
               "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
-              mode === "alerts" ? "bg-indigo-650 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
+              mode === "alerts" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
             )}
             title="Stock Crítico y Analíticas"
           >
             <Bell size={13} />
             <span>Alertas y KPIs</span>
           </button>
-          <button 
-            type="button"
-            onClick={() => setMode("tracking")}
-            className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
-              mode === "tracking" ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-slate-400 hover:bg-slate-50"
-            )}
-          >
-            <Navigation size={13} />
-            <span>Mapa</span>
-          </button>
         </div>
       </div>
 
-      {mode === "tracking" ? (
-        <div className="w-full">
-          <DeliveryMap />
-        </div>
-      ) : mode === "checkout" ? (
-        <div className="w-full space-y-6">
-          {/* STEP 4.1: Control de Carga / Checkout del Repartidor */}
-          <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-6 rounded-3xl text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-12 -mt-12" />
-            <div className="space-y-1 relative z-10">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-white/25 px-2.5 py-1 rounded-full">Fase 4.1: Control de Despachos</span>
-              <h2 className="text-2xl font-black tracking-tight">Verificación del Bodeguero antes de Ruta</h2>
-              <p className="text-xs text-amber-50 font-medium">
-                Audite y marque los bultos cargados en el camión por chofer. Garantiza entregas perfectas en sala y terreno.
-              </p>
-            </div>
-            {shipments.filter(s => s.status === "prepared").length > 0 && (
-              <div className="bg-white/15 px-4 py-2 rounded-2xl border border-white/10 text-right shrink-0">
-                <p className="text-[10px] font-extrabold uppercase text-amber-150">Cargas pendientes</p>
-                <p className="text-2xl font-black">{shipments.filter(s => s.status === "prepared").length} Hojas</p>
-              </div>
-            )}
-          </div>
-
-          {shipments.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm max-w-xl mx-auto space-y-6">
-              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
-                <Truck size={32} />
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-lg font-black text-slate-800">No hay Hojas de Ruta en el Sistema</h4>
-                <p className="text-xs text-slate-500 font-bold max-w-sm mx-auto leading-relaxed">
-                  Para probar la verificación de bultos por el bodeguero, puedes crear despachos simulados con un solo clic.
-                </p>
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    setIsProcessing(true);
-                    const mockShipments = [
-                      {
-                        id: `SHIP_DEMO_1_${Date.now()}`,
-                        orderId: "2401",
-                        customerId: "CUST_DEMO_1",
-                        customerName: "Carlos Mendoza",
-                        address: "Av. Providencia 1240, Providencia",
-                        lat: -33.425,
-                        lng: -70.615,
-                        status: "prepared",
-                        driverName: profile?.name || "Pierre Solier",
-                        driverPhone: "+56 9 8472 9183",
-                        total: 45000,
-                        items: ["3x Pisco El Gobernador 40°", "1x Pack Ginger Ale Original", "2x Hielo Cubo Premium"],
-                        timestamp: new Date().toISOString()
-                      },
-                      {
-                        id: `SHIP_DEMO_2_${Date.now()}`,
-                        orderId: "2402",
-                        customerId: "CUST_DEMO_2",
-                        customerName: "María Elena Ruíz",
-                        address: "Av. Apoquindo 4500, Las Condes",
-                        lat: -33.411,
-                        lng: -70.575,
-                        status: "prepared",
-                        driverName: profile?.name || "Pierre Solier",
-                        driverPhone: "+56 9 7361 9284",
-                        total: 89000,
-                        items: ["1x Balde Acero Inoxidable", "2x Gin Sólido Chileno", "4x Tónica Original 220cc"],
-                        timestamp: new Date().toISOString()
-                      },
-                      {
-                        id: `SHIP_DEMO_3_${Date.now()}`,
-                        orderId: "2403",
-                        customerId: "CUST_DEMO_3",
-                        customerName: "Gonzalo Valenzuela",
-                        address: "San Diego 825, Santiago Centro",
-                        lat: -33.454,
-                        lng: -70.651,
-                        status: "prepared",
-                        driverName: profile?.name || "Pierre Solier",
-                        driverPhone: "+56 9 9123 4567",
-                        total: 32000,
-                        items: ["2x Vodka Stolichnaya 750ml", "2x Jugo Naranja Premium 1L"],
-                        timestamp: new Date().toISOString()
-                      }
-                    ];
-
-                    for (const ship of mockShipments) {
-                      await setDoc(doc(db, "shipments", ship.id), ship);
-                    }
-                    
-                    setAlertConfig({
-                      isOpen: true,
-                      type: "success",
-                      title: "🚀 Hojas de Ruta Creadas",
-                      message: "Se han generado 3 hojas de ruta de simulación listas para verificar en la bodega y despachar."
-                    });
-                  } catch (e) {
-                    console.error(e);
-                  } finally {
-                    setIsProcessing(false);
-                  }
-                }}
-                disabled={isProcessing}
-                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
-              >
-                {isProcessing ? "Generando..." : "Generar Despachos de Prueba"}
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* List of Shipments left side */}
-              <div className="lg:col-span-5 space-y-3">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block ml-1">Seleccionar Despacho</span>
-                {shipments.map((ship) => {
-                  const isSelected = selectedShipmentForCheckout?.id === ship.id;
-                  const isPrepared = ship.status === "prepared";
-                  const isInRoute = ship.status === "in_route";
-                  const isDelivered = ship.status === "delivered";
-                  const isFailed = ship.status === "failed";
-                  
-                  return (
-                    <button
-                      key={ship.id}
-                      onClick={() => {
-                        setSelectedShipmentForCheckout(ship);
-                      }}
-                      className={cn(
-                        "w-full p-4 rounded-3xl border text-left transition-all flex items-start justify-between group",
-                        isSelected 
-                          ? "bg-slate-900 border-slate-900 text-white shadow-lg" 
-                          : "bg-white border-slate-150 text-slate-850 hover:bg-slate-50"
-                      )}
-                    >
-                      <div className="space-y-1 my-auto">
-                        <div className="flex items-center space-x-2">
-                          <span className={cn(
-                            "text-[10px] font-black px-2 py-0.5 rounded-full uppercase shrink-0",
-                            isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
-                          )}>
-                            #{ship.orderId || "S/N"}
-                          </span>
-                          
-                          {isPrepared && <span className="text-[9px] font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full uppercase border border-amber-100 shrink-0">Pendiente</span>}
-                          {isInRoute && <span className="text-[9px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase border border-indigo-100 shrink-0 animate-pulse">En Ruta</span>}
-                          {isDelivered && <span className="text-[9px] font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase border border-emerald-100 shrink-0">Entregado</span>}
-                          {isFailed && <span className="text-[9px] font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full uppercase border border-rose-100 shrink-0">Incidente</span>}
-                        </div>
-                        <p className={cn("font-black text-sm", isSelected ? "text-white" : "text-slate-800")}>{ship.customerName}</p>
-                        <p className={cn("text-[10px] truncate max-w-[200px]", isSelected ? "text-slate-300" : "text-slate-400 font-medium")}>
-                          {ship.address}
-                        </p>
-                      </div>
-
-                      <div className="text-right shrink-0 ml-2">
-                        <p className={cn("text-[10px] font-bold uppercase", isSelected ? "text-slate-400" : "text-slate-400")}>Driver</p>
-                        <p className="font-extrabold text-xs">{ship.driverName || "Por asignar"}</p>
-                        {ship.checkedByLogistics && (
-                          <span className="text-[9px] text-emerald-500 font-bold block mt-1">✓ Auditado</span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Items Verification Checklist right side */}
-              <div className="lg:col-span-7">
-                {selectedShipmentForCheckout ? (
-                  <div className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 shadow-sm space-y-6">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-600">Chequeo de Bultos</span>
-                        <h4 className="text-lg font-black text-slate-800">Pedido #{selectedShipmentForCheckout.orderId}</h4>
-                        <p className="text-xs text-slate-400 font-bold max-w-sm">
-                          Cliente: {selectedShipmentForCheckout.customerName} | Destino: {selectedShipmentForCheckout.address}
-                        </p>
-                      </div>
-                      <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl text-center">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Total</span>
-                        <span className="text-base font-black text-indigo-600">${(selectedShipmentForCheckout.total || 0).toLocaleString("es-CL")}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Productos a Cargar en Camión</p>
-                      
-                      {(selectedShipmentForCheckout.items || []).map((item: string, index: number) => {
-                        const isChecked = !!checkedCheckoutItems[selectedShipmentForCheckout.id]?.[item];
-                        return (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => {
-                              const currentStatus = checkedCheckoutItems[selectedShipmentForCheckout.id] || {};
-                              setCheckedCheckoutItems({
-                                ...checkedCheckoutItems,
-                                [selectedShipmentForCheckout.id]: {
-                                  ...currentStatus,
-                                  [item]: !isChecked
-                                }
-                              });
-                            }}
-                            className={cn(
-                              "w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between",
-                              isChecked 
-                                ? "bg-emerald-50/50 border-emerald-250 text-emerald-900" 
-                                : "bg-slate-5 w-full border-slate-100 text-slate-700 hover:border-slate-200"
-                            )}
-                          >
-                            <div className="flex items-center space-x-3.5">
-                              <div className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border",
-                                isChecked ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-slate-200 text-slate-300"
-                              )}>
-                                <CheckSquare size={18} />
-                              </div>
-                              <div>
-                                <p className="font-extrabold text-sm">{item}</p>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase">Estado: {isChecked ? "Verificado en camión" : "Pendiente de cargar"}</p>
-                              </div>
-                            </div>
-                            <span className={cn(
-                              "text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-full",
-                              isChecked ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                            )}>
-                              {isChecked ? "Ok" : "Falta"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const items = selectedShipmentForCheckout.items || [];
-                          const currentStatus = checkedCheckoutItems[selectedShipmentForCheckout.id] || {};
-                          const allTrue: Record<string, boolean> = {};
-                          items.forEach((item: string) => {
-                            allTrue[item] = true;
-                          });
-                          setCheckedCheckoutItems({
-                            ...checkedCheckoutItems,
-                            [selectedShipmentForCheckout.id]: allTrue
-                          });
-                        }}
-                        className="flex-1 py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
-                      >
-                        Verificar Todo
-                      </button>
-
-                      {selectedShipmentForCheckout.status !== "prepared" ? (
-                        <div className="flex-[2] bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center text-slate-500 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                          <CheckCircle size={16} className="text-emerald-500" />
-                          Hoja ya Despachada ({selectedShipmentForCheckout.status})
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const items = selectedShipmentForCheckout.items || [];
-                            const allChecked = items.every((i: string) => checkedCheckoutItems[selectedShipmentForCheckout.id]?.[i] === true);
-                            
-                            if (!allChecked) {
-                              setAlertConfig({
-                                isOpen: true,
-                                type: "warning",
-                                title: "Faltan Productos",
-                                message: "Debe verificar físicamente todos los productos del bulto marcando sus casillas antes de autorizar la salida del camión."
-                              });
-                              return;
-                            }
-
-                            try {
-                              setIsProcessing(true);
-                              // Update shipment status to in_route
-                              await updateDoc(doc(db, "shipments", selectedShipmentForCheckout.id), {
-                                status: "in_route",
-                                checkedByLogistics: true,
-                                checkedBy: profile?.name || "Pierre Solier",
-                                checkedAt: new Date().toISOString()
-                              });
-
-                              // Log a client notification in background
-                              const notifId = `NOTIF_${Date.now()}`;
-                              await setDoc(doc(db, "client_notifications", notifId), {
-                                id: notifId,
-                                title: "🚚 Pedido en Camino",
-                                message: `Su pedido #${selectedShipmentForCheckout.orderId} fue auditado con éxito en bodega y va en ruta de despacho.`,
-                                read: false,
-                                timestamp: serverTimestamp(),
-                                type: "logistic",
-                                userId: selectedShipmentForCheckout.customerId || "all"
-                              });
-
-                              setAlertConfig({
-                                isOpen: true,
-                                type: "success",
-                                title: "✨ Carga Despachada con Éxito ✨",
-                                message: "El bulto ha sido validado. La Hoja de Ruta se ha liberado en la app del chofer en tiempo real."
-                              });
-
-                              // Smoothly reset selected checkout
-                              setSelectedShipmentForCheckout(null);
-
-                            } catch (e) {
-                              console.error(e);
-                            } finally {
-                              setIsProcessing(false);
-                            }
-                          }}
-                          disabled={isProcessing}
-                          className="flex-[2] py-3.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-amber-100 flex items-center justify-center space-x-2"
-                        >
-                          {isProcessing ? (
-                            <RefreshCw className="animate-spin" size={16} />
-                          ) : (
-                            <>
-                              <ShieldCheck size={16} />
-                              <span>Aprobar Carga y Despachar</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-white rounded-3xl border border-slate-200 border-dashed p-12 text-center text-slate-400 space-y-4">
-                    <div className="w-12 h-12 bg-slate-50 text-slate-350 rounded-full flex items-center justify-center mx-auto border border-dashed border-slate-250">
-                      <ClipboardCheck size={22} />
-                    </div>
-                    <p className="text-xs font-black uppercase tracking-wider text-slate-400">Ningún Despacho Seleccionado</p>
-                    <p className="text-xs text-slate-400 max-w-xs mx-auto leading-normal">
-                      Selecciona una hoja de ruta de la barra izquierda para auditar los productos que van en el vehículo.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : mode === "audit" ? (
+      {mode === "audit" ? (
         <div className="w-full space-y-6 text-left">
           {/* STEP 4.2: Tomás de Inventario e Inventario Físico */}
-          <div className="bg-gradient-to-r from-purple-650 to-indigo-900 p-6 rounded-3xl text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-12 -mt-12" />
+          <div className="bg-gradient-to-r from-purple-900 via-indigo-950 to-slate-900 p-6 rounded-3xl text-white shadow-md border border-purple-900 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
             <div className="space-y-1 relative z-10">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full">Fase 4.2: Auditoría Física Continua</span>
-              <h2 className="text-2xl font-black tracking-tight">Tomas de Inventario Sistémico vs Real</h2>
-              <p className="text-xs text-purple-100 font-medium">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-full border border-white/10">Fase 4.2: Auditoría Física Continua</span>
+              <h2 className="text-2xl font-black tracking-tight mt-1.5">Tomas de Inventario Sistémico vs Real</h2>
+              <p className="text-xs text-slate-200 font-medium">
                 Escanee códigos de barras de forma masiva para cuadrar stock físico, detectando mermas o excedentes y auto-ajustando la tienda.
               </p>
             </div>
@@ -967,7 +602,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     setAuditScans(preset);
                     setIsAuditActive(true);
                   }}
-                  className="w-full py-3 bg-indigo-650 hover:bg-slate-850 text-white rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer text-center"
+                  className="w-full py-3 bg-indigo-600 hover:bg-slate-800 text-white rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer text-center"
                 >
                   Comenzar con Teórico
                 </button>
@@ -1172,19 +807,40 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   <div className="text-slate-500 text-xs font-medium">
                     Revise cada fila con cuidado. Al guardar, el servidor actualizará los stocks teóricos para alinearse a sus conteos reales de forma automática.
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm("¿Seguro que deseas abortar esta auditoría física? No se guardará ningún cambio.")) {
-                          setIsAuditActive(false);
-                          setAuditScans({});
-                        }
-                      }}
-                      className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 text-xs font-bold uppercase tracking-wider hover:bg-slate-100 transition-all"
-                    >
-                      Descartar Toma
-                    </button>
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto shrink-0 justify-end items-stretch sm:items-center">
+                    {!showDiscardConfirm ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowDiscardConfirm(true)}
+                        className="px-4 py-3 bg-white border border-rose-200 hover:border-rose-300 text-rose-600 text-xs font-black uppercase tracking-wider hover:bg-rose-50 rounded-xl transition-all w-full sm:w-auto text-center"
+                      >
+                        Descartar Toma
+                      </button>
+                    ) : (
+                      <div className="flex items-center justify-between sm:justify-start gap-2 bg-rose-50 border border-rose-150 p-2 rounded-xl animate-fade-in w-full sm:w-auto">
+                        <span className="text-[10px] font-black uppercase text-rose-700 px-1 select-none">¿Descartar toma?</span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAuditActive(false);
+                              setAuditScans({});
+                              setShowDiscardConfirm(false);
+                            }}
+                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                          >
+                            Sí, Descartar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowDiscardConfirm(false)}
+                            className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={async () => {
@@ -1210,7 +866,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                               batch.update(prodRef, { stock: physical });
 
                               // Register stock movement transaction
-                              const movementRef = doc(collection(db, "stock_movements"));
+                              const movementRef = doc(collection(db, "stockMovements"));
                               batch.set(movementRef, {
                                 productId: p.id,
                                 productName: p.name,
@@ -1259,7 +915,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         }
                       }}
                       disabled={isProcessing}
-                      className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-5 w-full sm:w-auto"
+                      className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 w-full sm:w-auto text-center"
                     >
                       {isProcessing ? "Conciliando..." : "Guardar y Ajustar Catálogo"}
                     </button>
@@ -1352,72 +1008,23 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block ml-1">Análisis de Desempeño Logístico</span>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Visual Chart 1: Deliveries outcomes ratio (Pie chart) */}
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3 flex flex-col justify-between">
-                  <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400">Eficiencia en Entrega Ruta</h5>
-                  <div className="h-44 w-full flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: "Entregado", value: shipments.filter(s => s.status === "delivered").length || 1 },
-                            { name: "Falla", value: shipments.filter(s => s.status === "failed").length || 0 },
-                            { name: "En Ruta", value: shipments.filter(s => s.status === "in_route").length || 0 },
-                            { name: "Inicial", value: shipments.filter(s => s.status === "prepared").length || 0 }
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={70}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          <Cell fill="#10b981" />
-                          <Cell fill="#ef4444" />
-                          <Cell fill="#6366f1" />
-                          <Cell fill="#f59e0b" />
-                        </Pie>
-                        <RechartsTooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1 text-center text-[9px] font-extrabold text-slate-500 uppercase border-t border-slate-100 pt-3">
-                    <div>
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1" />
-                      Entregado ({shipments.filter(s => s.status === "delivered").length})
-                    </div>
-                    <div>
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-500 mr-1" />
-                      Falla ({shipments.filter(s => s.status === "failed").length})
-                    </div>
-                    <div>
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-indigo-500 mr-1" />
-                      Ruta ({shipments.filter(s => s.status === "in_route").length})
-                    </div>
-                    <div>
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 mr-1" />
-                      Prepared ({shipments.filter(s => s.status === "prepared").length})
-                    </div>
-                  </div>
-                </div>
-
-                {/* Visual Chart 2: Deliveries done per driver (Bar Chart) */}
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3 flex flex-col justify-between">
-                  <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400">Repartos por Transportista</h5>
-                  <div className="h-44 w-full">
+                {/* Visual Chart 1: Stock Total por Categoría */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3 flex flex-col justify-between min-w-0 w-full">
+                  <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400">Stock Total por Categoría</h5>
+                  <div className="h-44 w-full min-w-0">
                     {(() => {
-                      const driverCounts: Record<string, { name: string, delivered: number, failed: number }> = {};
-                      shipments.forEach(s => {
-                        const driver = s.driverName || "Sin Asignar";
-                        if (!driverCounts[driver]) {
-                          driverCounts[driver] = { name: driver.split(" ")[0], delivered: 0, failed: 0 };
+                      const catData: Record<string, { name: string, stock: number }> = {};
+                      products.forEach(p => {
+                        const category = categories.find(c => c.id === p.categoryId)?.name || "Otros";
+                        const shortName = category.length > 10 ? category.substring(0, 10) + "..." : category;
+                        if (!catData[shortName]) {
+                          catData[shortName] = { name: shortName, stock: 0 };
                         }
-                        if (s.status === "delivered") driverCounts[driver].delivered++;
-                        if (s.status === "failed") driverCounts[driver].failed++;
+                        catData[shortName].stock += (p.stock || 0);
                       });
-                      const dataset = Object.values(driverCounts);
+                      const dataset = Object.values(catData);
                       return dataset.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-[10px] text-slate-400 font-bold uppercase">Sin historial asignado</div>
+                        <div className="h-full flex items-center justify-center text-[10px] text-slate-400 font-bold uppercase">Sin registros</div>
                       ) : (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={dataset}>
@@ -1425,8 +1032,36 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                             <XAxis dataKey="name" fontSize={9} fontWeight="bold" stroke="#94a3b8" />
                             <YAxis fontSize={9} fontWeight="bold" stroke="#94a3b8" allowDecimals={false} />
                             <RechartsTooltip />
-                            <Bar dataKey="delivered" fill="#10b981" radius={[4, 4, 0, 0]} name="Exitoso" />
-                            <Bar dataKey="failed" fill="#ef4444" radius={[4, 4, 0, 0]} name="Fallido" />
+                            <Bar dataKey="stock" fill="#6366f1" radius={[4, 4, 0, 0]} name="Unidades" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Visual Chart 2: Top 5 Productos por Valor en Bodega */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3 flex flex-col justify-between min-w-0 w-full">
+                  <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400">Top 5 Productos de Mayor Valor</h5>
+                  <div className="h-44 w-full min-w-0">
+                    {(() => {
+                      const topValued = [...products]
+                        .map(p => ({
+                          name: p.name.length > 12 ? p.name.substring(0, 12) + "..." : p.name,
+                          valor: (p.stock || 0) * (p.costPrice || 0)
+                        }))
+                        .sort((a, b) => b.valor - a.valor)
+                        .slice(0, 5);
+                      return topValued.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-[10px] text-slate-400 font-bold uppercase">Sin productos</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={topValued} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                            <XAxis type="number" fontSize={9} fontWeight="bold" stroke="#94a3b8" />
+                            <YAxis dataKey="name" type="category" fontSize={9} fontWeight="bold" stroke="#94a3b8" width={65} />
+                            <RechartsTooltip />
+                            <Bar dataKey="valor" fill="#10b981" radius={[0, 4, 4, 0]} name="Capital ($ CL)" />
                           </BarChart>
                         </ResponsiveContainer>
                       );
@@ -1438,7 +1073,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               {/* Visual Chart 3: Stock valuation per category (Area Chart) */}
               <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
                 <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400">Densidad y Capital Inmovilizado por Categoría</h5>
-                <div className="h-48 w-full">
+                <div className="h-48 w-full min-w-0">
                   {(() => {
                     const catData: Record<string, { name: string, stock: number, valor: number }> = {};
                     products.forEach(p => {
@@ -1574,7 +1209,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                             await updateDoc(prodRef, { stock: updatedQty });
 
                             // Add a stock movement log of type "purchase"
-                            const movementRef = doc(collection(db, "stock_movements"));
+                            const movementRef = doc(collection(db, "stockMovements"));
                             await setDoc(movementRef, {
                               productId: selectedProductForOC.id,
                               productName: selectedProductForOC.name,
