@@ -152,3 +152,81 @@ export async function seedCouponsIfEmpty() {
     console.error("Failed to seed coupons collection:", err);
   }
 }
+
+export async function seedCustomersIfEmpty() {
+  try {
+    const configRef = doc(db, "system_config", "customerSeeding");
+    try {
+      const configSnap = await getDoc(configRef);
+      if (configSnap.exists() && configSnap.data()?.customersSeeded) {
+        return;
+      }
+    } catch (err) {
+      console.warn("Could not check customerSeeding status from system_config (expected for non-admin):", err);
+    }
+
+    const customersCol = collection(db, "customers");
+    const snapshot = await getDocs(customersCol);
+    
+    const existingTaxIds = snapshot.empty ? [] : snapshot.docs.map(doc => {
+      const tid = doc.data().taxId;
+      return tid ? tid.toString().replace(/[^0-9kK]/g, "").toUpperCase() : "";
+    });
+    
+    const defaultCustomers = [
+      {
+        id: "cust-elijah-solier",
+        name: "Elijah Solier",
+        taxId: "25.551.228-5",
+        email: "solier.elijah@gmail.com",
+        phone: "+56 9 1234 5678",
+        points: 2450,
+        balance: 45000,
+        password: "123",
+        segment: "vip",
+        type: "wholesale"
+      },
+      {
+        id: "cust-prueba",
+        name: "Cliente de Prueba",
+        taxId: "12.345.678-9",
+        email: "cliente.prueba@gmail.com",
+        phone: "+56 9 8765 4321",
+        points: 350,
+        balance: 15000,
+        password: "123",
+        segment: "retail",
+        type: "retail"
+      }
+    ];
+
+    let seededAny = false;
+
+    for (const cust of defaultCustomers) {
+      const cleanRUT = cust.taxId.replace(/[^0-9kK]/g, "").toUpperCase();
+      if (!existingTaxIds.includes(cleanRUT)) {
+        try {
+          const docRef = doc(db, "customers", cust.id);
+          await setDoc(docRef, {
+            ...cust,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          seededAny = true;
+          console.log(`Seeded default customer: ${cust.name}`);
+        } catch (setErr) {
+          console.error(`Failed to set customer ${cust.name}:`, setErr);
+        }
+      }
+    }
+
+    // Try to save seeding status to system_config, ignore if unauthorized
+    try {
+      await setDoc(configRef, { customersSeeded: true });
+    } catch (setCfgErr) {
+      console.warn("Could not write customerSeeding status to system_config (non-admin is expected to be unauthorized):", setCfgErr);
+    }
+  } catch (err) {
+    console.error("Failed to seed default customers:", err);
+  }
+}

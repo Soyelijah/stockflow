@@ -332,31 +332,32 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white max-w-md w-full rounded-[2.5rem] shadow-2xl p-10 text-center relative"
+              className="bg-white max-w-sm sm:max-w-md w-full rounded-3xl sm:rounded-[2.5rem] shadow-2xl p-6 sm:p-10 text-center relative max-h-[92vh] overflow-y-auto mx-4"
             >
               <button 
                 onClick={() => setIsMinimized(true)}
-                className="absolute top-8 right-8 text-slate-300 hover:text-slate-600 transition-colors"
+                className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600 transition-colors"
                 title="Explorar sistema (solo lectura)"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
 
-              <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
-                <Lock size={40} />
+              <div className="w-14 h-14 sm:w-20 sm:h-20 bg-rose-50 text-rose-500 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-8 shadow-inner">
+                <Lock className="sm:hidden" size={28} />
+                <Lock className="hidden sm:block" size={40} />
               </div>
-              <h2 className="text-3xl font-black text-slate-800 mb-2 tracking-tight">Caja Cerrada</h2>
-              <p className="text-slate-500 font-medium mb-8">Debes iniciar una nueva sesión para comenzar a vender.</p>
+              <h2 className="text-xl sm:text-3xl font-black text-slate-800 mb-1 sm:mb-2 tracking-tight">Caja Cerrada</h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium mb-4 sm:mb-8">Debes iniciar una nueva sesión para comenzar a vender.</p>
               
-              <div className="bg-slate-50 p-6 rounded-3xl mb-8 space-y-4">
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl sm:rounded-3xl mb-4 sm:mb-8 space-y-4">
                 <div className="text-left">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto Inicial (Efectivo)</label>
+                  <label className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto Inicial (Efectivo)</label>
                   <div className="relative mt-1">
-                    <Banknote className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                    <Banknote className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
                       type="number" 
                       placeholder="0"
-                      className="w-full bg-white border-none rounded-2xl py-4 pl-12 pr-4 text-xl font-black text-slate-800 shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                      className="w-full bg-white border-none rounded-xl sm:rounded-2xl py-3 sm:py-4 pl-10 sm:pl-12 pr-4 text-base sm:text-xl font-black text-slate-800 shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
                       value={initialAmount}
                       onChange={(e) => setInitialAmount(e.target.value)}
                     />
@@ -364,19 +365,19 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <button 
                   onClick={handleOpenRegister}
                   disabled={!initialAmount || loading}
-                  className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-2 disabled:opacity-30"
+                  className="w-full h-12 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-xs sm:text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-2 disabled:opacity-30"
                 >
-                  <Unlock size={18} />
+                  <Unlock size={16} />
                   <span>Abrir Caja y Comenzar</span>
                 </button>
 
                 <button 
                   onClick={() => setIsMinimized(true)}
-                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+                  className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors block mx-auto py-1"
                 >
                   O quizás más tarde, solo quiero revisar
                 </button>
