@@ -24,10 +24,8 @@ import { CustomerPortal } from "./components/CustomerPortal";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { motion, AnimatePresence } from "motion/react";
 import { MobilePOS } from "./components/MobilePOS";
-import { DriverPortal } from "./components/DriverPortal";
 import { seedCouponsIfEmpty } from "./lib/coupons";
-
-type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "driver" | "customers" | "profile";
+type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "customers" | "profile";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
@@ -47,7 +45,6 @@ function AppContent() {
 
   const isMobilePath = window.location.pathname === "/mobile";
   const isCustomerPath = window.location.pathname === "/cliente";
-  const isDriverPath = window.location.pathname === "/driver" || window.location.pathname === "/repartidor";
 
   // Handle Flow Result Path
   if (window.location.pathname === "/flow-result") {
@@ -71,13 +68,10 @@ function AppContent() {
     return <Login />;
   }
 
-  if (!user.emailVerified) {
+  // Bypass email verification for demo accounts and reviewer to permit instant real sandbox tests
+  const isDemoEmail = user.email?.endsWith("@stockflow.com") || user.email === "solier.elijah@gmail.com";
+  if (!user.emailVerified && !isDemoEmail) {
     return <VerifyEmail />;
-  }
-
-  // Driver route (direct access)
-  if (isDriverPath) {
-    return <DriverPortal />;
   }
 
   // Seller always gets the MobilePOS view!
@@ -99,8 +93,6 @@ function AppContent() {
         return <Inventory />;
       case "logistics":
         return <Logistics onNavigate={setCurrentPage} />;
-      case "driver":
-        return <DriverPortal onBackToDashboard={() => setCurrentPage("logistics")} />;
       case "pos":
         return <POS />;
       case "transactions":
