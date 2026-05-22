@@ -9,7 +9,8 @@ import {
   addDoc,
   serverTimestamp,
   increment,
-  orderBy
+  orderBy,
+  runTransaction
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import { db, handleFirestoreError, OperationType } from "@/src/lib/firebase";
@@ -700,66 +701,92 @@ export function MobilePOS() {
         setEmailSentTo(selectedCustomer?.email ? `${selectedCustomer.email} (Pendiente de Envío)` : null);
       } else {
         // === ONLINE CHECKOUT (Standard Firebase flow) ===
-        const batch = writeBatch(db);
-        
-        cart.forEach(item => {
-          const productRef = doc(db, "products", item.id);
-          const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
-          
-          batch.update(productRef, {
-            stock: increment(-item.quantity),
-            updatedAt: serverTimestamp()
-          });
-          
-          batch.set(transactionRef, {
-            productId: item.id,
-            productName: item.name,
-            type: "sale",
-            documentType,
-            quantity: item.quantity,
-            amount: item.price * item.quantity,
-            cost: item.costPrice * item.quantity,
-            profit: (item.price - item.costPrice) * item.quantity,
-            userId: profile?.uid,
-            userName: profile?.name,
-            customerId: selectedCustomer?.id || null,
-            customerName: selectedCustomer?.name || "VENTA GENERAL",
-            customerTaxId: selectedCustomer?.taxId || null,
-            paymentMethod,
-            timestamp: serverTimestamp(),
-            orderId: orderId,
-            source: "mobile_pos",
-            couponCode: appliedCoupon?.code || null,
-            discountApplied: couponDiscount,
-          });
-        });
-
-        // Award loyalty points and update stats automatically
-        if (selectedCustomer?.id) {
-          const pointsAwarded = calculatePoints(finalTotal);
-          const currentPoints = (selectedCustomer.points || 0) + pointsAwarded;
-          const newTier = getCustomerTier(currentPoints);
-          
-          const customerRef = doc(db, "customers", selectedCustomer.id);
-          const updates: any = {
-            points: increment(pointsAwarded),
-            totalSpent: increment(finalTotal),
-            segment: newTier.segment,
-            lastPurchaseAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          };
-          
-          if (appliedCoupon?.code) {
-            const used = selectedCustomer.usedCoupons || [];
-            if (!used.includes(appliedCoupon.code)) {
-              updates.usedCoupons = [...used, appliedCoupon.code];
+        await runTransaction(db, async (resTransaction) => {
+          // 1. Perform all reads first as required by Firestore transactions
+          const productSnaps: { [id: string]: any } = {};
+          for (const item of cart) {
+            const productRef = doc(db, "products", item.id);
+            const snap = await resTransaction.get(productRef);
+            if (!snap.exists()) {
+              throw new Error(`El producto ${item.name} no existe en el catálogo.`);
             }
+            const currentStock = snap.data()?.stock || 0;
+            if (currentStock < item.quantity) {
+              throw new Error(`Stock insuficiente para ${item.name} (Disponible: ${currentStock}, Solicitado: ${item.quantity})`);
+            }
+            productSnaps[item.id] = {
+              ref: productRef,
+              currentStock,
+              newStock: currentStock - item.quantity,
+              costPrice: snap.data()?.costPrice || 0
+            };
           }
-          
-          batch.update(customerRef, updates);
-        }
 
-        await batch.commit();
+          let customerSnap: any = null;
+          let customerRef: any = null;
+          if (selectedCustomer?.id) {
+            customerRef = doc(db, "customers", selectedCustomer.id);
+            customerSnap = await resTransaction.get(customerRef);
+          }
+
+          // 2. Perform all writes
+          cart.forEach(item => {
+            const pData = productSnaps[item.id];
+            const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
+            
+            resTransaction.update(pData.ref, {
+              stock: pData.newStock,
+              updatedAt: serverTimestamp()
+            });
+            
+            resTransaction.set(transactionRef, {
+              productId: item.id,
+              productName: item.name,
+              type: "sale" as const,
+              documentType,
+              quantity: item.quantity,
+              amount: item.price * item.quantity,
+              cost: (item.costPrice || pData.costPrice) * item.quantity,
+              profit: (item.price - (item.costPrice || pData.costPrice)) * item.quantity,
+              userId: profile?.uid,
+              userName: profile?.name,
+              customerId: selectedCustomer?.id || null,
+              customerName: selectedCustomer?.name || "VENTA GENERAL",
+              customerTaxId: selectedCustomer?.taxId || null,
+              paymentMethod,
+              timestamp: serverTimestamp(),
+              orderId: orderId,
+              source: "mobile_pos",
+              couponCode: appliedCoupon?.code || null,
+              discountApplied: couponDiscount,
+            });
+          });
+
+          // Award loyalty points and update stats automatically
+          if (selectedCustomer?.id && customerRef && customerSnap) {
+            const custData = customerSnap.exists() ? customerSnap.data() : {};
+            const pointsAwarded = calculatePoints(finalTotal);
+            const currentPoints = (custData.points || 0) + pointsAwarded;
+            const newTier = getCustomerTier(currentPoints);
+            
+            const updates: any = {
+              points: currentPoints,
+              totalSpent: (custData.totalSpent || 0) + finalTotal,
+              segment: newTier.segment,
+              lastPurchaseAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            };
+            
+            if (appliedCoupon?.code) {
+              const used = custData.usedCoupons || [];
+              if (!used.includes(appliedCoupon.code)) {
+                updates.usedCoupons = [...used, appliedCoupon.code];
+              }
+            }
+            
+            resTransaction.update(customerRef, updates);
+          }
+        });
 
         // If customer has email, send receipt
         if (selectedCustomer?.email) {

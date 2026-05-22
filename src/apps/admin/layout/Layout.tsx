@@ -166,31 +166,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   useEffect(() => {
     if (!settings.notificationsEnabled) return;
 
-    // 1. Sub for low stock alerts
-    // TODO: Cloud Function must maintain this collection to avoid O(N) product reads (Fix HIGH 2)
-    const q = query(collection(db, "notifications"), where("type", "==", "low_stock"), limit(20));
-    const unsubProducts = onSnapshot(q, (snapshot) => {
-      const lowStockAlerts: Notification[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        lowStockAlerts.push({
-          id: `low-stock-${doc.id}`,
-          title: data.title || 'Stock Bajo',
-          message: data.message || 'Producto requiere reposición.',
-          type: 'warning',
-          time: 'Ahora',
-          read: false,
-          link: 'inventory'
-        });
-      });
-
-      setNotifications(prev => {
-        const nonProductNotifs = prev.filter(n => !n.id.startsWith("low-stock-"));
-        return [...lowStockAlerts, ...nonProductNotifs];
-      });
-    });
-
-    // 2. Sub for real-time customer/logistic notifications inside the db
+    // 1. Sub for real-time customer/logistic/low-stock notifications inside the db (highly efficient)
     const qNotifs = query(collection(db, "client_notifications"), orderBy("timestamp", "desc"), limit(25));
     
     let isFirstLoad = true;
@@ -237,7 +213,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             id: docId,
             title: data.title || "Notificación de Sistema",
             message: data.message || "",
-            type: data.type === "logistic" ? "info" : (data.type === "alert" ? "alert" : (data.type === "success" ? "success" : "info")),
+            type: data.type === "logistic" ? "info" : (data.type === "alert" ? "alert" : (data.type === "success" ? "success" : (data.type === "warning" ? "warning" : "info"))),
             time: timeText,
             read: data.read || false,
             link: data.link || (data.type === "logistic" ? "logistics" : undefined)
@@ -272,22 +248,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         playNotificationChime();
       }
 
-      setNotifications(prev => {
-        const productNotifs = prev.filter(n => n.id.startsWith("low-stock-"));
-        const merged = [...productNotifs];
-        realTimeNotifs.forEach(rn => {
-          if (!merged.some(m => m.id === rn.id)) {
-            merged.push(rn);
-          }
-        });
-        return merged;
-      });
+      setNotifications(realTimeNotifs);
     }, (err) => {
       console.warn("Error listening to real-time notifications:", err);
     });
 
     return () => {
-      unsubProducts();
       unsubNotifs();
     };
   }, [settings.notificationsEnabled, profile?.uid, profile?.role]);
