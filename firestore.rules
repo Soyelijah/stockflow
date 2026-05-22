@@ -70,7 +70,7 @@ service cloud.firestore {
 
       allow read: if true; // Public for Customer Portal
       allow create: if isAdmin() || isLogistics();
-      allow update: if isSignedIn(); // Permissive for debug and POS sales
+      allow update: if isSeller() || isAdmin() || isLogistics();
       allow delete: if isAdmin() || isLogistics();
     }
 
