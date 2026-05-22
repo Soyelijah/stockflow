@@ -13,13 +13,13 @@ import { Logistics } from './pages/Logistics';
 import { Customers } from './pages/Customers';
 import { Profile } from './pages/Profile';
 import { MobilePOS } from './pages/MobilePOS';
-import { DriverPortal } from '../delivery/pages/DriverPortal';
+
 import { RoleGuard } from '@/src/shared/ui/RoleGuard';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { seedCouponsIfEmpty } from '@/src/lib/coupons';
 import { motion, AnimatePresence } from 'motion/react';
 
-type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "driver" | "customers" | "profile";
+type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "customers" | "profile";
 
 function AdminLegacyContent() {
   const { user, profile } = useAuth();
@@ -44,7 +44,7 @@ function AdminLegacyContent() {
       case "dashboard": return <Dashboard onNavigate={setCurrentPage} />;
       case "inventory": return <Inventory />;
       case "logistics": return <Logistics onNavigate={setCurrentPage} />;
-      case "driver": return <DriverPortal onBackToDashboard={() => setCurrentPage("logistics")} />;
+
       case "pos": return <POS />;
       case "transactions": return <Transactions />;
       case "suppliers": return <Suppliers />;

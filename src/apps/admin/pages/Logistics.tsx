@@ -551,16 +551,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <Navigation size={13} />
             <span>Mapa</span>
           </button>
-          {onNavigate && (
-            <button 
-              type="button"
-              onClick={() => onNavigate("driver")}
-              className="flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 border border-dashed border-indigo-200 whitespace-nowrap"
-            >
-              <Truck size={13} className="animate-bounce" />
-              <span>Repartos</span>
-            </button>
-          )}
         </div>
       </div>
 

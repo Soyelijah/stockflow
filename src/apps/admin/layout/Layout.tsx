@@ -183,7 +183,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           link: 'inventory'
         });
       });
-      
+
       setNotifications(prev => {
         const nonProductNotifs = prev.filter(n => !n.id.startsWith("low-stock-"));
         return [...lowStockAlerts, ...nonProductNotifs];
@@ -240,7 +240,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             type: data.type === "logistic" ? "info" : (data.type === "alert" ? "alert" : (data.type === "success" ? "success" : "info")),
             time: timeText,
             read: data.read || false,
-            link: data.link || (data.type === "logistic" ? "driver" : undefined)
+            link: data.link || (data.type === "logistic" ? "logistics" : undefined)
           };
 
           realTimeNotifs.push(newNotif);
