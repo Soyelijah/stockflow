@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import { barcodeRouter } from "./server/routes/barcode";
 import { paymentsRouter } from "./server/routes/payments";
 import { commsRouter } from "./server/routes/comms";
+import { aiRouter } from "./server/routes/ai";
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ async function startServer() {
   app.use("/api", barcodeRouter);
   app.use("/api", paymentsRouter);
   app.use("/api", commsRouter);
+  app.use("/api", aiRouter);
 
   // Vite development compiler integration or static production delivery
   if (process.env.NODE_ENV !== "production") {
