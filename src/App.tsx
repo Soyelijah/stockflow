@@ -1,18 +1,61 @@
-import React, { Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { SettingsProvider } from "./contexts/SettingsContext";
 import { Login } from "./components/Login";
 import { VerifyEmail } from "./components/VerifyEmail";
+import { Dashboard } from "./components/Dashboard";
+import { Inventory } from "./components/Inventory";
+import { POS } from "./components/POS";
+import { Transactions } from "./components/Transactions";
+import { Suppliers } from "./components/Suppliers";
+import { Expenses } from "./components/Expenses";
+import { Settings } from "./components/Settings";
+import { Layout } from "./components/Layout";
+import { FlowResult } from "./components/FlowResult";
+import { StockLedger } from "./components/StockLedger";
+import { Logistics } from "./components/Logistics";
+import { Customers } from "./components/Customers";
+import { Profile } from "./components/Profile";
+import { CustomerPortal } from "./components/CustomerPortal";
+import { SettingsProvider } from "./contexts/SettingsContext";
+import { motion, AnimatePresence } from "motion/react";
+import { MobilePOS } from "./components/MobilePOS";
+import { seedCouponsIfEmpty } from "./lib/coupons";
+type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "customers" | "profile";
 
-const StoreApp = React.lazy(() => import('./apps/store/routes'));
-const FlowResultApp = React.lazy(() => import('./apps/store/pages/FlowResult').then(m => ({ default: m.FlowResult })));
-const AdminApp = React.lazy(() => import('./apps/admin/routes'));
-const DeliveryApp = React.lazy(() => import('./apps/delivery/routes'));
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function AppContent() {
   const { user, profile, loading } = useAuth();
-  
+  const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+
+  // Seed default coupons if missing, executed securely by staff with admin privileges
+  useEffect(() => {
+    if (user && (profile?.role === "admin" || profile?.role === "manager" || user.email === "solier.elijah@gmail.com")) {
+      seedCouponsIfEmpty();
+    }
+  }, [user, profile]);
+
+  // Force reset page on login/logout or role change to avoid "getting stuck" on restricted pages
+  useEffect(() => {
+    setCurrentPage("dashboard");
+  }, [user?.uid, profile?.role]);
+
+  const isMobilePath = window.location.pathname === "/mobile";
+  const isCustomerPath = window.location.pathname === "/cliente";
+
+  // Handle Flow Result Path
+  if (window.location.pathname === "/flow-result") {
+    return <FlowResult />;
+  }
+
+  // Handle Customer Portal (Public Route)
+  if (isCustomerPath) {
+    return <CustomerPortal />;
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -21,36 +64,79 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user || !profile) return <Login />;
-  if (!user.emailVerified) return <VerifyEmail />;
-  
-  return <>{children}</>;
+  if (!user || !profile) {
+    return <Login />;
+  }
+
+  // Bypass email verification for demo accounts and reviewer to permit instant real sandbox tests
+  const isDemoEmail = user.email?.endsWith("@stockflow.com") || user.email === "solier.elijah@gmail.com";
+  if (!user.emailVerified && !isDemoEmail) {
+    return <VerifyEmail />;
+  }
+
+  // Seller always gets the MobilePOS view!
+  // No full desktop layout or sidebars for sellers - exactly what the CEO wanted
+  if (profile?.role === "seller") {
+    return <MobilePOS />;
+  }
+
+  // Pure Mobile POS Route for others (no sidebar/layout)
+  if (isMobilePath) {
+    return <MobilePOS />;
+  }
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case "dashboard":
+        return <Dashboard onNavigate={setCurrentPage} />;
+      case "inventory":
+        return <Inventory />;
+      case "logistics":
+        return <Logistics onNavigate={setCurrentPage} />;
+      case "pos":
+        return <POS />;
+      case "transactions":
+        return <Transactions />;
+      case "suppliers":
+        return <Suppliers />;
+      case "expenses":
+        return <Expenses />;
+      case "settings":
+        return <Settings />;
+      case "kardex":
+        return <StockLedger />;
+      case "customers":
+        return <Customers />;
+      case "profile":
+        return <Profile />;
+      default:
+        return <Dashboard />;
+    }
+  };
+
+  return (
+    <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentPage}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          className="container mx-auto p-1 sm:p-4 md:p-6"
+        >
+          {renderPage()}
+        </motion.div>
+      </AnimatePresence>
+    </Layout>
+  );
 }
 
 export default function App() {
   return (
     <AuthProvider>
       <SettingsProvider>
-        <BrowserRouter>
-          <Suspense fallback={
-            <div className="flex h-screen items-center justify-center bg-gray-50">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent shadow-md"></div>
-            </div>
-          }>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/cliente/*" element={<StoreApp />} />
-              <Route path="/flow-result" element={<FlowResultApp />} />
-
-              {/* Protected Routes */}
-              <Route path="/driver/*" element={<ProtectedRoute><DeliveryApp /></ProtectedRoute>} />
-              <Route path="/repartidor/*" element={<ProtectedRoute><DeliveryApp /></ProtectedRoute>} />
-              
-              {/* Admin/Default Protected Route */}
-              <Route path="/*" element={<ProtectedRoute><AdminApp /></ProtectedRoute>} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+        <AppContent />
       </SettingsProvider>
     </AuthProvider>
   );

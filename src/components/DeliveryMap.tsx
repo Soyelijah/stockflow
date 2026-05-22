@@ -218,7 +218,7 @@ export function DeliveryMap() {
     address: "",
     lat: -33.456,
     lng: -70.662,
-    driverName: "Claudio Gómez (Repartidor)",
+    driverName: "Claudio Gómez (Transportista)",
     driverPhone: "+56 9 8765 4321",
     total: 25000,
     itemsText: "2x Caja de Vino Premium, 1x Aceite Oliva Extra"
@@ -362,7 +362,7 @@ export function DeliveryMap() {
         address: "",
         lat: -33.456,
         lng: -70.662,
-        driverName: "Claudio Gómez (Repartidor)",
+        driverName: "Claudio Gómez (Transportista)",
         driverPhone: "+56 9 8765 4321",
         total: 25000,
         itemsText: "2x Caja de Vino Premium, 1x Aceite Oliva Extra"
@@ -382,7 +382,7 @@ export function DeliveryMap() {
       const notifId = `NOTIF_${Date.now()}`;
       let msg = `Tú pedido #${selectedShipment?.orderId || shipmentId} ha cambiado de estado. `;
       if (status === "prepared") msg += "Está preparado y listo en bodega.";
-      if (status === "in_route") msg += `Está en camino a cargo de ${selectedShipment?.driverName || "repartidor"}.`;
+      if (status === "in_route") msg += `Está en camino a cargo de ${selectedShipment?.driverName || "transportista"}.`;
       if (status === "delivered") msg += "¡Ha sido entregado con éxito!";
 
       await setDoc(doc(db, "client_notifications", notifId), {

@@ -29,7 +29,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name: string) => Promise<void>;
+  register: (email: string, pass: string, name: string, role?: "admin" | "manager" | "seller" | "logistics") => Promise<void>;
   sendVerification: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const register = async (email: string, pass: string, name: string) => {
+  const register = async (email: string, pass: string, name: string, role: "admin" | "manager" | "seller" | "logistics" = "seller") => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     
     // Send verification email
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const profileData: UserProfile = {
       uid: userCredential.user.uid,
       email,
-      role: isAdmin ? "admin" : "seller",
+      role: isAdmin ? "admin" : role,
       name
     };
     
