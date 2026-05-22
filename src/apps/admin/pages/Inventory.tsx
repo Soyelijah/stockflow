@@ -12,7 +12,9 @@ import {
   limit,
   writeBatch,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  getDocs,
+  startAfter
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "@/src/lib/firebase";
 import { 
@@ -33,7 +35,9 @@ import {
   Truck,
   Zap,
   ShoppingCart,
-  Camera
+  Camera,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { ModernAlert } from "@/src/components/ui/ModernAlert";
 import { BarcodeScanner } from "@/src/components/ui/BarcodeScanner";
@@ -140,15 +144,69 @@ export function Inventory() {
     return unsubSuppliers;
   }, []);
 
-  useEffect(() => {
-    const q = query(collection(db, "products"), orderBy("name"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [cursors, setCursors] = useState<any[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProducts = async (direction: "init" | "next" | "prev" = "init") => {
+    setLoading(true);
+    try {
+      let q = query(collection(db, "products"), orderBy("name"));
+      
+      let targetPage = currentPage;
+      if (direction === "next") {
+        targetPage = currentPage + 1;
+        const lastVisible = cursors[currentPage - 1];
+        if (lastVisible) {
+          q = query(q, startAfter(lastVisible), limit(PAGE_SIZE));
+        } else {
+          q = query(q, limit(PAGE_SIZE));
+        }
+      } else if (direction === "prev") {
+        targetPage = Math.max(1, currentPage - 1);
+        const prevIndex = targetPage - 1;
+        const prevVisible = prevIndex > 0 ? cursors[prevIndex - 1] : null;
+        if (prevVisible) {
+          q = query(q, startAfter(prevVisible), limit(PAGE_SIZE));
+        } else {
+          q = query(q, limit(PAGE_SIZE));
+        }
+      } else {
+        targetPage = 1;
+        q = query(q, limit(PAGE_SIZE));
+      }
+
+      const snap = await getDocs(q);
+      const prods = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProducts(prods);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "products (Inventory)");
-    });
-    return unsub;
+
+      const lastVisibleDoc = snap.docs[snap.docs.length - 1];
+      if (direction === "init") {
+        setCursors([lastVisibleDoc]);
+        setCurrentPage(1);
+      } else if (direction === "next") {
+        setCursors(prev => {
+          const nextCursors = [...prev];
+          nextCursors[targetPage - 1] = lastVisibleDoc;
+          return nextCursors;
+        });
+        setCurrentPage(targetPage);
+      } else if (direction === "prev") {
+        setCurrentPage(targetPage);
+      }
+
+      setHasMore(snap.docs.length === PAGE_SIZE);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, "products (Inventory)");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts("init");
   }, []);
 
   const openModal = (product: any = null) => {
@@ -314,6 +372,7 @@ export function Inventory() {
         }
       }
       setIsModalOpen(false);
+      fetchProducts("init");
       setAlertConfig({
         isOpen: true,
         type: "success",
@@ -370,6 +429,8 @@ export function Inventory() {
             reason: `Producto eliminado del catálogo`,
             source: "web"
           });
+          
+          fetchProducts("init");
           
           setAlertConfig(prev => ({
             ...prev,
@@ -784,6 +845,37 @@ export function Inventory() {
                 <Package size={40} />
               </div>
               <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No hay coincidencias</p>
+            </div>
+          )}
+
+          {/* Controles de Paginación */}
+          {!loading && (
+            <div className="flex items-center justify-between px-8 py-5 border-t border-slate-100 bg-slate-50/30">
+              <span className="text-xs font-semibold text-slate-500">
+                Página <span className="font-bold text-slate-700">{currentPage}</span>
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => fetchProducts("prev")}
+                  disabled={currentPage === 1 || loading}
+                  className={cn(
+                    "p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                  )}
+                  title="Página Anterior"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => fetchProducts("next")}
+                  disabled={!hasMore || loading}
+                  className={cn(
+                    "p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                  )}
+                  title="Siguiente Página"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
             </div>
           )}
         </div>

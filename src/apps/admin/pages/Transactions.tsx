@@ -2,10 +2,11 @@ import React, { useState, useEffect, useMemo } from "react";
 import { 
   collection, 
   query, 
-  onSnapshot, 
   orderBy, 
   limit,
-  where
+  where,
+  getDocs,
+  startAfter
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "@/src/lib/firebase";
 import { 
@@ -26,7 +27,8 @@ import {
   ArrowDownRight,
   Printer,
   ArrowRightLeft,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, formatNumber } from "@/src/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -43,27 +45,84 @@ export function Transactions() {
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'manager';
 
-  useEffect(() => {
-    let q = query(collection(db, "transactions"), orderBy("timestamp", "desc"), limit(100));
-    
-    // If user is a seller, only show their own transactions
-    if (!isAdmin) {
-      q = query(
-        collection(db, "transactions"), 
-        where("userId", "==", profile?.uid),
-        orderBy("timestamp", "desc"), 
-        limit(100)
-      );
-    }
+  const PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [cursors, setCursors] = useState<any[]>([]); // Historial de los últimos documentos de cada página visible
+  const [hasMore, setHasMore] = useState(true);
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const fetchTransactions = async (direction: "init" | "next" | "prev" = "init") => {
+    setLoading(true);
+    try {
+      let q = query(
+        collection(db, "transactions"),
+        orderBy("timestamp", "desc")
+      );
+
+      if (!isAdmin) {
+        q = query(
+          collection(db, "transactions"),
+          where("userId", "==", profile?.uid),
+          orderBy("timestamp", "desc")
+        );
+      }
+
+      // Aplicar cursor según la dirección
+      let targetPage = currentPage;
+      if (direction === "next") {
+        targetPage = currentPage + 1;
+        const lastVisible = cursors[currentPage - 1];
+        if (lastVisible) {
+          q = query(q, startAfter(lastVisible), limit(PAGE_SIZE));
+        } else {
+          q = query(q, limit(PAGE_SIZE));
+        }
+      } else if (direction === "prev") {
+        targetPage = Math.max(1, currentPage - 1);
+        const prevIndex = targetPage - 1;
+        const prevVisible = prevIndex > 0 ? cursors[prevIndex - 1] : null;
+        if (prevVisible) {
+          q = query(q, startAfter(prevVisible), limit(PAGE_SIZE));
+        } else {
+          q = query(q, limit(PAGE_SIZE));
+        }
+      } else {
+        // Inicial / Reset
+        targetPage = 1;
+        q = query(q, limit(PAGE_SIZE));
+      }
+
+      const snap = await getDocs(q);
+      const txs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTransactions(txs);
+
+      // Guardar el último documento para el siguiente cursor
+      const lastVisibleDoc = snap.docs[snap.docs.length - 1];
+      
+      if (direction === "init") {
+        setCursors([lastVisibleDoc]);
+        setCurrentPage(1);
+      } else if (direction === "next") {
+        setCursors(prev => {
+          const nextCursors = [...prev];
+          nextCursors[targetPage - 1] = lastVisibleDoc;
+          return nextCursors;
+        });
+        setCurrentPage(targetPage);
+      } else if (direction === "prev") {
+        setCurrentPage(targetPage);
+      }
+
+      // Para saber si hay más, consultamos si el lote de resultados es de tamaño completo
+      setHasMore(snap.docs.length === PAGE_SIZE);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, "transactions");
+    } finally {
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "transactions");
-    });
-    return unsub;
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactions("init");
   }, []);
 
   const stats = useMemo(() => {
@@ -372,6 +431,37 @@ export function Transactions() {
                 <History size={40} />
               </div>
               <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sin registros que mostrar</p>
+            </div>
+          )}
+
+          {/* Controles de Paginación */}
+          {!loading && (
+            <div className="flex items-center justify-between px-8 py-5 border-t border-slate-100 bg-slate-50/30">
+              <span className="text-xs font-semibold text-slate-500">
+                Página <span className="font-bold text-slate-700">{currentPage}</span>
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => fetchTransactions("prev")}
+                  disabled={currentPage === 1 || loading}
+                  className={cn(
+                    "p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                  )}
+                  title="Página Anterior"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => fetchTransactions("next")}
+                  disabled={!hasMore || loading}
+                  className={cn(
+                    "p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                  )}
+                  title="Siguiente Página"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
             </div>
           )}
         </div>
