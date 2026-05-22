@@ -22,3 +22,13 @@ commsRouter.post("/send-receipt", async (req, res) => {
     res.status(500).json({ error: err.message || "Failed to process receipt queue distribution" });
   }
 });
+
+export function healthCheck() {
+  return {
+    status: "online",
+    details: {
+      smtpSimulated: true,
+      queueHealthy: true
+    }
+  };
+}

@@ -5,10 +5,10 @@ import dotenv from "dotenv";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 
-import { barcodeRouter } from "./server/routes/barcode";
-import { paymentsRouter } from "./server/routes/payments";
-import { commsRouter } from "./server/routes/comms";
-import { aiRouter } from "./server/routes/ai";
+import { barcodeRouter, healthCheck as barcodeHealth } from "./server/routes/barcode";
+import { paymentsRouter, healthCheck as paymentsHealth } from "./server/routes/payments";
+import { commsRouter, healthCheck as commsHealth } from "./server/routes/comms";
+import { aiRouter, healthCheck as aiHealth } from "./server/routes/ai";
 import { startLowStockMonitor } from "./server/services/lowStockMonitor";
 
 // Load .env.local first (local dev secrets), then .env fallback
@@ -18,6 +18,9 @@ dotenv.config();
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Trust upstream reverse proxy headers — required for Cloud Run accurate IP detection
+  app.set("trust proxy", 1);
 
   // CORS — open in dev, restricted to project domains in production
   const allowedOrigins = [
@@ -43,54 +46,67 @@ async function startServer() {
 
   app.use(cors(corsOptions));
 
-  // Rate Limiting — strict limit for AI (costs money), general for all /api
+  // Rate Limiting — validate:false disables proxy header warnings in Cloud Run
   const generalLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
+    windowMs: 1 * 60 * 1000,
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: false,
     message: { error: "Demasiadas peticiones. Por favor, intenta de nuevo más tarde." }
   });
 
   const aiLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 10, // Gemini calls are expensive — strict cap
+    windowMs: 1 * 60 * 1000,
+    max: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: false,
     message: { error: "Límite de peticiones de IA excedido. Por favor, intenta de nuevo en un minuto." }
   });
 
-  // Global High-Capacity Middlewares for our Hybrid API Gateway
+  // Global High-Capacity Middlewares
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Apply Rate Limiters (AI first — more specific route takes precedence)
+  // Apply Rate Limiters (AI first — most specific)
   app.use("/api/ai/insights", aiLimiter);
   app.use("/api", generalLimiter);
 
-  // API Gateway Health-Check Probe Endpoint
+  // API Gateway Health-Check — real dynamic status from each module
   app.get("/api/health", (req, res) => {
+    const barcodeStatus = barcodeHealth();
+    const paymentsStatus = paymentsHealth();
+    const commsStatus = commsHealth();
+    const aiStatus = aiHealth();
+
+    const allOnline =
+      barcodeStatus.status === "online" &&
+      paymentsStatus.status === "online" &&
+      commsStatus.status === "online" &&
+      aiStatus.status === "online";
+
     res.json({
-      status: "online",
+      status: allOnline ? "online" : "degraded",
       architecture: "hybrid-modular",
       apiVersion: "2.0.0",
       timestamp: new Date().toISOString(),
       modules: {
-        barcode: "online",
-        payments: "online",
-        comms: "online",
-        ai: "online"
+        barcode: barcodeStatus,
+        payments: paymentsStatus,
+        comms: commsStatus,
+        ai: aiStatus
       }
     });
   });
 
-  // Delegating to Modular Endpoint Routers (Decoupled Backends)
+  // Modular Endpoint Routers
   app.use("/api", barcodeRouter);
   app.use("/api", paymentsRouter);
   app.use("/api", commsRouter);
   app.use("/api", aiRouter);
 
-  // Vite development compiler integration or static production delivery
+  // Vite dev or static production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

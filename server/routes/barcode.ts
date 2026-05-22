@@ -210,3 +210,15 @@ barcodeRouter.get("/barcode-lookup", async (req, res) => {
     });
   }
 });
+
+export function healthCheck() {
+  const isEnabled = Boolean(process.env.GEMINI_API_KEY);
+  return {
+    status: "online", // Always online because fallback works perfectly offline
+    details: {
+      geminiConnected: isEnabled,
+      localDbSize: Object.keys(LOCAL_BARCODE_DB).length,
+      hasKey: isEnabled,
+    }
+  };
+}

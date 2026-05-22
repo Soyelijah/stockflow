@@ -123,3 +123,15 @@ aiRouter.post("/ai/insights", async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to generate AI insights." });
   }
 });
+
+export function healthCheck() {
+  const isEnabled = Boolean(process.env.GEMINI_API_KEY);
+  return {
+    status: isEnabled ? "online" : "offline",
+    details: {
+      geminiConnected: isEnabled,
+      model: "gemini-3.5-flash",
+      hasKey: isEnabled,
+    }
+  };
+}
