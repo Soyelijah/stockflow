@@ -5,10 +5,10 @@ import dotenv from "dotenv";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 
-import { barcodeRouter } from "./server/routes/barcode";
-import { paymentsRouter } from "./server/routes/payments";
-import { commsRouter } from "./server/routes/comms";
-import { aiRouter } from "./server/routes/ai";
+import { barcodeRouter, healthCheck as barcodeHealth } from "./server/routes/barcode";
+import { paymentsRouter, healthCheck as paymentsHealth } from "./server/routes/payments";
+import { commsRouter, healthCheck as commsHealth } from "./server/routes/comms";
+import { aiRouter, healthCheck as aiHealth } from "./server/routes/ai";
 import { startLowStockMonitor } from "./server/services/lowStockMonitor";
 
 dotenv.config();
@@ -16,6 +16,9 @@ dotenv.config();
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Configure Express to trust upstream reverse proxy headers (vital for accurate rate limits in Cloud Run)
+  app.set("trust proxy", 1);
 
   // CORS Configuration
   const allowedOrigins = [
@@ -51,6 +54,7 @@ async function startServer() {
     max: 100, // limit each IP to 100 requests per window
     standardHeaders: true,
     legacyHeaders: false,
+    validate: false, // disable validation warnings for proxies/forwarded headers
     message: { error: "Demasiadas peticiones. Por favor, intenta de nuevo más tarde." }
   });
 
@@ -59,6 +63,7 @@ async function startServer() {
     max: 10, // limit each IP to 10 requests for AI routes
     standardHeaders: true,
     legacyHeaders: false,
+    validate: false, // disable validation warnings for proxies/forwarded headers
     message: { error: "Límite de peticiones de IA excedido. Por favor, intenta de nuevo en un minuto." }
   });
 
@@ -72,16 +77,27 @@ async function startServer() {
 
   // API Gateway Health-Check Probe Endpoint
   app.get("/api/health", (req, res) => {
+    const barcodeStatus = barcodeHealth();
+    const paymentsStatus = paymentsHealth();
+    const commsStatus = commsHealth();
+    const aiStatus = aiHealth();
+
+    const allOnline = 
+      barcodeStatus.status === "online" && 
+      paymentsStatus.status === "online" && 
+      commsStatus.status === "online" && 
+      aiStatus.status === "online";
+
     res.json({ 
-      status: "online", 
+      status: allOnline ? "online" : "degraded", 
       architecture: "hybrid-modular", 
       apiVersion: "2.0.0",
       timestamp: new Date().toISOString(),
       modules: {
-        barcode: "online",
-        payments: "online",
-        comms: "online",
-        ai: "online"
+        barcode: barcodeStatus,
+        payments: paymentsStatus,
+        comms: commsStatus,
+        ai: aiStatus
       }
     });
   });

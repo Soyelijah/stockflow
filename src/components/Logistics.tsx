@@ -11,7 +11,10 @@ import {
   deleteDoc,
   serverTimestamp,
   increment,
-  orderBy
+  orderBy,
+  limit,
+  startAfter,
+  getDocs
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
@@ -84,10 +87,26 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [unrecognizedBarcode, setUnrecognizedBarcode] = useState<string | null>(null);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   
-  const [mode, setMode] = useState<"reception" | "dispatch" | "audit" | "alerts">("reception");
+  const [mode, setMode] = useState<"reception" | "dispatch" | "audit" | "alerts" | "shipments" | "claims">("reception");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Shipments Pagination States
+  const [shipmentPage, setShipmentPage] = useState(1);
+  const [shipmentCursors, setShipmentCursors] = useState<any[]>([]);
+  const [shipmentsLoading, setShipmentsLoading] = useState(false);
+  const [shipmentHasMore, setShipmentHasMore] = useState(true);
+  const [paginatedShipments, setPaginatedShipments] = useState<any[]>([]);
+
+  // Claims States
+  const [claims, setClaims] = useState<any[]>([]);
+  const [claimsLoading, setClaimsLoading] = useState(false);
+  const [claimsPage, setClaimsPage] = useState(1);
+  const [claimsCursors, setClaimsCursors] = useState<any[]>([]);
+  const [claimsHasMore, setClaimsHasMore] = useState(true);
+  const [selectedClaim, setSelectedClaim] = useState<any | null>(null);
+  const [resolutionText, setResolutionText] = useState("");
   
   // Phase 4 states (Paso 4.1, 4.2, 4.3)
   const [selectedShipmentForCheckout, setSelectedShipmentForCheckout] = useState<any | null>(null);
@@ -182,6 +201,124 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
       unsubShipments();
     };
   }, []);
+
+  const fetchPaginatedShipments = async (direction: "init" | "next" | "prev" = "init") => {
+    setShipmentsLoading(true);
+    try {
+      const shipmentsCol = collection(db, "shipments");
+      let q = query(shipmentsCol, orderBy("orderId", "desc"));
+      
+      let targetPage = shipmentPage;
+      if (direction === "next") {
+        targetPage = shipmentPage + 1;
+        const lastVisible = shipmentCursors[shipmentPage - 1];
+        if (lastVisible) {
+          q = query(q, startAfter(lastVisible), limit(25));
+        } else {
+          q = query(q, limit(25));
+        }
+      } else if (direction === "prev") {
+        targetPage = Math.max(1, shipmentPage - 1);
+        const prevIndex = targetPage - 1;
+        const prevVisible = prevIndex > 0 ? shipmentCursors[prevIndex - 1] : null;
+        if (prevVisible) {
+          q = query(q, startAfter(prevVisible), limit(25));
+        } else {
+          q = query(q, limit(25));
+        }
+      } else {
+        targetPage = 1;
+        q = query(q, limit(25));
+      }
+
+      const snap = await getDocs(q);
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPaginatedShipments(data);
+
+      const lastVisibleDoc = snap.docs[snap.docs.length - 1];
+      if (direction === "init") {
+        setShipmentCursors([lastVisibleDoc]);
+        setShipmentPage(1);
+      } else if (direction === "next") {
+        setShipmentCursors((prev) => {
+          const nextCursors = [...prev];
+          nextCursors[targetPage - 1] = lastVisibleDoc;
+          return nextCursors;
+        });
+        setShipmentPage(targetPage);
+      } else if (direction === "prev") {
+        setShipmentPage(targetPage);
+      }
+      setShipmentHasMore(snap.docs.length === 25);
+    } catch (err) {
+      console.error("Error fetching shipments paginated:", err);
+    } finally {
+      setShipmentsLoading(false);
+    }
+  };
+
+  const fetchPaginatedClaims = async (direction: "init" | "next" | "prev" = "init") => {
+    setClaimsLoading(true);
+    try {
+      const claimsCol = collection(db, "claims");
+      let q = query(claimsCol, orderBy("timestamp", "desc"));
+      
+      let targetPage = claimsPage;
+      if (direction === "next") {
+        targetPage = claimsPage + 1;
+        const lastVisible = claimsCursors[claimsPage - 1];
+        if (lastVisible) {
+          q = query(q, startAfter(lastVisible), limit(25));
+        } else {
+          q = query(q, limit(25));
+        }
+      } else if (direction === "prev") {
+        targetPage = Math.max(1, claimsPage - 1);
+        const prevIndex = targetPage - 1;
+        const prevVisible = prevIndex > 0 ? claimsCursors[prevIndex - 1] : null;
+        if (prevVisible) {
+          q = query(q, startAfter(prevVisible), limit(25));
+        } else {
+          q = query(q, limit(25));
+        }
+      } else {
+        targetPage = 1;
+        q = query(q, limit(25));
+      }
+
+      const snap = await getDocs(q);
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setClaims(data);
+
+      const lastVisibleDoc = snap.docs[snap.docs.length - 1];
+      if (direction === "init") {
+        setClaimsCursors([lastVisibleDoc]);
+        setClaimsPage(1);
+      } else if (direction === "next") {
+        setClaimsCursors((prev) => {
+          const nextCursors = [...prev];
+          nextCursors[targetPage - 1] = lastVisibleDoc;
+          return nextCursors;
+        });
+        setClaimsPage(targetPage);
+      } else if (direction === "prev") {
+        setClaimsPage(targetPage);
+      }
+      setClaimsHasMore(snap.docs.length === 25);
+    } catch (err) {
+      console.error("Error fetching claims paginated:", err);
+    } finally {
+      setClaimsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mode === "shipments") {
+      fetchPaginatedShipments("init");
+    } else if (mode === "claims") {
+      fetchPaginatedClaims("init");
+    }
+  }, [mode]);
 
   // Barcode Scanner Listener
   useEffect(() => {
@@ -528,6 +665,30 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
           >
             <Bell size={13} />
             <span>Alertas y KPIs</span>
+          </button>
+          <button 
+            type="button"
+            onClick={() => setMode("shipments")}
+            className={cn(
+              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+              mode === "shipments" ? "bg-slate-900 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
+            )}
+            title="Pedidos y Despachos"
+          >
+            <Truck size={13} />
+            <span>Pedidos / Rutas</span>
+          </button>
+          <button 
+            type="button"
+            onClick={() => setMode("claims")}
+            className={cn(
+              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+              mode === "claims" ? "bg-rose-600 text-white shadow-lg shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
+            )}
+            title="Reclamos de Soporte"
+          >
+            <AlertCircle size={13} />
+            <span>Reclamos</span>
           </button>
         </div>
       </div>
@@ -1260,6 +1421,328 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               </div>
             )}
           </AnimatePresence>
+        </div>
+      ) : mode === "shipments" ? (
+        <div className="w-full space-y-6 text-left">
+          <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 rounded-3xl text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
+            <div className="space-y-1 relative z-10">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-full border border-white/10">Control de Entregas</span>
+              <h2 className="text-2xl font-black tracking-tight mt-1.5">Monitoreo de Pedidos y Rutas</h2>
+              <p className="text-xs text-slate-200 font-medium">
+                Sincronización en tiempo real de rutas activas de reparto con transportistas registrados y estados de entrega.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+            {shipmentsLoading ? (
+              <div className="p-20 text-center flex flex-col items-center justify-center space-y-4">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando rutas...</p>
+              </div>
+            ) : paginatedShipments.length === 0 ? (
+              <div className="p-20 text-center">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4">
+                  <Truck size={32} />
+                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No hay rutas o pedidos registrados</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[850px] text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50">
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Pedido</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Contacto y RUT</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Dirección</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Conductor</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Total</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedShipments.map((s) => (
+                      <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-8 py-4 whitespace-nowrap">
+                          <p className="text-sm font-bold text-slate-800">#{s.orderId}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase">Ruta Activa</p>
+                        </td>
+                        <td className="px-8 py-4 whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-700">{s.customerName}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase">{s.customerRUT || "RUT General"}</p>
+                        </td>
+                        <td className="px-8 py-4">
+                          <p className="text-xs font-medium text-slate-600 truncate max-w-[220px]" title={s.address}>{s.address}</p>
+                        </td>
+                        <td className="px-8 py-4 whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-700">{s.driverName || "Por asignar"}</p>
+                          <p className="text-[9px] text-slate-400 font-bold">{s.driverPhone || "Sin teléfono"}</p>
+                        </td>
+                        <td className="px-8 py-4 whitespace-nowrap">
+                          <span className="text-sm font-black text-slate-800">{s.total ? `$${Number(s.total).toLocaleString('es-CL')}` : "$0"}</span>
+                        </td>
+                        <td className="px-8 py-4 whitespace-nowrap">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-block text-center",
+                            s.status === 'delivered' ? "bg-emerald-50 text-emerald-700" :
+                            s.status === 'in_route' ? "bg-indigo-50 text-indigo-700" : "bg-amber-50 text-amber-700"
+                          )}>
+                            {s.status === 'delivered' ? "Entregado" :
+                             s.status === 'in_route' ? "En Ruta" : "Preparado"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!shipmentsLoading && paginatedShipments.length > 0 && (
+              <div className="flex items-center justify-between px-8 py-4 border-t border-slate-100 bg-white">
+                <span className="text-xs font-bold text-slate-500">
+                  Página <span className="font-extrabold text-slate-800">{shipmentPage}</span>
+                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => fetchPaginatedShipments("prev")}
+                    disabled={shipmentPage === 1 || shipmentsLoading}
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                    title="Página Anterior"
+                  >
+                    <ChevronRight className="rotate-180" size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fetchPaginatedShipments("next")}
+                    disabled={!shipmentHasMore || shipmentsLoading}
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                    title="Siguiente Página"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : mode === "claims" ? (
+        <div className="w-full space-y-6 text-left">
+          <div className="bg-gradient-to-r from-rose-900 to-slate-900 p-6 rounded-3xl text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
+            <div className="space-y-1 relative z-10">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-full border border-white/10">Soporte Operativo</span>
+              <h2 className="text-2xl font-black tracking-tight mt-1.5">Reclamos y Devoluciones de Clientes</h2>
+              <p className="text-xs text-slate-200 font-medium">
+                Administre reclamos de posventa ingresados por clientes desde su portal personal. Revise descripciones, valide adjuntos fotográficos y asigne notas de resolución.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Claims list */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden p-4 space-y-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block ml-1">Listado de Casos</span>
+                {claimsLoading ? (
+                  <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-rose-100 border-t-rose-600" />
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cargando reclamos...</p>
+                  </div>
+                ) : claims.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400">
+                    <p className="text-[10px] font-black uppercase tracking-widest">No hay reclamos registrados</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {claims.map((claim) => (
+                      <button
+                        key={claim.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedClaim(claim);
+                          setResolutionText(claim.resolutionNote || "");
+                        }}
+                        className={cn(
+                          "w-full text-left p-4 rounded-2xl border transition-all flex flex-col space-y-2",
+                          selectedClaim?.id === claim.id
+                            ? "bg-rose-50/50 border-rose-200 shadow-sm"
+                            : "bg-white border-slate-100 hover:border-slate-200"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase text-slate-400">Caso #{claim.orderId || "S/N"}</span>
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
+                            claim.status === "resolved" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                          )}>
+                            {claim.status === "resolved" ? "Resuelto" : "Pendiente"}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">{claim.customerName}</p>
+                          <p className="text-[10px] text-slate-400 font-bold">{claim.customerRUT}</p>
+                        </div>
+                        <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">{claim.reason}</p>
+                        <p className="text-[10px] text-slate-500 font-medium line-clamp-2 leading-relaxed">{claim.description}</p>
+                      </button>
+                    ))}
+
+                    {/* Pagination control */}
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                      <span className="text-[10px] font-bold text-slate-400">Pág {claimsPage}</span>
+                      <div className="flex space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => fetchPaginatedClaims("prev")}
+                          disabled={claimsPage === 1 || claimsLoading}
+                          className="p-1.5 rounded-lg border border-slate-100 text-slate-500 disabled:opacity-40"
+                        >
+                          <ChevronRight className="rotate-180" size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fetchPaginatedClaims("next")}
+                          disabled={!claimsHasMore || claimsLoading}
+                          className="p-1.5 rounded-lg border border-slate-100 text-slate-500 disabled:opacity-40"
+                        >
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Claims details */}
+            <div className="lg:col-span-7">
+              {selectedClaim ? (
+                <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                      <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Reclamo / Soporte Posventa</span>
+                      <h3 className="font-extrabold text-base text-slate-800">Pedido #{selectedClaim.orderId}</h3>
+                      <p className="text-[10px] text-slate-400 font-bold">RUT: {selectedClaim.customerRUT}</p>
+                    </div>
+                    <div>
+                      <span className={cn(
+                        "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider",
+                        selectedClaim.status === "resolved" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                      )}>
+                        Estado del Caso: {selectedClaim.status === "resolved" ? "Completado y Cerrado" : "Bajo Revisión Técnica"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Cliente Emisor</span>
+                        <p className="text-sm font-extrabold text-slate-800">{selectedClaim.customerName}</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Motivo de Reclamo</span>
+                        <p className="text-xs font-bold text-rose-600 uppercase tracking-wider">{selectedClaim.reason}</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Descripción del Reclamo</span>
+                        <p className="text-xs text-slate-600 leading-relaxed font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100">{selectedClaim.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Fotografía Adjunta (Evidencia)</span>
+                      {selectedClaim.photo ? (
+                        <div className="rounded-2xl overflow-hidden border border-slate-200 max-h-48 aspect-video flex items-center justify-center bg-slate-50">
+                          <img 
+                            src={selectedClaim.photo} 
+                            alt="Evidencia adjunta" 
+                            className="object-contain max-h-48 w-full"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400 text-xs font-bold flex flex-col items-center justify-center space-y-2">
+                          <Camera size={24} />
+                          <span>Sin fotografía adjunta</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 space-y-4">
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Acción de Soporte Técnico</span>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500">Comentarios de Resolución / Respuesta para el Cliente:</label>
+                      <textarea
+                        className="w-full h-24 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 focus:bg-white transition-all resize-none text-slate-800"
+                        placeholder="Ej: Estimado cliente, hemos procesado su devolución. Se ha acreditado el reembolso y se generó una nueva guía de despacho de reposición."
+                        value={resolutionText}
+                        onChange={(e) => setResolutionText(e.target.value)}
+                        disabled={selectedClaim.status === "resolved"}
+                      />
+                    </div>
+
+                    {selectedClaim.status !== "resolved" && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            setIsProcessing(true);
+                            await updateDoc(doc(db, "claims", selectedClaim.id), {
+                              status: "resolved",
+                              resolutionNote: resolutionText,
+                              resolvedAt: serverTimestamp()
+                            });
+
+                            // Create simulated resolution notification for the customer
+                            await addDoc(collection(db, "notifications"), {
+                              title: "Reclamo Resuelto",
+                              message: `Tu reclamo del pedido #${selectedClaim.orderId} fue resuelto: "${resolutionText}"`,
+                              type: "success",
+                              userId: selectedClaim.customerId,
+                              read: false,
+                              timestamp: serverTimestamp()
+                            });
+
+                            setAlertConfig({
+                              isOpen: true,
+                              type: "success",
+                              title: "Reclamo Resuelto",
+                              message: "Se ha enviado la resolución del caso de soporte al cliente de inmediato."
+                            });
+
+                            setSelectedClaim(null);
+                            fetchPaginatedClaims("init");
+                          } catch (e) {
+                            console.error(e);
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5"
+                      >
+                        {isProcessing ? <RefreshCw className="animate-spin" size={14} /> : <CheckCircle size={14} />}
+                        <span>Guardar Resolución y Cerrar Caso</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-4">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                    <AlertCircle size={32} />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest">Seleccione un reclamo para ver detalles</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">

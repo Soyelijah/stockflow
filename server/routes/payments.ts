@@ -173,3 +173,16 @@ paymentsRouter.get("/flow/payment-status", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+export function healthCheck() {
+  const isMPActive = Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
+  const isFlowActive = Boolean(process.env.FLOW_API_KEY && process.env.FLOW_SECRET_KEY);
+  return {
+    status: isMPActive || isFlowActive ? "online" : "offline",
+    details: {
+      mercadopago: isMPActive ? "configured" : "missing_credentials",
+      flow: isFlowActive ? "configured" : "missing_credentials",
+      flowEnvironment: process.env.FLOW_ENVIRONMENT || "sandbox"
+    }
+  };
+}

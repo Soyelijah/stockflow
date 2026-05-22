@@ -11,16 +11,21 @@ import {
   X,
   Edit2,
   Trash2,
-  UserPlus
+  UserPlus,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { 
   collection, 
   query, 
-  onSnapshot, 
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  doc 
+  doc,
+  orderBy,
+  limit,
+  getDocs,
+  startAfter
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { cn, formatChileanPhone } from "../lib/utils";
@@ -57,15 +62,69 @@ export function Suppliers() {
     address: ""
   });
 
-  useEffect(() => {
-    const q = query(collection(db, "suppliers"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [cursors, setCursors] = useState<any[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSuppliers = async (direction: "init" | "next" | "prev" = "init") => {
+    setLoading(true);
+    try {
+      let q = query(collection(db, "suppliers"), orderBy("name"));
+
+      let targetPage = currentPage;
+      if (direction === "next") {
+        targetPage = currentPage + 1;
+        const lastVisible = cursors[currentPage - 1];
+        if (lastVisible) {
+          q = query(q, startAfter(lastVisible), limit(PAGE_SIZE));
+        } else {
+          q = query(q, limit(PAGE_SIZE));
+        }
+      } else if (direction === "prev") {
+        targetPage = Math.max(1, currentPage - 1);
+        const prevIndex = targetPage - 1;
+        const prevVisible = prevIndex > 0 ? cursors[prevIndex - 1] : null;
+        if (prevVisible) {
+          q = query(q, startAfter(prevVisible), limit(PAGE_SIZE));
+        } else {
+          q = query(q, limit(PAGE_SIZE));
+        }
+      } else {
+        targetPage = 1;
+        q = query(q, limit(PAGE_SIZE));
+      }
+
+      const snap = await getDocs(q);
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setSuppliers(data);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "suppliers");
-    });
-    return unsub;
+
+      const lastVisibleDoc = snap.docs[snap.docs.length - 1];
+      if (direction === "init") {
+        setCursors([lastVisibleDoc]);
+        setCurrentPage(1);
+      } else if (direction === "next") {
+        setCursors((prev) => {
+          const nextCursors = [...prev];
+          nextCursors[targetPage - 1] = lastVisibleDoc;
+          return nextCursors;
+        });
+        setCurrentPage(targetPage);
+      } else if (direction === "prev") {
+        setCurrentPage(targetPage);
+      }
+
+      setHasMore(snap.docs.length === PAGE_SIZE);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, "suppliers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSuppliers("init");
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,6 +139,7 @@ export function Suppliers() {
       setIsModalOpen(false);
       setEditingSupplier(null);
       setFormData({ name: "", contactName: "", email: "", phone: "", category: "", address: "" });
+      fetchSuppliers("init");
       setAlertConfig({
         isOpen: true,
         type: "success",
@@ -121,6 +181,7 @@ export function Suppliers() {
       onConfirm: async () => {
         try {
           await deleteDoc(doc(db, "suppliers", id));
+          fetchSuppliers("init");
           setAlertConfig(prev => ({
             ...prev,
             isOpen: true,
@@ -259,6 +320,39 @@ export function Suppliers() {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Controles de Paginación */}
+      {!loading && (
+        <div className="flex items-center justify-between px-8 py-5 border-t border-slate-100 bg-white rounded-[2rem] shadow-sm">
+          <span className="text-xs font-semibold text-slate-500">
+            Página <span className="font-bold text-slate-700">{currentPage}</span>
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => fetchSuppliers("prev")}
+              disabled={currentPage === 1 || loading}
+              className={cn(
+                "p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+              )}
+              title="Página Anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => fetchSuppliers("next")}
+              disabled={!hasMore || loading}
+              className={cn(
+                "p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+              )}
+              title="Siguiente Página"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Empty State */}
       {filteredSuppliers.length === 0 && (
