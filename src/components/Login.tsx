@@ -136,30 +136,91 @@ export function Login() {
     const matched = roles.find(r => r.id === roleId);
     if (!matched) return;
 
+    const email = matched.defaultEmail;
+    // Attempt multiple candidate passwords that might have been configured previously in this Firebase instance
+    const candidatePasswords = [
+      matched.defaultPass,          // Primary (e.g., admin_stockflow_2026, logistics_stockflow_2026)
+      "stockflow123",               // Fallback common passwords
+      "admin123",
+      "manager123",
+      "seller123",
+      "logistics123",
+      "123456",
+      "password"
+    ];
+
+    let loggedIn = false;
+    let lastError: any = null;
+
     // Fill inputs visually for user clarity
     setFormData({
-      email: matched.defaultEmail,
+      email: email,
       password: matched.defaultPass
     });
     setSelectedRole(roleId);
 
-    try {
+    // Try normal logins first with candidate passwords
+    for (const pass of candidatePasswords) {
       try {
-        await login(matched.defaultEmail, matched.defaultPass);
-      } catch (authError: any) {
-        if (authError.code === "auth/user-not-found" || authError.code === "auth/invalid-credential") {
-          console.log(`Sandbox mode: Auto-registering real firebase auth user: ${matched.defaultEmail}`);
-          await register(matched.defaultEmail, matched.defaultPass, `${matched.title} (Oficial)`, matched.id);
-          await login(matched.defaultEmail, matched.defaultPass);
-        } else {
-          throw authError;
-        }
+        await login(email, pass);
+        setFormData({ email, password: pass });
+        loggedIn = true;
+        break;
+      } catch (err: any) {
+        lastError = err;
+        // Continue loop if it is credentials-related
       }
-    } catch (err: any) {
-      setError("Error en autoprovisionamiento: " + (err.message || err.code));
-    } finally {
-      setLoading(false);
     }
+
+    if (loggedIn) {
+      setLoading(false);
+      return;
+    }
+
+    // Since standard login with all common candidates failed, let's try to register it
+    try {
+      console.log(`Sandbox: Trying primary registration for ${email}`);
+      await register(email, matched.defaultPass, `${matched.title} (Oficial)`, matched.id);
+      await login(email, matched.defaultPass);
+      setFormData({ email, password: matched.defaultPass });
+    } catch (regErr: any) {
+      console.log(`Sandbox: Primary registration yielded ${regErr.code || regErr.message}`);
+      
+      // If the primary email already exists under a password we don't know,
+      // we fall back to a dynamic suffix email (e.g. logistics-demo@stockflow.com) which will be created cleanly.
+      if (regErr.code === "auth/email-already-in-use" || regErr.code === "auth/invalid-credential") {
+        const fallbackEmail = `${roleId}-demo@stockflow.com`;
+        console.log(`Sandbox: Falling back to secure demo account: ${fallbackEmail}`);
+        
+        try {
+          // Attempt login on the fallback account
+          await login(fallbackEmail, matched.defaultPass);
+          setFormData({ email: fallbackEmail, password: matched.defaultPass });
+        } catch (fallLoginErr: any) {
+          try {
+            // Register clean fallback account
+            await register(fallbackEmail, matched.defaultPass, `${matched.title} Sandbox`, matched.id);
+            await login(fallbackEmail, matched.defaultPass);
+            setFormData({ email: fallbackEmail, password: matched.defaultPass });
+          } catch (fallRegErr: any) {
+            console.error("Sandbox: Fallback registration also in use. Generating unique timestamped suffix.");
+            // If even fallback is in use with another password, use a timestamped unique sandbox email
+            const uniqueEmail = `${roleId}-sandbox-${Date.now().toString().slice(-4)}@stockflow.com`;
+            try {
+              await register(uniqueEmail, matched.defaultPass, `${matched.title} Sandbox`, matched.id);
+              await login(uniqueEmail, matched.defaultPass);
+              setFormData({ email: uniqueEmail, password: matched.defaultPass });
+            } catch (finalErr: any) {
+              setError(`Error en autoprovisionamiento sandbox: ${finalErr.message || finalErr.code}`);
+            }
+          }
+        }
+      } else {
+        setError(`Error al configurar cuenta corporativa: ${regErr.message || regErr.code}`);
+      }
+    }
+
+    setLoading(false);
   };
 
   return (

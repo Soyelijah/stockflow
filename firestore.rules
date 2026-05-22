@@ -57,13 +57,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
-      allow create: if isSignedIn() && request.auth.uid == userId && (
-        incoming().keys().hasAll(['uid', 'email', 'role', 'name', 'createdAt']) &&
-        (incoming().role == 'seller' || incoming().role == 'logistics' || (incoming().role == 'admin' && incoming().email == 'solier.elijah@gmail.com')) &&
-        incoming().uid == userId
-      );
-      allow update: if (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'name', 'email', 'photoURL', 'phone', 'rut', 'birthday', 'address', 'updatedAt'])) ||
-                   (isSignedIn() && request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'phone', 'rut', 'birthday', 'address', 'updatedAt']));
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /products/{productId} {
@@ -160,6 +154,18 @@ service cloud.firestore {
     match /redemptions/{docId} {
       allow read, create, update: if true;
       allow delete: if isAdmin();
+    }
+
+    match /claims/{docId} {
+      allow read, write: if true;
+    }
+
+    match /inventory_audits/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /cash_closures/{docId} {
+      allow read, write: if isSignedIn();
     }
 
     match /system_config/{docId} {

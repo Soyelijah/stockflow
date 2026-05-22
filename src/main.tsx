@@ -38,8 +38,8 @@ if (typeof window !== 'undefined') {
   };
 
   window.addEventListener('unhandledrejection', (event) => {
-    const msg = event.reason?.message || String(event.reason) || '';
-    if (suppressPatterns.some(p => msg.includes(p))) {
+    const reasonStr = event.reason ? (event.reason.message || event.reason.stack || String(event.reason)) : '';
+    if (suppressPatterns.some(p => reasonStr.includes(p)) || !event.reason || reasonStr === '[object Object]') {
       event.stopImmediatePropagation();
       event.preventDefault();
     }

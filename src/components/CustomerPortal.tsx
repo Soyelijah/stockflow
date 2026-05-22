@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../lib/utils";
-import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon } from "../lib/coupons";
+import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon, seedCustomersIfEmpty } from "../lib/coupons";
 import { PHYSICAL_REWARDS_CATALOGUE, PhysicalReward } from "../lib/rewards";
 import { ModernAlert } from "./ui/ModernAlert";
 import { QRCodeCanvas } from "qrcode.react";
@@ -96,6 +96,7 @@ export function CustomerPortal() {
   const [secureToken, setSecureToken] = useState("");
   const [securePin, setSecurePin] = useState("000000");
   const [timeLeft, setTimeLeft] = useState(30);
+  const [availableCustomers, setAvailableCustomers] = useState<any[]>([]);
 
   // States for Claims Support (Paso 3.1)
   const [claimsList, setClaimsList] = useState<any[]>([]);
@@ -228,6 +229,25 @@ export function CustomerPortal() {
       return timeB - timeA;
     });
   }, [transactions]);
+
+  // Seed default clients on mount to ensure test credentials always exist
+  useEffect(() => {
+    seedCustomersIfEmpty();
+  }, []);
+
+  // Sync real-time available customers list for login suggestions
+  useEffect(() => {
+    if (!customer) {
+      const q = query(collection(db, "customers"), orderBy("name"));
+      const unsub = onSnapshot(q, (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAvailableCustomers(docs);
+      }, (err) => {
+        console.error("Firestore error loading active customers in portal suggestion:", err);
+      });
+      return unsub;
+    }
+  }, [customer]);
 
   // Sync real-time active coupons from Firestore
   useEffect(() => {
@@ -813,6 +833,8 @@ export function CustomerPortal() {
       
       let foundCustomer: any = snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
       
+      const normalizedInput = identifier.replace(/[^0-9kK]/g, "").toUpperCase();
+
       if (!foundCustomer) {
         // Try precise match (as entered by user)
         const q2 = query(
@@ -833,6 +855,52 @@ export function CustomerPortal() {
           const snapshot3 = await getDocs(q3);
           if (!snapshot3.empty) {
             foundCustomer = { id: snapshot3.docs[0].id, ...snapshot3.docs[0].data() };
+          } else if (normalizedInput.length > 0) {
+            // Try query by normalized variation 1 (clean RUT without punctuation)
+            const q4 = query(
+              collection(db, "customers"),
+              where("taxId", "==", normalizedInput)
+            );
+            const snapshot4 = await getDocs(q4);
+            if (!snapshot4.empty) {
+              foundCustomer = { id: snapshot4.docs[0].id, ...snapshot4.docs[0].data() };
+            } else {
+              // Try query by normalized variation 2 (hyphen only, e.g. 25551228-5)
+              const hyphenOnly = normalizedInput.slice(0, -1) + "-" + normalizedInput.slice(-1);
+              const q5 = query(
+                collection(db, "customers"),
+                where("taxId", "==", hyphenOnly)
+              );
+              const snapshot5 = await getDocs(q5);
+              if (!snapshot5.empty) {
+                foundCustomer = { id: snapshot5.docs[0].id, ...snapshot5.docs[0].data() };
+              }
+            }
+          }
+        }
+      }
+
+      // Bulletproof fallback: Fetch all registered customers and match client-side by normalized RUT/Email
+      if (!foundCustomer) {
+        const allSnapshot = await getDocs(collection(db, "customers"));
+        const inputEmail = identifier.trim().toLowerCase();
+        
+        for (const doc of allSnapshot.docs) {
+          const data = doc.data();
+          
+          // Match by email
+          if (data.email && data.email.trim().toLowerCase() === inputEmail) {
+            foundCustomer = { id: doc.id, ...data };
+            break;
+          }
+          
+          // Match by normalized taxId/RUT (ignoring dots, dashes, spaces, casing)
+          if (data.taxId) {
+            const normalizedDbTaxId = data.taxId.toString().replace(/[^0-9kK]/g, "").toUpperCase();
+            if (normalizedDbTaxId === normalizedInput && normalizedInput.length > 0) {
+              foundCustomer = { id: doc.id, ...data };
+              break;
+            }
           }
         }
       }
@@ -1037,10 +1105,41 @@ export function CustomerPortal() {
                 <button 
                   type="submit"
                   disabled={loading || !identifier}
-                  className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all flex items-center justify-center space-x-2"
+                  className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all flex items-center justify-center space-x-2 cursor-pointer"
                 >
                   {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Siguiente"}
                 </button>
+
+                {availableCustomers.length > 0 && (
+                  <div className="pt-4 border-t border-slate-100 mt-2">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 text-center select-none">
+                      O accede rápidamente con un cliente registrado:
+                    </p>
+                    <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                      {availableCustomers.slice(0, 5).map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setIdentifier(c.taxId || c.email || "");
+                            setError("");
+                          }}
+                          className="w-full flex items-center justify-between p-3 bg-white hover:bg-slate-50 border border-slate-150 hover:border-indigo-400 rounded-2xl transition-all text-left group cursor-pointer shadow-sm hover:shadow"
+                        >
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-extrabold text-slate-800 text-[11px] truncate">{c.name}</span>
+                            <span className="text-[9px] text-slate-400 font-semibold font-mono">
+                              {c.taxId || "Sin RUT"} {c.email ? `• ${c.email}` : ""}
+                            </span>
+                          </div>
+                          <span className="text-[9px] font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
+                            Prellenar
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </motion.form>
             )}
 

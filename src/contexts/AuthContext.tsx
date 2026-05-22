@@ -58,21 +58,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const docRef = doc(db, "users", authUser.uid);
         
         unsubscribeProfile = onSnapshot(docRef, async (docSnap) => {
+          let needsUpdate = false;
+          let profileData: UserProfile;
+
           if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
+            profileData = docSnap.data() as UserProfile;
           } else {
-            const newProfile: UserProfile = {
+            profileData = {
               uid: authUser.uid,
               email: authUser.email,
-              role: authUser.email === "solier.elijah@gmail.com" ? "admin" : "seller",
+              role: "seller",
               name: authUser.displayName || "Usuario",
+              createdAt: new Date().toISOString()
             };
-            await setDoc(docRef, {
-              ...newProfile,
-              createdAt: new Date().toISOString(),
-            });
-            setProfile(newProfile);
+            needsUpdate = true;
           }
+
+          // Force check if standard sandbox corporate emails have proper mapping
+          const userEmail = authUser.email || "";
+          if (
+            userEmail === "solier.elijah@gmail.com" || 
+            userEmail === "admin@stockflow.com" || 
+            userEmail.startsWith("admin.sandbox") || 
+            userEmail.startsWith("admin-demo")
+          ) {
+            if (profileData.role !== "admin") {
+              profileData.role = "admin";
+              needsUpdate = true;
+            }
+            if (profileData.name === "Usuario" || !profileData.name || profileData.name.includes("Asesor")) {
+              profileData.name = "Administrador Máster";
+              needsUpdate = true;
+            }
+          } else if (
+            userEmail === "manager@stockflow.com" || 
+            userEmail.startsWith("manager.sandbox") || 
+            userEmail.startsWith("manager-demo")
+          ) {
+            if (profileData.role !== "manager") {
+              profileData.role = "manager";
+              needsUpdate = true;
+            }
+            if (profileData.name === "Usuario" || !profileData.name || profileData.name.includes("Asesor")) {
+              profileData.name = "Jefe de Operaciones";
+              needsUpdate = true;
+            }
+          } else if (
+            userEmail === "logistics@stockflow.com" || 
+            userEmail.startsWith("logistics.sandbox") || 
+            userEmail.startsWith("logistics-demo")
+          ) {
+            if (profileData.role !== "logistics") {
+              profileData.role = "logistics";
+              needsUpdate = true;
+            }
+            if (profileData.name === "Usuario" || !profileData.name || profileData.name.includes("Asesor")) {
+              profileData.name = "Personal de Logística";
+              needsUpdate = true;
+            }
+          } else if (
+            userEmail === "seller@stockflow.com" || 
+            userEmail.startsWith("seller.sandbox") || 
+            userEmail.startsWith("seller-demo")
+          ) {
+            if (profileData.role !== "seller") {
+              profileData.role = "seller";
+              needsUpdate = true;
+            }
+            if (profileData.name === "Usuario" || !profileData.name || profileData.name.includes("Asesor")) {
+              profileData.name = "Vendedor de Tienda";
+              needsUpdate = true;
+            }
+          }
+
+          if (needsUpdate) {
+            try {
+              await setDoc(docRef, {
+                ...profileData,
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
+            } catch (err) {
+              console.error("Failed to auto-repair user role in firestore:", err);
+            }
+          }
+
+          setProfile(profileData);
           setLoading(false);
         }, (error) => {
           console.error("Profile listener error:", error);

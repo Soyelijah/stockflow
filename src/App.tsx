@@ -24,17 +24,18 @@ import { CustomerPortal } from "./components/CustomerPortal";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { motion, AnimatePresence } from "motion/react";
 import { MobilePOS } from "./components/MobilePOS";
-import { seedCouponsIfEmpty } from "./lib/coupons";
+import { seedCouponsIfEmpty, seedCustomersIfEmpty } from "./lib/coupons";
 type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "customers" | "profile";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
 
-  // Seed default coupons if missing, executed securely by staff with admin privileges
+  // Seed default coupons and customers if missing, executed securely by staff with admin privileges
   useEffect(() => {
     if (user && (profile?.role === "admin" || profile?.role === "manager" || user.email === "solier.elijah@gmail.com")) {
       seedCouponsIfEmpty();
+      seedCustomersIfEmpty();
     }
   }, [user, profile]);
 
