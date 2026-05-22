@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 import { barcodeRouter } from "./server/routes/barcode";
 import { paymentsRouter } from "./server/routes/payments";
 import { commsRouter } from "./server/routes/comms";
+import { aiRouter } from "./server/routes/ai";
+import { startLowStockMonitor } from "./server/services/lowStockMonitor";
 
 dotenv.config();
 
@@ -31,6 +33,7 @@ async function startServer() {
   app.use("/api", barcodeRouter);
   app.use("/api", paymentsRouter);
   app.use("/api", commsRouter);
+  app.use("/api", aiRouter);
 
   // Vite development compiler integration or static production delivery
   if (process.env.NODE_ENV !== "production") {
@@ -49,6 +52,7 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 [Hybrid Server Core] API Gateway executing cleanly on http://localhost:${PORT}`);
+    startLowStockMonitor();
   });
 }
 

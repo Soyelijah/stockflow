@@ -10,7 +10,8 @@ import {
   serverTimestamp,
   increment,
   orderBy,
-  arrayUnion
+  arrayUnion,
+  runTransaction
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -599,87 +600,117 @@ export function POS() {
   const finishOrder = async (token?: string) => {
     setIsProcessing(true);
     try {
-      const batch = writeBatch(db);
       const orderId = doc(collection(db, "transactions")).id;
-      
-      cart.forEach(item => {
-        const productRef = doc(db, "products", item.id);
-        const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
-        
-        batch.update(productRef, {
-          stock: increment(-item.quantity),
-          updatedAt: serverTimestamp()
+
+      await runTransaction(db, async (resTransaction) => {
+        // 1. Perform all reads first as required by Firestore transactions
+        const productSnaps: { [id: string]: any } = {};
+        for (const item of cart) {
+          const productRef = doc(db, "products", item.id);
+          const snap = await resTransaction.get(productRef);
+          if (!snap.exists()) {
+            throw new Error(`El producto ${item.name} no existe en el catálogo.`);
+          }
+          const currentStock = snap.data()?.stock || 0;
+          if (currentStock < item.quantity) {
+            throw new Error(`Stock insuficiente para ${item.name} (Disponible: ${currentStock}, Solicitado: ${item.quantity})`);
+          }
+          productSnaps[item.id] = {
+            ref: productRef,
+            currentStock,
+            newStock: currentStock - item.quantity,
+            costPrice: snap.data()?.costPrice || 0
+          };
+        }
+
+        let customerSnap: any = null;
+        let customerRef: any = null;
+        if (selectedCustomer?.id) {
+          customerRef = doc(db, "customers", selectedCustomer.id);
+          customerSnap = await resTransaction.get(customerRef);
+        }
+
+        // 2. Perform all writes
+        cart.forEach(item => {
+          const pData = productSnaps[item.id];
+          const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
+          
+          resTransaction.update(pData.ref, {
+            stock: pData.newStock,
+            updatedAt: serverTimestamp()
+          });
+          
+          const moveRef = doc(collection(db, "stockMovements"));
+          resTransaction.set(moveRef, {
+            productId: item.id,
+            productName: item.name,
+            type: "sale",
+            quantity: item.quantity,
+            previousStock: pData.currentStock,
+            newStock: pData.newStock,
+            reason: `Venta POS #${orderId}`,
+            userId: profile?.uid,
+            userName: profile?.name,
+            source: "web",
+            timestamp: serverTimestamp()
+          });
+          
+          resTransaction.set(transactionRef, {
+            productId: item.id,
+            productName: item.name,
+            type: "sale" as const,
+            documentType,
+            quantity: item.quantity,
+            amount: item.price * item.quantity,
+            cost: (item.costPrice || pData.costPrice) * item.quantity,
+            profit: (item.price - (item.costPrice || pData.costPrice)) * item.quantity,
+            userId: profile?.uid,
+            userName: profile?.name,
+            customerId: selectedCustomer?.id || null,
+            customerName: selectedCustomer?.name || "VENTA GENERAL",
+            customerTaxId: selectedCustomer?.taxId || null,
+            paymentBreakdown: payments,
+            timestamp: serverTimestamp(),
+            orderId: orderId,
+            cashRegisterId: currentSession?.id,
+            couponCode: appliedCoupon?.code || null,
+            discountApplied: couponDiscount,
+            finalOrderTotal: finalTotal,
+            note: token?.startsWith("mercadopago") ? `Pago Contactless (MP: ${token})` : token ? `Pago Flow QR (Token: ${token})` : `Venta Directa`
+          });
         });
-        
-        const moveRef = doc(collection(db, "stockMovements"));
-        batch.set(moveRef, {
-          productId: item.id,
-          productName: item.name,
-          type: "sale",
-          quantity: item.quantity,
-          previousStock: item.maxStock,
-          newStock: item.maxStock - item.quantity,
-          reason: `Venta POS #${orderId}`,
-          userId: profile?.uid,
-          userName: profile?.name,
-          source: "web",
-          timestamp: serverTimestamp()
-        });
-        
-        batch.set(transactionRef, {
-          productId: item.id,
-          productName: item.name,
-          type: "sale" as const,
-          documentType,
-          quantity: item.quantity,
-          amount: item.price * item.quantity,
-          cost: item.costPrice * item.quantity,
-          profit: (item.price - item.costPrice) * item.quantity,
-          userId: profile?.uid,
-          userName: profile?.name,
-          customerId: selectedCustomer?.id || null,
-          customerName: selectedCustomer?.name || "VENTA GENERAL",
-          customerTaxId: selectedCustomer?.taxId || null,
-          paymentBreakdown: payments,
-          timestamp: serverTimestamp(),
-          orderId: orderId,
-          cashRegisterId: currentSession?.id,
-          couponCode: appliedCoupon?.code || null,
-          discountApplied: couponDiscount,
-          finalOrderTotal: finalTotal,
-          note: token?.startsWith("mercadopago") ? `Pago Contactless (MP: ${token})` : token ? `Pago Flow QR (Token: ${token})` : `Venta Directa`
-        });
+
+        // Award loyalty points and update stats automatically
+        if (selectedCustomer?.id && customerRef && customerSnap) {
+          const custData = customerSnap.exists() ? customerSnap.data() : {};
+          const pointsAwarded = calculatePoints(finalTotal);
+          const currentPoints = (custData.points || 0) + pointsAwarded;
+          const newTier = getCustomerTier(currentPoints);
+          
+          const customerUpdates: any = {
+            points: currentPoints,
+            totalSpent: (custData.totalSpent || 0) + finalTotal,
+            segment: newTier.segment,
+            lastPurchaseAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+
+          // Deduct spent dynamic balance from current electronic wallet
+          if (payments.digital > 0) {
+            const currentBal = custData.balance !== undefined ? custData.balance : 25000;
+            customerUpdates.balance = Math.max(0, currentBal - payments.digital);
+          }
+
+          if (appliedCoupon?.code) {
+            const used = custData.usedCoupons || [];
+            if (!used.includes(appliedCoupon.code)) {
+              customerUpdates.usedCoupons = [...used, appliedCoupon.code];
+            }
+          }
+
+          resTransaction.update(customerRef, customerUpdates);
+        }
       });
-
-      // Award loyalty points and update stats automatically
-      if (selectedCustomer?.id) {
-        const pointsAwarded = calculatePoints(finalTotal);
-        const currentPoints = (selectedCustomer.points || 0) + pointsAwarded;
-        const newTier = getCustomerTier(currentPoints);
-        
-        const customerRef = doc(db, "customers", selectedCustomer.id);
-        const customerUpdates: any = {
-          points: increment(pointsAwarded),
-          totalSpent: increment(finalTotal),
-          segment: newTier.segment,
-          lastPurchaseAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
-
-        // Deduct spent dynamic balance from current electronic wallet
-        if (payments.digital > 0) {
-          const currentBal = selectedCustomer.balance !== undefined ? selectedCustomer.balance : 25000;
-          customerUpdates.balance = Math.max(0, currentBal - payments.digital);
-        }
-
-        if (appliedCoupon?.code) {
-          customerUpdates.usedCoupons = arrayUnion(appliedCoupon.code);
-        }
-
-        batch.update(customerRef, customerUpdates);
-      }
-
-      await batch.commit();
       
       // Sanitize order details before sending to avoid any payload size issues (e.g. from base64 images/signatures)
       const cleanItems = cart.map(item => ({
