@@ -76,7 +76,13 @@ async function startServer() {
       status: "online", 
       architecture: "hybrid-modular", 
       apiVersion: "2.0.0",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      modules: {
+        barcode: "online",
+        payments: "online",
+        comms: "online",
+        ai: "online"
+      }
     });
   });
 
