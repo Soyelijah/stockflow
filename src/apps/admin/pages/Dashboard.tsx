@@ -73,6 +73,11 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [aiInsight, setAiInsight] = useState<StockInsight | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [claimsStats, setClaimsStats] = useState({
+    pendingCount: 0,
+    resolvedLastMonth: 0,
+    avgResolutionTimeText: "0 h",
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 1000);
@@ -261,11 +266,69 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       handleFirestoreError(error, OperationType.LIST, "expenses (Dashboard)");
     });
 
+    // Listen to claims for support metrics
+    const qClaims = query(collection(db, "claims"));
+    const unsubClaims = onSnapshot(qClaims, (snapshot) => {
+      let pending = 0;
+      let resolvedLastMonthCount = 0;
+      let totalResolutionTimeMs = 0;
+      let resolvedWithTimeCount = 0;
+      
+      const now = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.status !== "resolved") {
+          pending++;
+        } else {
+          // It's resolved
+          const resolvedAtDate = data.resolvedAt?.toDate ? data.resolvedAt.toDate() : (data.resolvedAt ? new Date(data.resolvedAt) : null);
+          const createdAtDate = data.timestamp?.toDate ? data.timestamp.toDate() : (data.timestamp ? new Date(data.timestamp) : null);
+          
+          if (resolvedAtDate) {
+            if (resolvedAtDate >= thirtyDaysAgo && resolvedAtDate <= now) {
+              resolvedLastMonthCount++;
+            }
+            if (createdAtDate) {
+              const diffMs = resolvedAtDate.getTime() - createdAtDate.getTime();
+              if (diffMs >= 0) {
+                totalResolutionTimeMs += diffMs;
+                resolvedWithTimeCount++;
+              }
+            }
+          }
+        }
+      });
+      
+      let avgText = "N/A";
+      if (resolvedWithTimeCount > 0) {
+        const avgMs = totalResolutionTimeMs / resolvedWithTimeCount;
+        const avgHours = avgMs / (1000 * 60 * 60);
+        if (avgHours < 24) {
+          avgText = `${avgHours.toFixed(1)} h`;
+        } else {
+          const avgDays = avgHours / 24;
+          avgText = `${avgDays.toFixed(1)} d`;
+        }
+      }
+      
+      setClaimsStats({
+        pendingCount: pending,
+        resolvedLastMonth: resolvedLastMonthCount,
+        avgResolutionTimeText: avgText
+      });
+    }, (error) => {
+      console.error("Error listening to claims:", error);
+    });
+
     return () => {
       unsubCust();
       unsubProducts();
       unsubTransactions();
       unsubExpenses();
+      unsubClaims();
     };
   }, []);
 
@@ -787,6 +850,44 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
           {/* Status Side Panel - Restricted for Sellers */}
           {(isAdmin || isLogistics) && (
             <div className="lg:col-span-4 space-y-10">
+              {/* KPIs de Reclamos */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Soporte y Reclamos</h3>
+                  {claimsStats.pendingCount > 0 && (
+                    <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full animate-pulse transition-all">
+                      {claimsStats.pendingCount} Activos
+                    </span>
+                  )}
+                </div>
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                      <AlertCircle size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-800">Casos de Soporte</h4>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Historial de Reclamos</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-50">
+                    <div className="p-2 bg-rose-50/50 rounded-2xl">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">Pendientes</p>
+                      <p className="text-sm font-black text-rose-600 mt-1">{claimsStats.pendingCount}</p>
+                    </div>
+                    <div className="p-2 bg-emerald-50/50 rounded-2xl">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">Resueltos (30d)</p>
+                      <p className="text-sm font-black text-emerald-600 mt-1">{claimsStats.resolvedLastMonth}</p>
+                    </div>
+                    <div className="p-2 bg-slate-50 rounded-2xl">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">Promedio</p>
+                      <p className="text-sm font-black text-slate-700 mt-1">{claimsStats.avgResolutionTimeText}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Stock Health KPI */}
               <div>
                 <div className="flex items-center justify-between mb-4">

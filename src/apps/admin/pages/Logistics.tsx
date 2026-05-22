@@ -107,6 +107,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [claimsHasMore, setClaimsHasMore] = useState(true);
   const [selectedClaim, setSelectedClaim] = useState<any | null>(null);
   const [resolutionText, setResolutionText] = useState("");
+  const [pendingClaimsCount, setPendingClaimsCount] = useState(0);
   
   // Phase 4 states (Paso 4.1, 4.2, 4.3)
   const [selectedShipmentForCheckout, setSelectedShipmentForCheckout] = useState<any | null>(null);
@@ -193,12 +194,17 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
     const unsubShipments = onSnapshot(query(collection(db, "shipments")), (snap) => {
       setShipments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
+    const unsubClaimsCount = onSnapshot(collection(db, "claims"), (snap) => {
+      const unresolved = snap.docs.filter(doc => doc.data().status !== "resolved").length;
+      setPendingClaimsCount(unresolved);
+    });
     return () => { 
       unsubProds(); 
       unsubSupps(); 
       unsubCats(); 
       unsubCusts(); 
       unsubShipments();
+      unsubClaimsCount();
     };
   }, []);
 
@@ -673,22 +679,27 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
               mode === "shipments" ? "bg-slate-900 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
             )}
-            title="Pedidos y Despachos"
+            title="Monitoreo de Despachos"
           >
             <Truck size={13} />
-            <span>Pedidos / Rutas</span>
+            <span>Despachos</span>
           </button>
           <button 
             type="button"
             onClick={() => setMode("claims")}
             className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap relative",
               mode === "claims" ? "bg-rose-600 text-white shadow-lg shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
             )}
             title="Reclamos de Soporte"
           >
             <AlertCircle size={13} />
             <span>Reclamos</span>
+            {pendingClaimsCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 bg-red-600 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-md animate-pulse">
+                {pendingClaimsCount}
+              </span>
+            )}
           </button>
         </div>
       </div>
