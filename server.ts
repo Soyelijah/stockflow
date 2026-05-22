@@ -7,8 +7,9 @@ import { barcodeRouter } from "./server/routes/barcode";
 import { paymentsRouter } from "./server/routes/payments";
 import { commsRouter } from "./server/routes/comms";
 import { aiRouter } from "./server/routes/ai";
+import { startLowStockMonitor } from "./server/services/lowStockMonitor";
 
-dotenv.config();
+dotenv.config({ path: '.env.local' });
 
 async function startServer() {
   const app = express();
@@ -51,6 +52,8 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 [Hybrid Server Core] API Gateway executing cleanly on http://localhost:${PORT}`);
+    // Start background low stock monitor (server-side, efficient)
+    startLowStockMonitor();
   });
 }
 
