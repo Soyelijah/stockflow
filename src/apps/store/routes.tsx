@@ -1,11 +1,12 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { CustomerPortal } from './pages/CustomerPortal';
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { CustomerPortal } from "../../shared/components/CustomerPortal";
 
-export default function StoreRoutes() {
+export function StoreRoutes() {
   return (
     <Routes>
       <Route path="/" element={<CustomerPortal />} />
+      <Route path="*" element={<Navigate to="" replace />} />
     </Routes>
   );
 }

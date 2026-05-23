@@ -1,14 +1,12 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { Logistics } from '../admin/pages/Logistics';
-import { RoleGuard } from '@/src/shared/ui/RoleGuard';
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { DeliveryMap } from "../../shared/components/DeliveryMap";
 
-export default function DeliveryRoutes() {
+export function DeliveryRoutes() {
   return (
     <Routes>
-      <Route element={<RoleGuard allowedRoles={['driver', 'admin', 'owner', 'logistics']} />}>
-        <Route path="/" element={<Logistics />} />
-      </Route>
+      <Route path="/" element={<DeliveryMap />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
