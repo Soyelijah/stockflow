@@ -162,8 +162,10 @@ service cloud.firestore {
     }
 
     match /redemptions/{docId} {
-      allow read, create, update: if true;
-      allow delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || isSignedIn();
+      allow delete: if false;
     }
 
     match /claims/{docId} {
