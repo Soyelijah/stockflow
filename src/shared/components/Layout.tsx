@@ -30,6 +30,7 @@ import { useSettings } from "../../contexts/SettingsContext";
 import { cn } from "../../lib/utils";
 import { collection, query, onSnapshot, where, getDocs, limit, orderBy } from "firebase/firestore";
 import { db } from "../../lib/firebase";
+import { isAdmin, isAdminOrManager, isLogistics, isSeller } from "../../lib/roles";
 import { motion, AnimatePresence } from "motion/react";
 
 import { formatCurrency } from "../../lib/utils";
@@ -271,12 +272,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
     const performSearch = async () => {
       try {
-        const isAdmin = profile?.role === "admin" || profile?.role === "manager";
+        const isManagerOrAdmin = isAdminOrManager(profile?.role);
         const productsQ = query(collection(db, "products"), limit(50));
         const customersQ = query(collection(db, "customers"), limit(50));
         let txQ = query(collection(db, "transactions"), orderBy("timestamp", "desc"), limit(50));
         
-        if (!isAdmin && profile?.uid) {
+        if (!isManagerOrAdmin && profile?.uid) {
            txQ = query(collection(db, "transactions"), where("userId", "==", profile.uid), orderBy("timestamp", "desc"), limit(50));
         }
 
@@ -365,7 +366,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   ];
 
   const filteredNavItems = navItems
-    .filter(item => item.roles.includes(profile?.role || ""))
+    .filter(item => profile?.role === "owner" || item.roles.includes(profile?.role || ""))
     .filter(item => item.id !== "logistics" || settings.deliveryEnabled !== false);
 
   return (
@@ -434,7 +435,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-slate-900 truncate">{profile?.name}</p>
                 <p className="text-[10px] text-indigo-500 uppercase tracking-widest font-bold mt-0.5">
-                  {profile?.role === "admin" ? "Administrador de Sistemas" :
+                  {profile?.role === "owner" ? "Dueño / Propietario" :
+                   profile?.role === "admin" ? "Administrador de Sistemas" :
                    profile?.role === "manager" ? "Jefe de Local / Administración" :
                    profile?.role === "seller" ? "Vendedor / Cajero" :
                    profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role}

@@ -20,12 +20,10 @@ export const setUserRole = onCall(async (request) => {
 
   const callerRole = request.auth.token.role || "customer";
   const callerEmail = request.auth.token.email || "";
-  const isSuperAdmin = callerEmail === "solier.elijah@gmail.com";
 
-  if (!["admin", "owner"].includes(callerRole) && !isSuperAdmin) {
+  if (!["admin", "owner"].includes(callerRole)) {
     throw new HttpsError("permission-denied", "Only admins and owners can modify roles.");
   }
-
   const { uid, userId, role } = request.data || {};
   const targetUid = uid || userId; // Support both param names
 
@@ -38,13 +36,13 @@ export const setUserRole = onCall(async (request) => {
   }
 
   // Full role whitelist — all roles used in the app
-  const allowedRoles = ["admin", "manager", "seller", "logistics", "owner", "inventory_manager", "cashier", "driver", "customer"];
+  const allowedRoles = ["owner", "admin", "manager", "seller", "logistics", "driver"];
   if (!allowedRoles.includes(role)) {
     throw new HttpsError("invalid-argument", `Role must be one of: ${allowedRoles.join(", ")}`);
   }
 
-  // Only an owner or super admin can assign owner role
-  if (role === "owner" && callerRole !== "owner" && !isSuperAdmin) {
+  // Only an owner can assign owner role
+  if (role === "owner" && callerRole !== "owner") {
     throw new HttpsError("permission-denied", "Only an owner can assign the owner role.");
   }
 

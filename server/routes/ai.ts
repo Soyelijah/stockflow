@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { GoogleGenAI, Type } from "@google/genai";
+import { isAdminOrManager } from "../../src/lib/roles";
 
 export const aiRouter = Router();
 
@@ -42,10 +43,9 @@ aiRouter.post("/ai/insights", async (req, res) => {
     }
 
     const role = decodedToken.role || "customer";
-    if (!['admin', 'owner', 'inventory_manager', 'manager'].includes(role) && decodedToken.email !== 'solier.elijah@gmail.com') {
+    if (!isAdminOrManager(role)) {
       return res.status(403).json({ error: "Forbidden. Insufficient permissions." });
     }
-
     if (!ai) {
       return res.status(503).json({ error: "Gemini API key not configured on server." });
     }
