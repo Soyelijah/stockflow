@@ -24,11 +24,20 @@ commsRouter.post("/send-receipt", async (req, res) => {
 });
 
 export function healthCheck() {
+  const isConfigured = Boolean(
+    process.env.SMTP_HOST &&
+    process.env.SMTP_PORT &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASS
+  );
   return {
-    status: "online",
+    status: isConfigured ? "online" : "offline",
     details: {
-      smtpSimulated: true,
-      queueHealthy: true
+      smtpSimulated: !isConfigured,
+      queueHealthy: true,
+      hasCredentials: isConfigured,
+      smtpHost: process.env.SMTP_HOST || "missing",
+      smtpUser: process.env.SMTP_USER || "missing"
     }
   };
 }

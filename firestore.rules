@@ -142,13 +142,23 @@ service cloud.firestore {
     }
 
     match /shipments/{shipmentId} {
-      allow read: if true;
+      allow read: if isAdmin() || isLogistics() || (isSignedIn() && resource.data.customerId == request.auth.uid);
       allow write: if isAdmin() || isLogistics();
     }
 
     match /client_notifications/{docId} {
-      allow read: if true;
-      allow write: if isSignedIn() || isAdmin();
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /notifications/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /role_audit/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /redemptions/{docId} {
