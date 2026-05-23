@@ -1,62 +1,43 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { Login } from "./components/Login";
-import { VerifyEmail } from "./components/VerifyEmail";
-import { Dashboard } from "./components/Dashboard";
-import { Inventory } from "./components/Inventory";
-import { POS } from "./components/POS";
-import { Transactions } from "./components/Transactions";
-import { Suppliers } from "./components/Suppliers";
-import { Expenses } from "./components/Expenses";
-import { Settings } from "./components/Settings";
-import { Layout } from "./components/Layout";
-import { FlowResult } from "./components/FlowResult";
-import { StockLedger } from "./components/StockLedger";
-import { Logistics } from "./components/Logistics";
-import { Customers } from "./components/Customers";
-import { Profile } from "./components/Profile";
-import { CustomerPortal } from "./components/CustomerPortal";
+import { Login } from "./shared/components/Login";
+import { VerifyEmail } from "./shared/components/VerifyEmail";
+import { FlowResult } from "./shared/components/FlowResult";
 import { SettingsProvider } from "./contexts/SettingsContext";
-import { motion, AnimatePresence } from "motion/react";
-import { MobilePOS } from "./components/MobilePOS";
 import { seedCouponsIfEmpty, seedCustomersIfEmpty } from "./lib/coupons";
-type Page = "dashboard" | "inventory" | "pos" | "transactions" | "suppliers" | "expenses" | "settings" | "kardex" | "logistics" | "customers" | "profile";
+
+// Import the sub-app routes
+import { AdminRoutes } from "./apps/admin/routes";
+import { StoreRoutes } from "./apps/store/routes";
+import { DeliveryRoutes } from "./apps/delivery/routes";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+  const location = useLocation();
 
-  // Seed default coupons and customers if missing, executed securely by staff with admin privileges
+  // Seed default coupons and customers if missing, executed securely by staff with admin/manager/owner privileges
   useEffect(() => {
-    if (user && (profile?.role === "admin" || profile?.role === "manager" || user.email === "solier.elijah@gmail.com")) {
+    if (user && (profile?.role === "admin" || profile?.role === "manager" || profile?.role === "owner")) {
       seedCouponsIfEmpty();
       seedCustomersIfEmpty();
     }
   }, [user, profile]);
 
-  // Force reset page on login/logout or role change to avoid "getting stuck" on restricted pages
-  useEffect(() => {
-    setCurrentPage("dashboard");
-  }, [user?.uid, profile?.role]);
+  // Public path checkout and feedback routes
+  const isCustomerPath = location.pathname.startsWith("/cliente");
+  const isFlowResultPath = location.pathname === "/flow-result";
 
-  const isMobilePath = window.location.pathname === "/mobile";
-  const isCustomerPath = window.location.pathname === "/cliente";
+  // Allow accessing the customer portal or payment callback without auth
+  if (isCustomerPath) {
+    return <StoreRoutes />;
+  }
 
-  // Handle Flow Result Path
-  if (window.location.pathname === "/flow-result") {
+  if (isFlowResultPath) {
     return <FlowResult />;
   }
 
-  // Handle Customer Portal (Public Route)
-  if (isCustomerPath) {
-    return <CustomerPortal />;
-  }
-
+  // Auth requirement for all core roles
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -69,68 +50,19 @@ function AppContent() {
     return <Login />;
   }
 
-  // Bypass email verification for demo accounts and reviewer to permit instant real sandbox tests
-  const isDemoEmail = user.email?.endsWith("@stockflow.com") || user.email === "solier.elijah@gmail.com";
+  // Bypass email verification for demo accounts and owner/reviewer to permit instant sandbox tests
+  const isDemoEmail = user.email?.endsWith("@stockflow.com") || profile?.role === "owner";
   if (!user.emailVerified && !isDemoEmail) {
     return <VerifyEmail />;
   }
 
-  // Seller always gets the MobilePOS view!
-  // No full desktop layout or sidebars for sellers - exactly what the CEO wanted
-  if (profile?.role === "seller") {
-    return <MobilePOS />;
+  // Multi-role routing based strictly on custom claim / profile role
+  if (profile?.role === "driver") {
+    return <DeliveryRoutes />;
   }
 
-  // Pure Mobile POS Route for others (no sidebar/layout)
-  if (isMobilePath) {
-    return <MobilePOS />;
-  }
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case "dashboard":
-        return <Dashboard onNavigate={setCurrentPage} />;
-      case "inventory":
-        return <Inventory />;
-      case "logistics":
-        return <Logistics onNavigate={setCurrentPage} />;
-      case "pos":
-        return <POS />;
-      case "transactions":
-        return <Transactions />;
-      case "suppliers":
-        return <Suppliers />;
-      case "expenses":
-        return <Expenses />;
-      case "settings":
-        return <Settings />;
-      case "kardex":
-        return <StockLedger />;
-      case "customers":
-        return <Customers />;
-      case "profile":
-        return <Profile />;
-      default:
-        return <Dashboard />;
-    }
-  };
-
-  return (
-    <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentPage}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className="container mx-auto p-1 sm:p-4 md:p-6"
-        >
-          {renderPage()}
-        </motion.div>
-      </AnimatePresence>
-    </Layout>
-  );
+  // admin, manager, seller, logistics, owner roles get AdminRoutes
+  return <AdminRoutes />;
 }
 
 export default function App() {

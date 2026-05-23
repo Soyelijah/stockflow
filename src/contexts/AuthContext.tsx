@@ -14,7 +14,7 @@ import { auth, db } from "../lib/firebase";
 interface UserProfile {
   uid: string;
   email: string | null;
-  role: "admin" | "manager" | "seller" | "logistics";
+  role: "admin" | "manager" | "seller" | "logistics" | "driver" | "owner";
   name: string;
   photoURL?: string;
   avatarUrl?: string;
@@ -30,7 +30,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name: string, role?: "admin" | "manager" | "seller" | "logistics") => Promise<void>;
+  register: (email: string, pass: string, name: string, role?: "admin" | "manager" | "seller" | "logistics" | "driver" | "owner") => Promise<void>;
   sendVerification: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -56,6 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (authUser) {
+        let isOwnerClaim = false;
+        try {
+          const tokenResult = await authUser.getIdTokenResult();
+          isOwnerClaim = tokenResult.claims.role === "owner";
+        } catch (e) {
+          console.error("Error reading token result:", e);
+        }
+
         const docRef = doc(db, "users", authUser.uid);
         
         unsubscribeProfile = onSnapshot(docRef, async (docSnap) => {
@@ -68,22 +76,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             profileData = {
               uid: authUser.uid,
               email: authUser.email,
-              role: "seller",
+              role: isOwnerClaim ? "owner" : "seller",
               name: authUser.displayName || "Usuario",
               createdAt: new Date().toISOString()
             };
             needsUpdate = true;
           }
 
+          if (isOwnerClaim && profileData.role !== "owner") {
+            profileData.role = "owner";
+            needsUpdate = true;
+          }
+
           // Force check if standard sandbox corporate emails have proper mapping
           const userEmail = authUser.email || "";
           if (
-            userEmail === "solier.elijah@gmail.com" || 
             userEmail === "admin@stockflow.com" || 
             userEmail.startsWith("admin.sandbox") || 
             userEmail.startsWith("admin-demo")
           ) {
-            if (profileData.role !== "admin") {
+            if (profileData.role !== "admin" && !isOwnerClaim) {
               profileData.role = "admin";
               needsUpdate = true;
             }
@@ -96,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userEmail.startsWith("manager.sandbox") || 
             userEmail.startsWith("manager-demo")
           ) {
-            if (profileData.role !== "manager") {
+            if (profileData.role !== "manager" && !isOwnerClaim) {
               profileData.role = "manager";
               needsUpdate = true;
             }
@@ -109,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userEmail.startsWith("logistics.sandbox") || 
             userEmail.startsWith("logistics-demo")
           ) {
-            if (profileData.role !== "logistics") {
+            if (profileData.role !== "logistics" && !isOwnerClaim) {
               profileData.role = "logistics";
               needsUpdate = true;
             }
@@ -122,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userEmail.startsWith("seller.sandbox") || 
             userEmail.startsWith("seller-demo")
           ) {
-            if (profileData.role !== "seller") {
+            if (profileData.role !== "seller" && !isOwnerClaim) {
               profileData.role = "seller";
               needsUpdate = true;
             }
