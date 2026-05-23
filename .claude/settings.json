@@ -119,6 +119,13 @@
         "@upstash/context7-mcp"
       ],
       "env": {}
+    },
+    "chile-rut": {
+      "command": "node",
+      "args": [
+        "./mcps/chile-rut-mcp/dist/index.js"
+      ],
+      "env": {}
     }
   }
 }
