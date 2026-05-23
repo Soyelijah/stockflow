@@ -130,7 +130,7 @@ export function healthCheck() {
     status: isEnabled ? "online" : "offline",
     details: {
       geminiConnected: isEnabled,
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       hasKey: isEnabled,
     }
   };
