@@ -178,6 +178,49 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
     }
   };
 
+  const downloadAuditPDF = async (adjustedItems: any[], responsible: string) => {
+    try {
+      const payload = {
+        title: "Reporte de Conciliación Física de Inventario",
+        items: adjustedItems.map(item => ({
+          name: item.name,
+          stockActual: Number(item.systemStock),
+          stockFisico: Number(item.physicalStock),
+          motive: item.motive || (Number(item.physicalStock) < Number(item.systemStock) ? "Merma de Auditoría" : "Ajuste por Sobrante")
+        })),
+        responsible: responsible || profile?.name || "Pierre Solier",
+        comments: `Sesión de toma de inventario físico completada con éxito. Se cuadraron ${adjustedItems.length} SKU con descuadres físicos.`,
+        lang: "es"
+      };
+
+      const response = await fetch("/api/shrinkage/pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${profile?.uid || "sys-operator"}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error("Fallo al generar archivo PDF en el gateway del servidor");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte_auditoria_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error("PDF generation fail:", err);
+      alert(`No se pudo descargar el reporte PDF automáticamente: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
     const unsubProds = onSnapshot(query(collection(db, "products"), orderBy("name")), (snap) => {
       setProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -1068,6 +1111,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           let mermasTotal = 0;
                           let sobrantesTotal = 0;
 
+                          const adjustedItems: any[] = [];
                           products.forEach(p => {
                             const physical = auditScans[p.id] || 0;
                             const system = p.stock || 0;
@@ -1077,6 +1121,13 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                               modifiedCount++;
                               if (diff < 0) mermasTotal += Math.abs(diff);
                               if (diff > 0) sobrantesTotal += diff;
+
+                              adjustedItems.push({
+                                name: p.name,
+                                systemStock: system,
+                                physicalStock: physical,
+                                motive: diff < 0 ? "Merma / Pérdida en Auditoría" : "Excedente / Sobrante"
+                              });
 
                               // Update product stock directly
                               const prodRef = doc(db, "products", p.id);
@@ -1114,6 +1165,15 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           });
 
                           await batch.commit();
+
+                          // Automatically generate and download high-integrity bilingual PDF
+                          if (adjustedItems.length > 0) {
+                            try {
+                              await downloadAuditPDF(adjustedItems, profile?.name || "Pierre Solier");
+                            } catch (pdfErr) {
+                              console.error("Auto PDF generation failed:", pdfErr);
+                            }
+                          }
 
                           setAlertConfig({
                             isOpen: true,

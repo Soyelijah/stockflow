@@ -1,12 +1,19 @@
 import { Router } from "express";
+import { requireAuthBearer, SendReceiptSchema, AuthenticatedRequest } from "../services/security";
 
 export const commsRouter = Router();
 
-commsRouter.post("/send-receipt", async (req, res) => {
+commsRouter.post("/send-receipt", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
-    const { customerEmail, orderDetails, businessName } = req.body;
+    // Validate request schema via Zod
+    const parsed = SendReceiptSchema.parse(req.body);
+    const { customerEmail, orderDetails, businessName, lang } = parsed;
     
-    console.log(`[Modular Comms Engine] Enqueuing digital receipt email to: ${customerEmail} to ${businessName}`);
+    const isEn = lang === "en";
+    const headerTitle = isEn ? "DIGITAL RECEIPT" : "RECIBO DIGITAL";
+    const thanksMsg = isEn ? "Thank you for your purchase!" : "¡Gracias por su compra!";
+
+    console.log(`[Modular Comms Engine] Enqueuing digital receipt email (${lang.toUpperCase()}) to: ${customerEmail} for ${businessName}`);
     console.log(`[Modular Comms Engine] Transaction payload serialized:`, JSON.stringify(orderDetails, null, 2));
 
     // Simulate standard async background loop for modern microservices SMTP gateways
@@ -14,12 +21,24 @@ commsRouter.post("/send-receipt", async (req, res) => {
 
     res.json({ 
       success: true, 
-      message: "Receipt successfully routed through modular comms distribution gateway.",
-      preview: `Email queued to ${customerEmail}`
+      message: isEn 
+        ? `Receipt successfully routed through modular comms distribution gateway in English.`
+        : `Recibo procesado y enviado exitosamente a través del gateway bilingüe en Español.`,
+      preview: {
+        to: customerEmail,
+        subject: isEn ? `Your receipt from ${businessName}` : `Su comprobante de compra en ${businessName}`,
+        bodyHeader: `${headerTitle} - ${businessName}`,
+        greeting: thanksMsg,
+        totalText: isEn ? `Final Total: $${orderDetails.finalTotal}` : `Monto Final: $${orderDetails.finalTotal}`
+      }
     });
   } catch (err: any) {
     console.error("[Modular Comms ERROR]:", err);
-    res.status(500).json({ error: err.message || "Failed to process receipt queue distribution" });
+    if (err.name === "ZodError") {
+      res.status(400).json({ error: "Datos del recibo de venta no válidos", details: err.errors });
+    } else {
+      res.status(500).json({ error: err.message || "Failed to process receipt queue distribution" });
+    }
   }
 });
 

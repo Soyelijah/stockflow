@@ -1,13 +1,15 @@
 import { Router } from "express";
 import { getServerDb } from "../services/db";
 import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
+import { requireAuthBearer, AuditLogSchema, AuthenticatedRequest } from "../services/security";
 
 export const auditRouter = Router();
 
 // Endpoint for the React client to post custom high-integrity audit logs
-auditRouter.post("/audit/log", async (req, res) => {
+auditRouter.post("/audit/log", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
-    const { operatorEmail, operatorUid, action, targetId, details } = req.body;
+    // Validate payload with Zod
+    const parsed = AuditLogSchema.parse(req.body);
     
     const db = getServerDb();
     if (!db) {
@@ -16,11 +18,11 @@ auditRouter.post("/audit/log", async (req, res) => {
 
     const auditRef = collection(db, "role_audit");
     const docRef = await addDoc(auditRef, {
-      operatorEmail: operatorEmail || "sistema@stockflow.com",
-      operatorUid: operatorUid || "sys-cron",
-      action: action || "SYSTEM_EVENT",
-      targetId: targetId || "N/A",
-      details: details || {},
+      operatorEmail: parsed.operatorEmail || req.user?.email || "sistema@stockflow.com",
+      operatorUid: parsed.operatorUid || req.user?.uid || "sys-cron",
+      action: parsed.action,
+      targetId: parsed.targetId,
+      details: parsed.details || {},
       ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
       timestamp: serverTimestamp()
     });
@@ -28,12 +30,16 @@ auditRouter.post("/audit/log", async (req, res) => {
     res.json({ success: true, id: docRef.id });
   } catch (err: any) {
     console.error("Failed to write audit log:", err);
-    res.status(500).json({ error: "Fallo al escribir registro de auditoría." });
+    if (err.name === "ZodError") {
+      res.status(400).json({ error: "Datos de auditoría inválidos", details: err.errors });
+    } else {
+      res.status(500).json({ error: "Fallo al escribir registro de auditoría." });
+    }
   }
 });
 
 // Secure API endpoint to fetch audit logs for the Admin "Historial de Auditoría" panel
-auditRouter.get("/audit/logs", async (req, res) => {
+auditRouter.get("/audit/logs", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
     const db = getServerDb();
     if (!db) {
@@ -90,7 +96,6 @@ export async function expressAuditMiddleware(req: any, res: any, next: any) {
     isTarget = true;
     actionName = req.method === "POST" ? "EXPENSE_CREATED" : req.method === "DELETE" ? "EXPENSE_DELETED" : "EXPENSE_MODIFIED";
   } else if (path.includes("/role") || path.includes("/user")) {
-    isTarget = true;
     isTarget = true;
     actionName = "ROLE_OR_USER_MUTATION";
   }

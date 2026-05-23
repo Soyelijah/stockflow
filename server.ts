@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
+import helmet from "helmet";
 
 import { barcodeRouter, healthCheck as barcodeHealth } from "./server/routes/barcode";
 import { paymentsRouter, healthCheck as paymentsHealth } from "./server/routes/payments";
@@ -18,6 +19,12 @@ dotenv.config();
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Use Helmet for advanced server-side header protection and Anti-Clickjacking
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+  }));
 
   // Configure Express to trust upstream reverse proxy headers (vital for accurate rate limits in Cloud Run)
   app.set("trust proxy", 1);

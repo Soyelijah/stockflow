@@ -1,18 +1,30 @@
 import { Router } from "express";
 import PDFDocument from "pdfkit";
+import { requireAuthBearer, ShrinkagePdfSchema, AuthenticatedRequest } from "../services/security";
 
 export const shrinkageRouter = Router();
 
-// Secure PDF generation for physical stock audits and shrinkage reporting
-shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
+// Secure PDF generation for physical stock audits and shrinkage reporting (completely bilingual & validated)
+shrinkageRouter.post("/shrinkage/pdf", requireAuthBearer as any, (req: AuthenticatedRequest, res) => {
   try {
+    // Validate schema with Zod
+    const parsed = ShrinkagePdfSchema.parse(req.body);
     const { 
-      title = "Reporte de Mermas y Ajuste de Inventario", 
       items = [], 
       responsible = "Administrador", 
       comments = "",
-      isHistorical = false
-    } = req.body;
+      isHistorical = false,
+      lang = "es"
+    } = parsed;
+
+    const isEn = lang === "en";
+    
+    // Choose document title depending on language
+    const defaultTitle = isEn 
+      ? "Shrinkage and Inventory Adjustment Report" 
+      : "Reporte de Mermas y Ajuste de Inventario";
+    
+    const title = parsed.title || defaultTitle;
     
     // Set response headers for direct secure PDF download
     res.setHeader("Content-Type", "application/pdf");
@@ -33,7 +45,10 @@ shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
     
     // Branding Header
     doc.fillColor("#1e293b").font("Helvetica-Bold").fontSize(22).text("STOCKFLOW", { align: "left" });
-    doc.fillColor("#64748b").font("Helvetica").fontSize(10).text("Plataforma de Control de Inventario & Logística", { align: "left" });
+    doc.fillColor("#64748b").font("Helvetica").fontSize(10).text(
+      isEn ? "Inventory Control & Logistics Platform" : "Plataforma de Control de Inventario & Logística", 
+      { align: "left" }
+    );
     doc.moveDown(1);
     
     // Title of Report
@@ -43,21 +58,31 @@ shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
     doc.moveDown(1);
     
     // Metadata Block
-    doc.fillColor("#334155").font("Helvetica-Bold").fontSize(11).text("METADATOS DE CONTROL", { underline: true });
+    doc.fillColor("#334155").font("Helvetica-Bold").fontSize(11).text(
+      isEn ? "CONTROL METADATA" : "METADATOS DE CONTROL", 
+      { underline: true }
+    );
     doc.font("Helvetica").fontSize(10);
-    doc.text(`Responsable de Auditoría: `, { continued: true }).font("Helvetica-Bold").text(responsible);
-    doc.font("Helvetica").text(`Fecha y Hora de Emisión: `, { continued: true }).font("Helvetica-Bold").text(new Date().toLocaleString("es-CL"));
-    doc.font("Helvetica").text(`Total de Artículos Auditados: `, { continued: true }).font("Helvetica-Bold").text(`${items.length}`);
+    
+    doc.text(isEn ? "Audit Supervisor: " : "Responsable de Auditoría: ", { continued: true })
+       .font("Helvetica-Bold").text(responsible);
+       
+    doc.font("Helvetica").text(isEn ? "Date & Time of Issue: " : "Fecha y Hora de Emisión: ", { continued: true })
+       .font("Helvetica-Bold").text(new Date().toLocaleString(isEn ? "en-US" : "es-CL"));
+       
+    doc.font("Helvetica").text(isEn ? "Total Audited Items: " : "Total de Artículos Auditados: ", { continued: true })
+       .font("Helvetica-Bold").text(`${items.length}`);
     doc.moveDown(1.5);
     
     // Main Audit table Header
     const yHeader = doc.y;
     doc.fillColor("#0f172a").font("Helvetica-Bold").fontSize(10);
-    doc.text("Producto / Detalle", 50, yHeader, { width: 170 });
-    doc.text("Stock Teórico", 230, yHeader, { width: 80, align: "right" });
-    doc.text("Stock Físico", 320, yHeader, { width: 80, align: "right" });
-    doc.text("Diferencia", 410, yHeader, { width: 60, align: "right" });
-    doc.text("Motivo de Ajuste", 480, yHeader, { width: 70, align: "left" });
+    
+    doc.text(isEn ? "Product / Description" : "Producto / Detalle", 50, yHeader, { width: 170 });
+    doc.text(isEn ? "System Stock" : "Stock Teórico", 230, yHeader, { width: 80, align: "right" });
+    doc.text(isEn ? "Physical Stock" : "Stock Físico", 320, yHeader, { width: 80, align: "right" });
+    doc.text(isEn ? "Difference" : "Diferencia", 410, yHeader, { width: 60, align: "right" });
+    doc.text(isEn ? "Adjustment Motive" : "Motivo de Ajuste", 480, yHeader, { width: 70, align: "left" });
     
     doc.moveDown(0.3);
     doc.moveTo(50, doc.y).lineTo(545, doc.y).lineWidth(1.5).strokeColor("#475569").stroke();
@@ -73,14 +98,17 @@ shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
       if (doc.y > 700) {
         doc.addPage({ margin: 50, size: "A4" });
         // Draw recurring header on new pages
-        doc.fillColor("#94a3b8").fontSize(8).text("STOCKFLOW - CONTINUACIÓN DE REPORTE", 50, 40);
+        doc.fillColor("#94a3b8").fontSize(8).text(
+          isEn ? "STOCKFLOW - REPORT CONTINUATION" : "STOCKFLOW - CONTINUACIÓN DE REPORTE", 
+          50, 40
+        );
         doc.moveTo(50, 52).lineTo(545, 52).strokeColor("#e2e8f0").stroke();
         doc.moveDown(2);
       }
       
       const currentY = doc.y;
-      const theo = Number(item.stockActual ?? item.theoStock ?? 0);
-      const real = Number(item.stockFisico ?? item.realStock ?? 0);
+      const theo = Number(item.stockActual ?? 0);
+      const real = Number(item.stockFisico ?? 0);
       const diff = real - theo;
       
       if (diff > 0) positiveDiffs += diff;
@@ -90,7 +118,7 @@ shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
       const diffColor = diff === 0 ? "#334155" : diff > 0 ? "#16a34a" : "#dc2626";
       
       doc.font("Helvetica-Bold").fillColor("#0f172a");
-      doc.text(item.name || `Artículo #${i+1}`, 50, currentY, { width: 170 });
+      doc.text(item.name || (isEn ? `Item #${i+1}` : `Artículo #${i+1}`), 50, currentY, { width: 170 });
       
       doc.font("Helvetica").fillColor("#334155");
       doc.text(String(theo), 230, currentY, { width: 80, align: "right" });
@@ -100,7 +128,7 @@ shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
       doc.text(diffStr, 410, currentY, { width: 60, align: "right" });
       
       doc.font("Helvetica").fillColor("#475569");
-      doc.text(item.motive || item.comments || "Sin especificar", 480, currentY, { width: 70, align: "left" });
+      doc.text(item.motive || (isEn ? "Not specified" : "Sin especificar"), 480, currentY, { width: 70, align: "left" });
       
       doc.moveDown(1.2);
     });
@@ -110,15 +138,24 @@ shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
     doc.moveDown(0.8);
     
     // Wrap up statistics
-    doc.fillColor("#1e293b").font("Helvetica-Bold").fontSize(10).text("RESUMEN DE AJUSTES:");
+    doc.fillColor("#1e293b").font("Helvetica-Bold").fontSize(10).text(
+      isEn ? "ADJUSTMENT SUMMARY:" : "RESUMEN DE AJUSTES:"
+    );
     doc.font("Helvetica").fontSize(9);
-    doc.text(`Ajustes Positivos (Sobrantes): `, { continued: true }).fillColor("#16a34a").font("Helvetica-Bold").text(`+${positiveDiffs} unidades`);
-    doc.fillColor("#334155").font("Helvetica").text(`Ajustes Negativos (Mermas/Faltantes): `, { continued: true }).fillColor("#dc2626").font("Helvetica-Bold").text(`-${negativeDiffs} unidades`);
+    
+    doc.text(isEn ? "Positive Adjustments (Surplus): " : "Ajustes Positivos (Sobrantes): ", { continued: true })
+       .fillColor("#16a34a").font("Helvetica-Bold").text(`+${positiveDiffs} ${isEn ? "units" : "unidades"}`);
+       
+    doc.fillColor("#334155").font("Helvetica")
+       .text(isEn ? "Negative Adjustments (Shrinkage/Missing): " : "Ajustes Negativos (Mermas/Faltantes): ", { continued: true })
+       .fillColor("#dc2626").font("Helvetica-Bold").text(`-${negativeDiffs} ${isEn ? "units" : "unidades"}`);
     doc.moveDown(1);
     
     // Comments block if any
     if (comments && comments.trim().length > 0) {
-      doc.fillColor("#334155").font("Helvetica-Bold").fontSize(10).text("COMENTARIOS Y OBSERVACIONES:");
+      doc.fillColor("#334155").font("Helvetica-Bold").fontSize(10).text(
+        isEn ? "COMMENTS AND OBSERVATIONS:" : "COMENTARIOS Y OBSERVACIONES:"
+      );
       doc.font("Helvetica").fontSize(9).text(comments);
       doc.moveDown(1.5);
     }
@@ -130,18 +167,28 @@ shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
     doc.moveTo(350, sigY).lineTo(500, sigY).strokeColor("#94a3b8").stroke();
     
     doc.font("Helvetica").fontSize(8).fillColor("#64748b");
-    doc.text("Firma Responsable Auditoría", 50, sigY + 5, { width: 150, align: "center" });
-    doc.text("Firma de Aprobación Corporativa", 350, sigY + 5, { width: 150, align: "center" });
+    doc.text(
+      isEn ? "Audit Supervisor Signature" : "Firma Responsable Auditoría", 
+      50, sigY + 5, { width: 150, align: "center" }
+    );
+    doc.text(
+      isEn ? "Corporate Approval Signature" : "Firma de Aprobación Corporativa", 
+      350, sigY + 5, { width: 150, align: "center" }
+    );
     
     // Done with stream write
     doc.end();
   } catch (err: any) {
     console.error("Secure PDF generation error:", err);
-    res.status(500).json({ error: "No se pudo generar el documento PDF.", details: err.message });
+    if (err.name === "ZodError") {
+      res.status(400).json({ error: "Estructura de reporte de auditoría no válida", details: err.errors });
+    } else {
+      res.status(500).json({ error: "No se pudo generar el documento PDF.", details: err.message });
+    }
   }
 });
 
-// Mock health check for shrinkage module
+// Module health diagnostics
 export function healthCheck() {
   return {
     status: "online",

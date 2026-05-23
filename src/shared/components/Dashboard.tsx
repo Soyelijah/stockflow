@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { collection, query, onSnapshot, limit, orderBy, where, getDocs } from "firebase/firestore";
+import { collection, query, onSnapshot, limit, orderBy, where, getDocs, updateDoc, doc, serverTimestamp, addDoc } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
 import { 
   Package, 
@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 
 export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { settings } = useSettings();
   const [stats, setStats] = useState({
     totalProducts: 0,
@@ -77,6 +77,43 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [customers, setCustomers] = useState<any[]>([]);
   const [pendingClaimsList, setPendingClaimsList] = useState<any[]>([]);
   const [recentClaimsList, setRecentClaimsList] = useState<any[]>([]);
+  const [selectedClaim, setSelectedClaim] = useState<any | null>(null);
+  const [resolutionNote, setResolutionNote] = useState<string>("");
+  const [isResolvingClaim, setIsResolvingClaim] = useState<boolean>(false);
+  const [claimFilter, setClaimFilter] = useState<"pending" | "resolved">("pending");
+
+  const loadClaims = async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const qPendingClaims = query(
+        collection(db, "claims"), 
+        where("status", "!=", "resolved"), 
+        limit(100)
+      );
+      const pendingSnap = await getDocs(qPendingClaims);
+      const pendingList: any[] = [];
+      pendingSnap.forEach(doc => {
+        pendingList.push({ id: doc.id, ...doc.data() });
+      });
+      setPendingClaimsList(pendingList);
+
+      const qRecentClaims = query(
+        collection(db, "claims"), 
+        where("timestamp", ">=", thirtyDaysAgo), 
+        limit(100)
+      );
+      const recentSnap = await getDocs(qRecentClaims);
+      const recentList: any[] = [];
+      recentSnap.forEach(doc => {
+        recentList.push({ id: doc.id, ...doc.data() });
+      });
+      setRecentClaimsList(recentList);
+    } catch (error) {
+      console.error("Error fetching claims for dashboard stats:", error);
+    }
+  };
 
   const claimsStats = useMemo(() => {
     const pending = pendingClaimsList.length;
@@ -345,40 +382,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     });
 
     // Fetch claims once on load (instead of real-time listener) to optimize connections
-    const fetchClaims = async () => {
-      try {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const qPendingClaims = query(
-          collection(db, "claims"), 
-          where("status", "!=", "resolved"), 
-          limit(100)
-        );
-        const pendingSnap = await getDocs(qPendingClaims);
-        const pendingList: any[] = [];
-        pendingSnap.forEach(doc => {
-          pendingList.push({ id: doc.id, ...doc.data() });
-        });
-        setPendingClaimsList(pendingList);
-
-        const qRecentClaims = query(
-          collection(db, "claims"), 
-          where("timestamp", ">=", thirtyDaysAgo), 
-          limit(100)
-        );
-        const recentSnap = await getDocs(qRecentClaims);
-        const recentList: any[] = [];
-        recentSnap.forEach(doc => {
-          recentList.push({ id: doc.id, ...doc.data() });
-        });
-        setRecentClaimsList(recentList);
-      } catch (error) {
-        console.error("Error fetching claims for dashboard stats:", error);
-      }
-    };
-
-    fetchClaims();
+    loadClaims();
 
     return () => {
       unsubCust();
@@ -1238,6 +1242,88 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <p className="text-xl font-black text-slate-700 mt-1">{claimsStats.avgResolutionTimeText}</p>
                     </div>
                   </div>
+
+                  {/* Claims visual list with toggle tabs */}
+                  <div className="border-t border-slate-100 pt-4 mt-2">
+                    <div className="flex items-center justify-between mb-3 bg-slate-50 p-1 rounded-xl">
+                      <button
+                        onClick={() => setClaimFilter("pending")}
+                        className={cn(
+                          "flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all",
+                          claimFilter === "pending"
+                            ? "bg-white text-slate-800 shadow-sm"
+                            : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        Pendientes ({pendingClaimsList.length})
+                      </button>
+                      <button
+                        onClick={() => setClaimFilter("resolved")}
+                        className={cn(
+                          "flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all",
+                          claimFilter === "resolved"
+                            ? "bg-white text-emerald-700 shadow-sm"
+                            : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        Historial Resueltos
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      {(claimFilter === "pending" 
+                        ? pendingClaimsList 
+                        : recentClaimsList.filter(c => c.status === "resolved")
+                      ).map((claim) => (
+                        <div
+                          key={claim.id}
+                          className="p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-indigo-100 transition-all flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center space-x-2">
+                              <span className={cn(
+                                "text-[7px] font-black uppercase px-1.5 py-0.2 rounded-full",
+                                claim.reason === "damaged"
+                                  ? "bg-rose-100 text-rose-700"
+                                  : claim.reason === "incorrect"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-slate-200 text-slate-700"
+                              )}>
+                                {claim.reason === "damaged" ? "Dañado/Mermado" : claim.reason === "incorrect" ? "Incorrecto" : "Faltante"}
+                              </span>
+                              <span className="text-[9px] text-slate-400 font-bold">RUT: {claim.customerRUT || "Sin RUT"}</span>
+                            </div>
+                            <p className="text-[11px] font-black text-slate-700 mt-1 truncate">{claim.customerName}</p>
+                            <p className="text-[9px] text-slate-400 truncate">Pedido: {claim.orderId || "S/I"}</p>
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              setSelectedClaim(claim);
+                              setResolutionNote(claim.resolutionNote || "");
+                            }}
+                            className={cn(
+                              "px-3 py-1.5 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all shrink-0",
+                              claim.status === "resolved"
+                                ? "bg-emerald-50 text-emerald-750 hover:bg-emerald-100"
+                                : "bg-indigo-650 text-white hover:bg-indigo-700"
+                            )}
+                          >
+                            {claim.status === "resolved" ? "Ver Detalle" : "Resolver"}
+                          </button>
+                        </div>
+                      ))}
+
+                      {((claimFilter === "pending" 
+                        ? pendingClaimsList 
+                        : recentClaimsList.filter(c => c.status === "resolved")
+                      ).length === 0) && (
+                        <p className="text-center py-6 text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                          No hay casos {claimFilter === "pending" ? "pendientes" : "resueltos"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1432,6 +1518,178 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 >
                   Entendido
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Support Ticket Resolution Modal */}
+      <AnimatePresence>
+        {selectedClaim && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedClaim(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 40 }}
+              className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-slate-100"
+            >
+              <div className="p-6 overflow-y-auto space-y-5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className={cn(
+                      "text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block mb-1",
+                      selectedClaim.reason === "damaged"
+                        ? "bg-rose-100 text-rose-700"
+                        : selectedClaim.reason === "incorrect"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-slate-200 text-slate-700"
+                    )}>
+                      {selectedClaim.reason === "damaged" ? "Dañado/Mermado" : selectedClaim.reason === "incorrect" ? "Incorrecto" : "Faltante en Entrega"}
+                    </span>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Resolución de Reclamo</h3>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedClaim(null)}
+                    className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-slate-600 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-2xl space-y-2 text-xs">
+                  <div className="grid grid-cols-2 gap-2">
+                    <p className="text-slate-400 font-bold uppercase">Cliente:</p>
+                    <p className="text-slate-800 font-black text-right">{selectedClaim.customerName}</p>
+                    
+                    <p className="text-slate-400 font-bold uppercase">RUT Cliente:</p>
+                    <p className="text-slate-800 font-mono text-right">{selectedClaim.customerRUT || "S/R"}</p>
+                    
+                    <p className="text-slate-400 font-bold uppercase">ID del Pedido:</p>
+                    <p className="text-slate-800 font-mono text-right truncate">{selectedClaim.orderId || "S/I"}</p>
+
+                    <p className="text-slate-400 font-bold uppercase">Fecha reporte:</p>
+                    <p className="text-slate-800 font-bold text-right">
+                      {selectedClaim.timestamp?.toDate ? selectedClaim.timestamp.toDate().toLocaleString() : new Date(selectedClaim.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="border-t border-slate-200/60 pt-2 mt-2">
+                    <p className="text-slate-400 font-bold uppercase mb-1">Descripción del Cliente:</p>
+                    <p className="p-3 bg-white border border-slate-100 rounded-xl text-slate-700 italic leading-relaxed">
+                      "{selectedClaim.description}"
+                    </p>
+                  </div>
+
+                  {selectedClaim.photo && (
+                    <div className="border-t border-slate-200/60 pt-2 mt-2">
+                      <p className="text-slate-400 font-bold uppercase mb-1">Evidencia visual / Foto:</p>
+                      <div className="rounded-xl overflow-hidden border border-slate-200 max-h-48 flex justify-center bg-slate-200">
+                        <img 
+                          src={selectedClaim.photo} 
+                          alt="Evidencia" 
+                          referrerPolicy="no-referrer"
+                          className="object-contain max-h-48 w-full"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">Nota de Resolución de Soporte</label>
+                  <textarea
+                    rows={4}
+                    value={resolutionNote}
+                    onChange={(e) => setResolutionNote(e.target.value)}
+                    placeholder="Escriba el diagnóstico del soporte, compensación aplicada (ej: reembolso, cupón, nota de crédito) y notas internas..."
+                    className="w-full text-xs p-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:outline-none transition-all resize-none bg-slate-50 text-slate-800"
+                    disabled={selectedClaim.status === "resolved"}
+                  />
+                </div>
+
+                {selectedClaim.status !== "resolved" ? (
+                  <button
+                    onClick={async () => {
+                      if (!resolutionNote.trim()) {
+                        alert("Por favor, ingrese una nota de resolución antes de continuar.");
+                        return;
+                      }
+                      setIsResolvingClaim(true);
+                      try {
+                        const claimRef = doc(db, "claims", selectedClaim.id);
+                        await updateDoc(claimRef, {
+                          status: "resolved",
+                          resolutionNote: resolutionNote,
+                          resolvedAt: serverTimestamp(),
+                          operatorEmail: user?.email || "cajero@stockflow.com",
+                          operatorUid: user?.uid || "sys"
+                        });
+
+                        // Create actual resolution notification for the customer in real time
+                        await addDoc(collection(db, "notifications"), {
+                          title: "Reclamo Resuelto",
+                          message: `Tu reclamo del pedido #${selectedClaim.orderId || "interno"} fue resuelto: "${resolutionNote}"`,
+                          type: "success",
+                          userId: selectedClaim.customerId || "customer",
+                          read: false,
+                          timestamp: serverTimestamp()
+                        });
+                        
+                        // Fire secure audit logging to Express backend
+                        try {
+                          await fetch("/api/audit/log", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              "Authorization": `Bearer ${user?.uid || "sys-operator"}`
+                            },
+                            body: JSON.stringify({
+                              action: `CLAIM_RESOLVED`,
+                              targetId: selectedClaim.id,
+                              details: {
+                                reason: selectedClaim.reason,
+                                customerRUT: selectedClaim.customerRUT || "S/R",
+                                resolutionNote: resolutionNote
+                              }
+                            })
+                          });
+                        } catch (ae) {
+                          console.warn("Audit log post failed:", ae);
+                        }
+
+                        // Close dialog, reload active lists
+                        setSelectedClaim(null);
+                        setResolutionNote("");
+                        await loadClaims();
+                      } catch (err: any) {
+                        console.error("Fail to resolve support ticket:", err);
+                        alert(`Fallo al actualizar estado del ticket de soporte: ${err.message}`);
+                      } finally {
+                        setIsResolvingClaim(false);
+                      }
+                    }}
+                    disabled={isResolvingClaim}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2"
+                  >
+                    {isResolvingClaim ? "Procesando resolución..." : "Marcar como Resuelto & Notificar Cliente"}
+                  </button>
+                ) : (
+                  <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                      Caso Resuelto
+                    </p>
+                    <p className="text-[9px] text-emerald-600 font-medium">
+                      Este ticket fue finalizado y archivado con nota de resolución.
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
