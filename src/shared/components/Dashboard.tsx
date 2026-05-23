@@ -365,7 +365,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     setIsAILoading(true);
     setIsAIModalOpen(true);
     try {
-      const insight = await getStockInsights(allProducts, recentTransactions, recentExpenses);
+      const insight = await getStockInsights(recentTransactions, recentExpenses);
       setAiInsight(insight);
     } catch (err) {
       console.error(err);
