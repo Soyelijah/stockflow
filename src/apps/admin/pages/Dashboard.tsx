@@ -73,11 +73,58 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [aiInsight, setAiInsight] = useState<StockInsight | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
-  const [claimsStats, setClaimsStats] = useState({
-    pendingCount: 0,
-    resolvedLastMonth: 0,
-    avgResolutionTimeText: "0 h",
-  });
+  const [pendingClaimsList, setPendingClaimsList] = useState<any[]>([]);
+  const [recentClaimsList, setRecentClaimsList] = useState<any[]>([]);
+
+  const claimsStats = useMemo(() => {
+    const pending = pendingClaimsList.length;
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    let resolvedLastMonthCount = 0;
+    let totalResolutionTimeMs = 0;
+    let resolvedWithTimeCount = 0;
+    
+    recentClaimsList.forEach(data => {
+      if (data.status === "resolved") {
+        const resolvedAtDate = data.resolvedAt?.toDate ? data.resolvedAt.toDate() : (data.resolvedAt ? new Date(data.resolvedAt) : null);
+        const createdAtDate = data.timestamp?.toDate ? data.timestamp.toDate() : (data.timestamp ? new Date(data.timestamp) : null);
+        
+        if (resolvedAtDate) {
+          if (resolvedAtDate >= thirtyDaysAgo && resolvedAtDate <= now) {
+            resolvedLastMonthCount++;
+          }
+          if (createdAtDate) {
+            const diffMs = resolvedAtDate.getTime() - createdAtDate.getTime();
+            if (diffMs >= 0) {
+              totalResolutionTimeMs += diffMs;
+              resolvedWithTimeCount++;
+            }
+          }
+        }
+      }
+    });
+    
+    let avgText = "N/A";
+    if (resolvedWithTimeCount > 0) {
+      const avgMs = totalResolutionTimeMs / resolvedWithTimeCount;
+      const avgHours = avgMs / (1000 * 60 * 60);
+      if (avgHours < 24) {
+        avgText = `${avgHours.toFixed(1)} h`;
+      } else {
+        const avgDays = avgHours / 24;
+        avgText = `${avgDays.toFixed(1)} d`;
+      }
+    }
+    
+    return {
+      pendingCount: pending,
+      resolvedLastMonth: resolvedLastMonthCount,
+      avgResolutionTimeText: avgText
+    };
+  }, [pendingClaimsList, recentClaimsList]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 1000);
@@ -266,61 +313,38 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       handleFirestoreError(error, OperationType.LIST, "expenses (Dashboard)");
     });
 
-    // Listen to claims for support metrics
-    const qClaims = query(collection(db, "claims"));
-    const unsubClaims = onSnapshot(qClaims, (snapshot) => {
-      let pending = 0;
-      let resolvedLastMonthCount = 0;
-      let totalResolutionTimeMs = 0;
-      let resolvedWithTimeCount = 0;
-      
-      const now = new Date();
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
+    // Listen to claims for support metrics (Optimized Dual Queries)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const qPendingClaims = query(
+      collection(db, "claims"), 
+      where("status", "!=", "resolved"), 
+      limit(100)
+    );
+    const unsubPendingClaims = onSnapshot(qPendingClaims, (snapshot) => {
+      const list: any[] = [];
       snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.status !== "resolved") {
-          pending++;
-        } else {
-          // It's resolved
-          const resolvedAtDate = data.resolvedAt?.toDate ? data.resolvedAt.toDate() : (data.resolvedAt ? new Date(data.resolvedAt) : null);
-          const createdAtDate = data.timestamp?.toDate ? data.timestamp.toDate() : (data.timestamp ? new Date(data.timestamp) : null);
-          
-          if (resolvedAtDate) {
-            if (resolvedAtDate >= thirtyDaysAgo && resolvedAtDate <= now) {
-              resolvedLastMonthCount++;
-            }
-            if (createdAtDate) {
-              const diffMs = resolvedAtDate.getTime() - createdAtDate.getTime();
-              if (diffMs >= 0) {
-                totalResolutionTimeMs += diffMs;
-                resolvedWithTimeCount++;
-              }
-            }
-          }
-        }
+        list.push({ id: doc.id, ...doc.data() });
       });
-      
-      let avgText = "N/A";
-      if (resolvedWithTimeCount > 0) {
-        const avgMs = totalResolutionTimeMs / resolvedWithTimeCount;
-        const avgHours = avgMs / (1000 * 60 * 60);
-        if (avgHours < 24) {
-          avgText = `${avgHours.toFixed(1)} h`;
-        } else {
-          const avgDays = avgHours / 24;
-          avgText = `${avgDays.toFixed(1)} d`;
-        }
-      }
-      
-      setClaimsStats({
-        pendingCount: pending,
-        resolvedLastMonth: resolvedLastMonthCount,
-        avgResolutionTimeText: avgText
-      });
+      setPendingClaimsList(list);
     }, (error) => {
-      console.error("Error listening to claims:", error);
+      console.error("Error listening to pending claims:", error);
+    });
+
+    const qRecentClaims = query(
+      collection(db, "claims"), 
+      where("timestamp", ">=", thirtyDaysAgo), 
+      limit(100)
+    );
+    const unsubRecentClaims = onSnapshot(qRecentClaims, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setRecentClaimsList(list);
+    }, (error) => {
+      console.error("Error listening to recent claims:", error);
     });
 
     return () => {
@@ -328,7 +352,8 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       unsubProducts();
       unsubTransactions();
       unsubExpenses();
-      unsubClaims();
+      unsubPendingClaims();
+      unsubRecentClaims();
     };
   }, []);
 

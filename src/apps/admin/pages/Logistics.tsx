@@ -619,88 +619,133 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
       </div>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
-        <div className="text-center md:text-left">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6 pb-2 border-b border-slate-100">
+        <div className="text-center lg:text-left">
           <h1 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tight">Logística</h1>
-          <p className="text-xs md:text-slate-500 font-medium mt-1">Recepción y despacho profesional.</p>
+          <p className="text-xs md:text-slate-500 font-medium mt-1">Recepción, despacho y control de bodega.</p>
         </div>
         
-        <div className="bg-white p-1 rounded-2xl md:rounded-[1.5rem] border border-slate-200 flex shadow-sm w-full md:w-auto overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap shrink-0 gap-1">
-          <button 
+        {/* Tier 1 Primary Switcher */}
+        <div className="bg-slate-100 p-1.5 rounded-2xl border border-slate-200/60 flex shadow-inner w-full lg:w-auto overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap shrink-0 gap-1.5 self-center">
+          <button
             type="button"
             onClick={() => setMode("reception")}
             className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
-              mode === "reception" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" : "text-slate-400 hover:bg-slate-50"
+              "flex-1 md:flex-none px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center whitespace-nowrap space-x-2",
+              (mode === "reception" || mode === "dispatch")
+                ? "bg-white text-slate-900 shadow-sm border border-slate-200/50"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             )}
           >
-            <ArrowDownLeft size={13} />
-            <span>Recepción</span>
+            <Package size={14} className="text-indigo-600" />
+            <span>📦 Flujos de Bodega</span>
           </button>
-          <button 
-            type="button"
-            onClick={() => setMode("dispatch")}
-            className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
-              mode === "dispatch" ? "bg-rose-600 text-white shadow-lg shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
-            )}
-          >
-            <ArrowUpRight size={13} />
-            <span>Despacho</span>
-          </button>
-          <button 
-            type="button"
-            onClick={() => setMode("audit")}
-            className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
-              mode === "audit" ? "bg-purple-600 text-white shadow-lg shadow-purple-100" : "text-slate-400 hover:bg-slate-50"
-            )}
-            title="Tomas de Inventario Físico"
-          >
-            <Barcode size={13} />
-            <span>Auditoría</span>
-          </button>
-          <button 
-            type="button"
-            onClick={() => setMode("alerts")}
-            className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
-              mode === "alerts" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
-            )}
-            title="Stock Crítico y Analíticas"
-          >
-            <Bell size={13} />
-            <span>Alertas y KPIs</span>
-          </button>
-          <button 
+          <button
             type="button"
             onClick={() => setMode("shipments")}
             className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
-              mode === "shipments" ? "bg-slate-900 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
+              "flex-1 md:flex-none px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center whitespace-nowrap space-x-2 relative",
+              (mode !== "reception" && mode !== "dispatch")
+                ? "bg-white text-slate-900 shadow-sm border border-slate-200/50"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             )}
-            title="Monitoreo de Despachos"
           >
-            <Truck size={13} />
-            <span>Despachos</span>
-          </button>
-          <button 
-            type="button"
-            onClick={() => setMode("claims")}
-            className={cn(
-              "flex-1 md:flex-none shrink-0 px-3 md:px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap relative",
-              mode === "claims" ? "bg-rose-600 text-white shadow-lg shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
-            )}
-            title="Reclamos de Soporte"
-          >
-            <AlertCircle size={13} />
-            <span>Reclamos</span>
-            {pendingClaimsCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 bg-red-600 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-md animate-pulse">
+            <TrendingUp size={14} className="text-indigo-600" />
+            <span>📊 Control y Soporte</span>
+            {pendingClaimsCount > 0 && (mode === "reception" || mode === "dispatch") && (
+              <span className="ml-1.5 px-1.5 py-0.5 bg-rose-600 text-white rounded-full text-[9px] font-black animate-pulse inline-flex items-center justify-center min-w-[16px] h-4">
                 {pendingClaimsCount}
               </span>
             )}
           </button>
+        </div>
+      </div>
+
+      {/* Tier 2 Secondary Sub-pills */}
+      <div className="flex flex-col items-center justify-center py-1">
+        <div className="bg-white p-1 rounded-xl md:rounded-2xl border border-slate-200/80 flex shadow-xs max-w-full overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap gap-1">
+          {(mode === "reception" || mode === "dispatch") ? (
+            <>
+              <button 
+                type="button"
+                onClick={() => setMode("reception")}
+                className={cn(
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  mode === "reception" ? "bg-emerald-600 text-white shadow-md shadow-emerald-100" : "text-slate-400 hover:bg-slate-50"
+                )}
+              >
+                <ArrowDownLeft size={13} />
+                <span>Recepción de Mercadería</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setMode("dispatch")}
+                className={cn(
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  mode === "dispatch" ? "bg-rose-600 text-white shadow-md shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
+                )}
+              >
+                <ArrowUpRight size={13} />
+                <span>Despacho de Stock</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                type="button"
+                onClick={() => setMode("shipments")}
+                className={cn(
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  mode === "shipments" ? "bg-slate-900 text-white shadow-md shadow-slate-100" : "text-slate-400 hover:bg-slate-50"
+                )}
+                title="Monitoreo de Despachos"
+              >
+                <Truck size={13} />
+                <span>Monitoreo Despachos</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setMode("audit")}
+                className={cn(
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  mode === "audit" ? "bg-purple-600 text-white shadow-md shadow-purple-100" : "text-slate-400 hover:bg-slate-50"
+                )}
+                title="Tomas de Inventario Físico"
+              >
+                <Barcode size={13} />
+                <span>Auditoría Física</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setMode("alerts")}
+                className={cn(
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  mode === "alerts" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
+                )}
+                title="Stock Crítico y Analíticas"
+              >
+                <Bell size={13} />
+                <span>Alertas y KPIs</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setMode("claims")}
+                className={cn(
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap relative",
+                  mode === "claims" ? "bg-rose-600 text-white shadow-md shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
+                )}
+                title="Reclamos de Soporte"
+              >
+                <AlertCircle size={13} />
+                <span>Reclamos</span>
+                {pendingClaimsCount > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 bg-rose-600 text-white text-[9px] font-black flex items-center justify-center rounded-full border border-white shadow-xs animate-pulse">
+                    {pendingClaimsCount}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

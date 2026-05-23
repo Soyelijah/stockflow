@@ -173,31 +173,52 @@ export function Transactions() {
   };
 
 
-  const exportToCSV = () => {
-    const headers = ["ID Orden", "Fecha", "Tipo", "Producto", "Monto", "Efectivo", "Tarjeta", "Digital", "Cajero", "Notas"];
-    const rows = filteredTransactions.map(tx => [
-      tx.orderId || tx.id,
-      tx.timestamp?.toDate ? formatDate(tx.timestamp.toDate()) : "",
-      tx.type === "sale" ? "Venta" : tx.type === "in" ? "Entrada" : "Salida",
-      tx.productName,
-      tx.amount || 0,
-      tx.paymentBreakdown?.efectivo || 0,
-      tx.paymentBreakdown?.tarjeta || 0,
-      tx.paymentBreakdown?.digital || 0,
-      tx.userName || "Sistema",
-      tx.note || ""
-    ]);
+  const isOnlyAdmin = profile?.role === 'admin';
 
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers, ...rows].map(e => e.join(",")).join("\n");
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `transacciones_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const exportToCSV = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, "transactions"), orderBy("timestamp", "desc")));
+      const allTx = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+
+      const headers = ["Fecha", "Producto", "Tipo", "Cantidad", "Monto", "Usuario"];
+      
+      const rows = allTx.map(tx => {
+        const dateStr = tx.timestamp?.toDate 
+          ? formatDate(tx.timestamp.toDate()) 
+          : (tx.timestamp ? formatDate(new Date(tx.timestamp)) : "S/F");
+        
+        let productsDesc = "";
+        let quantity = 0;
+        
+        if (Array.isArray(tx.items)) {
+          productsDesc = tx.items.map((i: any) => `${i.productName || i.name || "Producto"}`).join(" | ");
+          quantity = tx.items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
+        } else {
+          productsDesc = tx.productName || "Gastos / Ajuste";
+          quantity = Number(tx.quantity) || 0;
+        }
+
+        const escapedProducts = `"${productsDesc.replace(/"/g, '""')}"`;
+        const type = tx.type === "sale" ? "Venta" : (tx.type === "reception" ? "Recepción" : tx.type || "Ajuste");
+        const amount = Number(tx.totalAmount) || Number(tx.amount) || 0;
+        const userStr = `"${(tx.userName || tx.userEmail || "Sistema").replace(/"/g, '""')}"`;
+
+        return [dateStr, escapedProducts, type, quantity, amount, userStr].join(",");
+      });
+
+      const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `transacciones_completas_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Error al exportar transacciones a CSV:", err);
+      alert("Error al exportar transacciones.");
+    }
   };
 
   return (
@@ -215,14 +236,16 @@ export function Transactions() {
         </div>
         {isAdmin && (
           <div className="flex items-center space-x-2">
-            <button 
-              onClick={exportToCSV}
-              className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2 text-sm"
-            >
-              <Download size={18} />
-              <span>Exportar CSV</span>
-            </button>
-            <button className="bg-white text-slate-700 font-bold px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center space-x-2 text-sm">
+            {isOnlyAdmin && (
+              <button 
+                onClick={exportToCSV}
+                className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2 text-sm"
+              >
+                <Download size={18} />
+                <span>Exportar CSV</span>
+              </button>
+            )}
+            <button className="bg-white text-slate-700 font-bold px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center space-x-2 text-sm" type="button">
               <Filter size={18} />
               <span>Filtros Avanzados</span>
             </button>
