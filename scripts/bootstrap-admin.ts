@@ -4,10 +4,12 @@ import * as dotenv from "dotenv";
 // Cargar variables de entorno desde .env.local en la raíz
 dotenv.config({ path: ".env.local" });
 
-// Inicializar la aplicación con las credenciales locales (necesita GOOGLE_APPLICATION_CREDENTIALS o variables configuradas)
+// Inicializar la aplicación con las credenciales locales
 if (!admin.apps.length) {
+  const projectId = process.env.FIREBASE_PROJECT_ID || "workspace-mcp-493503";
+  console.log(`ℹ️ Inicializando Firebase Admin para el proyecto: ${projectId}`);
   admin.initializeApp({
-    projectId: "workspace-mcp-493503",
+    projectId,
     credential: admin.credential.applicationDefault()
   });
 }

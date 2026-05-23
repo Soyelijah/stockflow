@@ -30,7 +30,7 @@ import { useSettings } from "../../contexts/SettingsContext";
 import { cn } from "../../lib/utils";
 import { collection, query, onSnapshot, where, getDocs, limit, orderBy } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { isAdmin, isAdminOrManager, isLogistics, isSeller } from "../../lib/roles";
+import { isAdmin, isAdminOrManager, isLogistics, isOwner, isSeller } from "../../lib/roles";
 import { motion, AnimatePresence } from "motion/react";
 
 import { formatCurrency } from "../../lib/utils";
@@ -366,7 +366,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   ];
 
   const filteredNavItems = navItems
-    .filter(item => profile?.role === "owner" || item.roles.includes(profile?.role || ""))
+    .filter(item => isOwner(profile?.role) || item.roles.includes(profile?.role || ""))
     .filter(item => item.id !== "logistics" || settings.deliveryEnabled !== false);
 
   return (
