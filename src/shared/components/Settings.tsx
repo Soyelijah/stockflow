@@ -31,7 +31,7 @@ import { motion } from "motion/react";
 import { useAuth } from "../../contexts/AuthContext";
 
 export function Settings() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<"general" | "users" | "audit">("general");
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -50,7 +50,12 @@ export function Settings() {
     setIsAuditLoading(true);
     setAuditError(null);
     try {
-      const res = await fetch(`/api/audit/logs?limit=${auditPageSize}`);
+      const token = await user?.getIdToken();
+      const res = await fetch(`/api/audit/logs?limit=${auditPageSize}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -333,17 +338,25 @@ export function Settings() {
         }
         
         // Asynchronously post to our new secure centralized audit log
-        fetch("/api/audit/log", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            operatorEmail: profile?.email || "admin@stockflow.com",
-            operatorUid: profile?.uid || "sys",
-            action: "ROLE_CHANGE",
-            targetId: userId,
-            details: { previousRole, newRole }
-          })
-        }).catch(err => console.error("Failed to post audit log:", err));
+        (async () => {
+          try {
+            const token = await user?.getIdToken();
+            await fetch("/api/audit/log", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                action: "ROLE_CHANGE",
+                targetId: userId,
+                details: { previousRole, newRole }
+              })
+            });
+          } catch (err) {
+            console.error("Failed to post audit log:", err);
+          }
+        })();
 
         alert(`Rol actualizado correctamente a ${newRole} mediante Cloud Function`);
       } else {

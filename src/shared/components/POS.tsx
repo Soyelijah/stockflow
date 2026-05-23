@@ -68,7 +68,7 @@ interface PaymentBreakdown {
 }
 
 export function POS() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { settings } = useSettings();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -746,9 +746,13 @@ export function POS() {
       // If customer has email, send receipt
       if (selectedCustomer?.email) {
         try {
+          const token = await user?.getIdToken();
           await fetch("/api/send-receipt", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
             body: JSON.stringify({
               customerEmail: selectedCustomer.email,
               orderDetails: {

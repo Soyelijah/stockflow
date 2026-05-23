@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { auth } from '../../lib/firebase';
 
 interface MercadoPagoWalletProps {
   amount: number;
@@ -59,10 +60,14 @@ export function MercadoPagoWallet({ amount, onSuccess, onError }: MercadoPagoWal
             },
             onSubmit: async (formData: any) => {
               try {
+                const token = await auth.currentUser?.getIdToken();
                 // Request to backend to process payment
                 const response = await fetch('/api/mercadopago/process-payment', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
                   body: JSON.stringify({
                     ...formData,
                     transaction_amount: amount,

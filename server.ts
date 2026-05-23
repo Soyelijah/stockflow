@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
+import helmet from "helmet";
 
 import { barcodeRouter, healthCheck as barcodeHealth } from "./server/routes/barcode";
 import { paymentsRouter, healthCheck as paymentsHealth } from "./server/routes/payments";
@@ -12,6 +13,7 @@ import { aiRouter, healthCheck as aiHealth } from "./server/routes/ai";
 import { startLowStockMonitor } from "./server/services/lowStockMonitor";
 import { shrinkageRouter, healthCheck as shrinkageHealth } from "./server/routes/shrinkage";
 import { auditRouter, expressAuditMiddleware, healthCheck as auditHealth } from "./server/routes/audit";
+import { requireAuth } from "./server/middleware/requireAuth";
 
 dotenv.config();
 
@@ -49,6 +51,37 @@ async function startServer() {
   };
 
   app.use(cors(corsOptions));
+
+  // Security Headers configuration
+  if (process.env.NODE_ENV === "production") {
+    app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://www.googletagmanager.com"],
+          styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind 4 inline
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: [
+            "'self'",
+            "https://firestore.googleapis.com",
+            "https://identitytoolkit.googleapis.com",
+            "https://api.flow.cl",
+            "https://api.mercadopago.com"
+          ],
+          frameAncestors: ["'none'"]
+        }
+      },
+      hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+      frameguard: { action: "deny" },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" }
+    }));
+  } else {
+    // Relaxed helmet in development to not break HMR / local server WebSocket connections
+    app.use(helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false
+    }));
+  }
 
   // Rate Limiting Config
   const generalLimiter = rateLimit({
@@ -112,12 +145,12 @@ async function startServer() {
   });
 
   // Delegating to Modular Endpoint Routers (Decoupled Backends)
-  app.use("/api", barcodeRouter);
-  app.use("/api", paymentsRouter);
-  app.use("/api", commsRouter);
-  app.use("/api", aiRouter);
-  app.use("/api", shrinkageRouter);
-  app.use("/api", auditRouter);
+  app.use("/api", requireAuth, barcodeRouter);
+  app.use("/api", paymentsRouter); // Public webhooks endpoint; inner sensitive endpoints are protected
+  app.use("/api", requireAuth, commsRouter);
+  app.use("/api", aiRouter); // Inner routes handle authentication and roles check
+  app.use("/api", requireAuth, shrinkageRouter);
+  app.use("/api", requireAuth, auditRouter);
 
   // Vite development compiler integration or static production delivery
   if (process.env.NODE_ENV !== "production") {

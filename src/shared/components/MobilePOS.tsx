@@ -62,7 +62,7 @@ interface CartItem {
 }
 
 export function MobilePOS() {
-  const { profile, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const { settings } = useSettings();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -792,9 +792,13 @@ export function MobilePOS() {
         if (selectedCustomer?.email) {
           setEmailSentTo(selectedCustomer.email);
           try {
+            const token = await user?.getIdToken();
             await fetch("/api/send-receipt", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
               body: JSON.stringify({
                 customerEmail: selectedCustomer.email,
                 orderDetails,
