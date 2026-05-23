@@ -210,7 +210,8 @@ export function Profile() {
             <h3 className="text-xl font-black text-slate-800">{profile?.name}</h3>
             <div className="mt-2 inline-flex items-center px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">
               <Shield size={12} className="mr-1.5" />
-              {profile?.role === "admin" ? "Administrador de Sistemas" :
+              {profile?.role === "owner" ? "Dueño / Propietario" :
+               profile?.role === "admin" ? "Administrador de Sistemas" :
                profile?.role === "manager" ? "Jefe de Local / Administración" :
                profile?.role === "seller" ? "Vendedor / Cajero" :
                profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role}
@@ -365,6 +366,7 @@ export function Profile() {
               <h4 className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">Seguridad de la Cuenta</h4>
               <p className="text-[11px] text-amber-700/70 font-medium leading-relaxed">
                 Tu rol de <strong>{
+                  profile?.role === "owner" ? "Dueño / Propietario" :
                   profile?.role === "admin" ? "Administrador de Sistemas" :
                   profile?.role === "manager" ? "Jefe de Local / Administración" :
                   profile?.role === "seller" ? "Vendedor / Cajero" :

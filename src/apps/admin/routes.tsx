@@ -1,20 +1,22 @@
 import React from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { Dashboard } from "../../shared/components/Dashboard";
-import { Inventory } from "../../shared/components/Inventory";
-import { POS } from "../../shared/components/POS";
-import { Transactions } from "../../shared/components/Transactions";
-import { Suppliers } from "../../shared/components/Suppliers";
-import { Expenses } from "../../shared/components/Expenses";
-import { Settings } from "../../shared/components/Settings";
-import { StockLedger } from "../../shared/components/StockLedger";
-import { Logistics } from "../../shared/components/Logistics";
-import { Customers } from "../../shared/components/Customers";
-import { Profile } from "../../shared/components/Profile";
-import { MobilePOS } from "../../shared/components/MobilePOS";
 import { Layout } from "../../shared/components/Layout";
 import { motion, AnimatePresence } from "motion/react";
+
+// Lazy load individual page components to split the admin route chunk into smaller assets (~100-200 KB each)
+const Dashboard = React.lazy(() => import("../../shared/components/Dashboard").then(m => ({ default: m.Dashboard })));
+const Inventory = React.lazy(() => import("../../shared/components/Inventory").then(m => ({ default: m.Inventory })));
+const POS = React.lazy(() => import("../../shared/components/POS").then(m => ({ default: m.POS })));
+const Transactions = React.lazy(() => import("../../shared/components/Transactions").then(m => ({ default: m.Transactions })));
+const Suppliers = React.lazy(() => import("../../shared/components/Suppliers").then(m => ({ default: m.Suppliers })));
+const Expenses = React.lazy(() => import("../../shared/components/Expenses").then(m => ({ default: m.Expenses })));
+const Settings = React.lazy(() => import("../../shared/components/Settings").then(m => ({ default: m.Settings })));
+const StockLedger = React.lazy(() => import("../../shared/components/StockLedger").then(m => ({ default: m.StockLedger })));
+const Logistics = React.lazy(() => import("../../shared/components/Logistics").then(m => ({ default: m.Logistics })));
+const Customers = React.lazy(() => import("../../shared/components/Customers").then(m => ({ default: m.Customers })));
+const Profile = React.lazy(() => import("../../shared/components/Profile").then(m => ({ default: m.Profile })));
+const MobilePOS = React.lazy(() => import("../../shared/components/MobilePOS").then(m => ({ default: m.MobilePOS })));
 
 export function AdminRoutes() {
   const { profile } = useAuth();
@@ -25,17 +27,31 @@ export function AdminRoutes() {
   // No full desktop layout or sidebars for sellers - exactly what the CEO wanted
   if (profile?.role === "seller") {
     return (
-      <Routes>
-        <Route path="/" element={<MobilePOS />} />
-        <Route path="/mobile" element={<MobilePOS />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <React.Suspense fallback={
+        <div className="flex h-screen items-center justify-center bg-gray-50">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent shadow-md"></div>
+        </div>
+      }>
+        <Routes>
+          <Route path="/" element={<MobilePOS />} />
+          <Route path="/mobile" element={<MobilePOS />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </React.Suspense>
     );
   }
 
   // Pure Mobile POS Route for others (no sidebar/layout)
   if (location.pathname === "/mobile") {
-    return <MobilePOS />;
+    return (
+      <React.Suspense fallback={
+        <div className="flex h-screen items-center justify-center bg-gray-50">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent shadow-md"></div>
+        </div>
+      }>
+        <MobilePOS />
+      </React.Suspense>
+    );
   }
 
   // Map path to a page label/string for navbar highlight
@@ -71,21 +87,27 @@ export function AdminRoutes() {
           transition={{ duration: 0.2 }}
           className="container mx-auto p-1 sm:p-4 md:p-6"
         >
-          <Routes>
-            <Route path="/" element={<Dashboard onNavigate={handleNavigate} />} />
-            <Route path="/dashboard" element={<Dashboard onNavigate={handleNavigate} />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/logistics" element={<Logistics onNavigate={handleNavigate} />} />
-            <Route path="/pos" element={<POS />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/suppliers" element={<Suppliers />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/kardex" element={<StockLedger />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+          <React.Suspense fallback={
+            <div className="flex h-[60vh] items-center justify-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent shadow-md"></div>
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<Dashboard onNavigate={handleNavigate} />} />
+              <Route path="/dashboard" element={<Dashboard onNavigate={handleNavigate} />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/logistics" element={<Logistics onNavigate={handleNavigate} />} />
+              <Route path="/pos" element={<POS />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/suppliers" element={<Suppliers />} />
+              <Route path="/expenses" element={<Expenses />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/kardex" element={<StockLedger />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </React.Suspense>
         </motion.div>
       </AnimatePresence>
     </Layout>

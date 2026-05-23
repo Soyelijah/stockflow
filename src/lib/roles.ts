@@ -1,31 +1,45 @@
-export type UserRole = "admin" | "manager" | "seller" | "logistics" | "driver" | "owner";
+export const ROLES = [
+  "owner",
+  "admin",
+  "manager",
+  "seller",
+  "logistics",
+  "driver"
+] as const;
 
-export const ROLES_WHITELIST: UserRole[] = ["admin", "manager", "seller", "logistics", "driver", "owner"];
+export type UserRole = typeof ROLES[number];
 
-export function isOwner(role: string | null | undefined): boolean {
+/**
+ * Checks if a role is the owner (super-admin).
+ */
+export function isOwner(role?: string | null): boolean {
   return role === "owner";
 }
 
-export function isAdmin(role: string | null | undefined): boolean {
-  return role === "admin" || role === "owner";
+/**
+ * Checks if a role has admin-level access (owner or admin).
+ */
+export function isAdmin(role?: string | null): boolean {
+  return role === "owner" || role === "admin";
 }
 
-export function isManager(role: string | null | undefined): boolean {
-  return role === "manager";
+/**
+ * Checks if a role has general management access (owner, admin, or manager).
+ */
+export function isAdminOrManager(role?: string | null): boolean {
+  return role === "owner" || role === "admin" || role === "manager";
 }
 
-export function isAdminOrManager(role: string | null | undefined): boolean {
-  return role === "admin" || role === "manager" || role === "owner";
+/**
+ * Checks if a role has logistics access.
+ */
+export function isLogistics(role?: string | null): boolean {
+  return role === "owner" || role === "admin" || role === "manager" || role === "logistics";
 }
 
-export function isSeller(role: string | null | undefined): boolean {
-  return role === "seller";
-}
-
-export function isLogistics(role: string | null | undefined): boolean {
-  return role === "logistics";
-}
-
-export function isDriver(role: string | null | undefined): boolean {
-  return role === "driver";
+/**
+ * Checks if a role has seller/POS access.
+ */
+export function isSeller(role?: string | null): boolean {
+  return role === "owner" || role === "admin" || role === "manager" || role === "seller";
 }
