@@ -12,12 +12,14 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../lib/firebase";
 import { cn } from "../lib/utils";
 
 export function Profile() {
   const { profile, user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -75,14 +77,64 @@ export function Profile() {
     return result;
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, photoURL: reader.result as string }));
+  const resizeImageToBlob = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          const size = Math.min(img.width, img.height);
+          const x = (img.width - size) / 2;
+          const y = (img.height - size) / 2;
+          ctx.drawImage(img, x, y, size, size, 0, 0, 256, 256);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("La conversión de imagen a Blob falló."));
+            }
+          }, "image/jpeg", 0.9);
+        } else {
+          reject(new Error("No se pudo obtener el contexto del canvas."));
+        }
       };
-      reader.readAsDataURL(file);
+      img.onerror = () => {
+        reject(new Error("Error al procesar la imagen elegida."));
+      };
+    });
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && user) {
+      try {
+        const localPreviewUrl = URL.createObjectURL(file);
+        setFormData(prev => ({ ...prev, photoURL: localPreviewUrl }));
+
+        setIsUploading(true);
+        const resizedBlob = await resizeImageToBlob(file);
+
+        const avatarRef = storageRef(storage, `profiles/${user.uid}/avatar.jpg`);
+        await uploadBytes(avatarRef, resizedBlob);
+
+        const downloadUrl = await getDownloadURL(avatarRef);
+
+        setFormData(prev => ({ ...prev, photoURL: downloadUrl }));
+        
+        await updateDoc(doc(db, "users", user.uid), {
+          photoURL: downloadUrl,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Error al subir archivo a Firebase Storage:", err);
+        alert("Error al subir imagen: " + (err instanceof Error ? err.message : String(err)));
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -122,29 +174,36 @@ export function Profile() {
         {/* Left: Avatar & Role */}
         <div className="md:col-span-1 space-y-6">
           <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm text-center">
-            <div className="relative inline-block mb-6 group">
-              <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-indigo-200 overflow-hidden">
-                {formData.photoURL ? (
-                  <img src={formData.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  profile?.name.charAt(0)
-                )}
+              <div className="relative inline-block mb-6 group">
+                <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-indigo-200 overflow-hidden relative">
+                  {formData.photoURL ? (
+                    <img src={formData.photoURL} alt="Profile" className="w-full h-full object-cover animate-fade-in" />
+                  ) : (
+                    profile?.name.charAt(0)
+                  )}
+                  {isUploading && (
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-indigo-500 border-t-white rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={handlePhotoUpload}
+                  className="hidden" 
+                  accept="image/*"
+                  disabled={isUploading}
+                />
+                <button 
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="absolute -bottom-2 -right-2 p-3 bg-white rounded-2xl border border-slate-100 shadow-lg text-slate-400 hover:text-indigo-600 transition-colors group-hover:scale-110 disabled:opacity-50"
+                >
+                  <Camera size={18} />
+                </button>
               </div>
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handlePhotoUpload}
-                className="hidden" 
-                accept="image/*"
-              />
-              <button 
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-2 -right-2 p-3 bg-white rounded-2xl border border-slate-100 shadow-lg text-slate-400 hover:text-indigo-600 transition-colors group-hover:scale-110"
-              >
-                <Camera size={18} />
-              </button>
-            </div>
             
             <h3 className="text-xl font-black text-slate-800">{profile?.name}</h3>
             <div className="mt-2 inline-flex items-center px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">

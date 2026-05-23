@@ -157,7 +157,10 @@ service cloud.firestore {
     }
 
     match /claims/{docId} {
-      allow read, write: if true;
+      allow create: if isSignedIn() && incoming().customerId == request.auth.uid;
+      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isLogistics());
+      allow update: if isAdmin() || isLogistics();
+      allow delete: if false;
     }
 
     match /inventory_audits/{docId} {

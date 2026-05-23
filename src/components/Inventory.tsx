@@ -37,7 +37,8 @@ import {
   ShoppingCart,
   Camera,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FileText
 } from "lucide-react";
 import { ModernAlert } from "./ui/ModernAlert";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
@@ -208,6 +209,40 @@ export function Inventory() {
   useEffect(() => {
     fetchProducts("init");
   }, []);
+
+  const handleExportCSV = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, "products"), orderBy("name")));
+      const allProds = snap.docs.map(doc => doc.data());
+
+      const headers = ["Nombre", "Categoría", "Precio", "Costo", "Stock Actual", "Stock Mínimo"];
+      const csvRows = [
+        headers.join(","),
+        ...allProds.map(p => {
+          const name = `"${(p.name || "").replace(/"/g, '""')}"`;
+          const category = `"${(p.category || "").replace(/"/g, '""')}"`;
+          const price = Number(p.price) || 0;
+          const cost = Number(p.costPrice) || 0;
+          const stock = Number(p.stock) || 0;
+          const min = Number(p.minThreshold) || 0;
+          return [name, category, price, cost, stock, min].join(",");
+        })
+      ];
+
+      const csvContent = "\uFEFF" + csvRows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `inventario_completo_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Error al exportar inventario a CSV:", err);
+      alert("Error al exportar inventario");
+    }
+  };
 
   const openModal = (product: any = null) => {
     if (product) {
@@ -542,13 +577,24 @@ export function Inventory() {
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Inventario Global</h1>
           <p className="text-slate-500 font-medium">Control total de existencias y valor de activos.</p>
         </div>
-        <button 
-          onClick={() => openModal()}
-          className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-2xl shadow-xl shadow-indigo-200 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all flex items-center space-x-2"
-        >
-          <Plus size={20} />
-          <span>Añadir Producto</span>
-        </button>
+        <div className="flex flex-wrap gap-3">
+          {isAdmin && (
+            <button
+              onClick={handleExportCSV}
+              className="bg-white border border-slate-200 text-slate-700 font-bold px-6 py-3 rounded-2xl shadow-sm hover:bg-slate-50 hover:-translate-y-0.5 transition-all flex items-center space-x-2"
+            >
+              <FileText size={18} className="text-amber-600" />
+              <span>Exportar CSV</span>
+            </button>
+          )}
+          <button 
+            onClick={() => openModal()}
+            className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-2xl shadow-xl shadow-indigo-200 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all flex items-center space-x-2"
+          >
+            <Plus size={20} />
+            <span>Añadir Producto</span>
+          </button>
+        </div>
       </header>
 
       {/* Smart Actions Panel */}
