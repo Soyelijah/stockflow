@@ -1,6 +1,8 @@
-import { Router } from "express";
+import { Router, Response } from "express";
 import crypto from "crypto";
 import { MercadoPagoConfig, Payment } from "mercadopago";
+import { z } from "zod";
+import { requireAuthBearer, AuthenticatedRequest } from "../services/security";
 
 export const paymentsRouter = Router();
 
@@ -29,26 +31,90 @@ function getFlowSignature(params: Record<string, any>) {
   return crypto.createHmac("sha256", FLOW_SECRET_KEY).update(query).digest("hex");
 }
 
+/**
+ * Verifica la firma HMAC de los webhooks de Mercado Pago
+ */
+function verifyMPSignature(req: any): boolean {
+  const secret = process.env.MP_WEBHOOK_SECRET;
+  if (!secret) {
+    console.warn("[verifyMPSignature] WARNING: MP_WEBHOOK_SECRET is not configured. Webhook signature check is bypassed.");
+    return true;
+  }
+
+  const xSig = req.headers['x-signature'] as string;
+  const xReqId = req.headers['x-request-id'] as string;
+  if (!xSig || !xReqId) return false;
+  
+  try {
+    const parts = Object.fromEntries(xSig.split(',').map(p => p.trim().split('=')));
+    const ts = parts.ts;
+    const v1 = parts.v1;
+    const dataId = req.query['data.id'] || req.body?.data?.id;
+    
+    if (!ts || !v1 || !dataId) return false;
+    
+    const manifest = `id:${dataId};request-id:${xReqId};ts:${ts};`;
+    const computed = crypto.createHmac('sha256', secret)
+                            .update(manifest).digest('hex');
+                            
+    const v1Buffer = Buffer.from(v1);
+    const computedBuffer = Buffer.from(computed);
+    if (v1Buffer.length !== computedBuffer.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(v1Buffer, computedBuffer);
+  } catch (err) {
+    console.error("[verifyMPSignature] Error parsing signature:", err);
+    return false;
+  }
+}
+
+// Zod schemas for input validation
+const MPProcessSchema = z.object({
+  token: z.string().min(5),
+  issuer_id: z.any().optional(),
+  payment_method_id: z.string().min(1),
+  transaction_amount: z.union([z.number(), z.string()]).transform((val) => Number(val)),
+  installments: z.union([z.number(), z.string()]).transform((val) => Number(val)),
+  description: z.string().max(250).optional(),
+  payer: z.object({
+    email: z.string().email()
+  })
+});
+
+const FlowCreatePaymentSchema = z.object({
+  amount: z.union([z.number(), z.string()]).transform((val) => Number(val)),
+  email: z.string().email(),
+  description: z.string().max(250),
+  externalId: z.string().max(100),
+  baseUrl: z.string().url()
+});
+
 /* ==========================================
    ROUTE: Mercado Pago Process
    ========================================== */
-paymentsRouter.post("/mercadopago/process-payment", async (req, res) => {
+paymentsRouter.post("/mercadopago/process-payment", requireAuthBearer as any, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!mpClient) {
       throw new Error("Mercado Pago no está configurado o requiere credenciales secretas.");
     }
 
-    const { token, issuer_id, payment_method_id, transaction_amount, installments, description, payer } = req.body;
+    const parsed = MPProcessSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Payload inválido", details: parsed.error.format() });
+    }
+
+    const { token, issuer_id, payment_method_id, transaction_amount, installments, description, payer } = parsed.data;
     
     const payment = new Payment(mpClient);
     const result = await payment.create({
       body: {
-        transaction_amount: Number(transaction_amount),
+        transaction_amount: transaction_amount,
         token,
-        description,
-        installments: Number(installments),
+        description: description || "Venta POS StockFlow",
+        installments: installments,
         payment_method_id,
-        issuer_id,
+        issuer_id: issuer_id ? Number(issuer_id) : undefined,
         payer,
         notification_url: `${req.protocol}://${req.get("host")}/api/payments/mercadopago/webhook`
       }
@@ -56,15 +122,19 @@ paymentsRouter.post("/mercadopago/process-payment", async (req, res) => {
 
     res.status(201).json(result);
   } catch (err: any) {
-    console.error("[Modular Payments MP ERROR]:", err);
+    console.error("[Payments MP ERROR]:", err);
     res.status(500).json({ error: err.message || "Error al procesar el pago con Mercado Pago" });
   }
 });
 
 paymentsRouter.post("/mercadopago/webhook", async (req, res) => {
+  if (!verifyMPSignature(req)) {
+    return res.status(401).json({ error: "Firma inválida del webhook de Mercado Pago" });
+  }
+
   const { action, data } = req.body;
   if (action === "payment.created" || action === "payment.updated") {
-    console.log(`[Modular Webhook] Mercado Pago status push received for ID: ${data?.id}`);
+    console.log(`[Webhook] Mercado Pago status push received for ID: ${data?.id}`);
   }
   res.sendStatus(200);
 });
@@ -74,13 +144,18 @@ paymentsRouter.post("/mercadopago/webhook", async (req, res) => {
    ========================================== */
 paymentsRouter.post("/flow/create-payment", async (req, res) => {
   try {
-    const { amount, email, description, externalId, baseUrl } = req.body;
+    const parsed = FlowCreatePaymentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Payload inválido", details: parsed.error.format() });
+    }
+
+    const { amount, email, description, externalId, baseUrl } = parsed.data;
 
     if (!FLOW_API_KEY || !FLOW_SECRET_KEY) {
       throw new Error("FLOW_API_KEY y/o FLOW_SECRET_KEY no se encuentran declarados.");
     }
 
-    const cleanAmount = Math.round(Number(amount));
+    const cleanAmount = Math.round(amount);
 
     const params: Record<string, any> = {
       apiKey: FLOW_API_KEY,
@@ -111,11 +186,11 @@ paymentsRouter.post("/flow/create-payment", async (req, res) => {
         token: data.token
       });
     } else {
-      console.error("[Modular Payments] Flow direct response error:", data);
+      console.error("[Payments] Flow direct response error:", data);
       res.status(400).json({ error: data.message || "Error devuelto por el servidor de Flow" });
     }
   } catch (err: any) {
-    console.error("[Modular Payments Flow ERROR]:", err);
+    console.error("[Payments Flow ERROR]:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -126,7 +201,7 @@ paymentsRouter.post("/flow/create-payment", async (req, res) => {
 paymentsRouter.post("/flow/confirm", async (req, res) => {
   try {
     const { token } = req.body;
-    if (!token) return res.status(400).send("No token");
+    if (!token || typeof token !== "string") return res.status(400).send("No token");
 
     // Verify payment authenticity and parse status with Flow endpoints
     const params = {
@@ -140,11 +215,11 @@ paymentsRouter.post("/flow/confirm", async (req, res) => {
     const response = await fetch(`${FLOW_URL}/payment/getStatus?${query}`);
     const statusData = await response.json();
 
-    console.log("[Modular Payments Confirmation Webhook]:", statusData);
+    console.log("[Payments Confirmation Webhook]:", statusData);
     
     res.send("ok");
   } catch (err) {
-    console.error("[Modular Payments Confirmation ERROR]:", err);
+    console.error("[Payments Confirmation ERROR]:", err);
     res.status(500).send("error");
   }
 });
@@ -155,11 +230,11 @@ paymentsRouter.post("/flow/confirm", async (req, res) => {
 paymentsRouter.get("/flow/payment-status", async (req, res) => {
   try {
     const { token } = req.query;
-    if (!token) return res.status(400).json({ error: "No token supplied in query params" });
+    if (!token || typeof token !== "string") return res.status(400).json({ error: "No token supplied in query params" });
 
     const params = {
       apiKey: FLOW_API_KEY,
-      token: token as string
+      token: token
     };
     
     const s = getFlowSignature(params);

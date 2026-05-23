@@ -180,18 +180,25 @@ export function Expenses() {
         try {
           await deleteDoc(doc(db, "expenses", id));
           
-          // Log deletion in our secure server audit logs
-          fetch("/api/audit/log", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              operatorEmail: user?.email || "sistema@stockflow.com",
-              operatorUid: user?.uid || "sys",
-              action: "EXPENSE_DELETED",
-              targetId: id,
-              details: { description }
-            })
-          }).catch(err => console.error("Audit log deletion failed:", err));
+          (async () => {
+            try {
+              const token = await user?.getIdToken();
+              await fetch("/api/audit/log", {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  action: "EXPENSE_DELETED",
+                  targetId: id,
+                  details: { description }
+                })
+              });
+            } catch (err) {
+              console.error("Audit log deletion failed:", err);
+            }
+          })();
 
           setAlertConfig((prev) => ({
             ...prev,
@@ -236,18 +243,25 @@ export function Expenses() {
         });
       }
 
-      // Log creation or alteration to centralized audit logging
-      fetch("/api/audit/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          operatorEmail: user?.email || "sistema@stockflow.com",
-          operatorUid: user?.uid || "sys",
-          action: editingExpense ? "EXPENSE_MODIFIED" : "EXPENSE_CREATED",
-          targetId: editingExpense ? editingExpense.id : "new-expense",
-          details: { ...formData, id: editingExpense?.id }
-        })
-      }).catch(err => console.error("Audit log submit failed:", err));
+      (async () => {
+        try {
+          const token = await user?.getIdToken();
+          await fetch("/api/audit/log", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              action: editingExpense ? "EXPENSE_MODIFIED" : "EXPENSE_CREATED",
+              targetId: editingExpense ? editingExpense.id : "new-expense",
+              details: { ...formData, id: editingExpense?.id }
+            })
+          });
+        } catch (err) {
+          console.error("Audit log submit failed:", err);
+        }
+      })();
 
       setIsModalOpen(false);
       setEditingExpense(null);

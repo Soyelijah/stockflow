@@ -13,6 +13,7 @@ import { aiRouter, healthCheck as aiHealth } from "./server/routes/ai";
 import { startLowStockMonitor } from "./server/services/lowStockMonitor";
 import { shrinkageRouter, healthCheck as shrinkageHealth } from "./server/routes/shrinkage";
 import { auditRouter, expressAuditMiddleware, healthCheck as auditHealth } from "./server/routes/audit";
+import { requireAuthBearer } from "./server/services/security";
 
 dotenv.config();
 
@@ -56,6 +57,37 @@ async function startServer() {
   };
 
   app.use(cors(corsOptions));
+
+  // Security Headers configuration
+  if (process.env.NODE_ENV === "production") {
+    app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://www.googletagmanager.com"],
+          styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind 4 inline
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: [
+            "'self'",
+            "https://firestore.googleapis.com",
+            "https://identitytoolkit.googleapis.com",
+            "https://api.flow.cl",
+            "https://api.mercadopago.com"
+          ],
+          frameAncestors: ["'none'"]
+        }
+      },
+      hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+      frameguard: { action: "deny" },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" }
+    }));
+  } else {
+    // Relaxed helmet in development to not break HMR / local server WebSocket connections
+    app.use(helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false
+    }));
+  }
 
   // Rate Limiting Config
   const generalLimiter = rateLimit({
@@ -119,7 +151,7 @@ async function startServer() {
   });
 
   // Delegating to Modular Endpoint Routers (Decoupled Backends)
-  app.use("/api", barcodeRouter);
+  app.use("/api", requireAuthBearer as any, barcodeRouter);
   app.use("/api", paymentsRouter);
   app.use("/api", commsRouter);
   app.use("/api", aiRouter);

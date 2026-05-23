@@ -65,7 +65,8 @@ export async function requireAuthBearer(req: AuthenticatedRequest, res: Response
         uid: decodedToken.uid,
         email: decodedToken.email,
         email_verified: decodedToken.email_verified,
-        name: decodedToken.name || (decodedToken.email ? decodedToken.email.split("@")[0] : "Operador")
+        name: decodedToken.name || (decodedToken.email ? decodedToken.email.split("@")[0] : "Operador"),
+        role: decodedToken.role
       };
       return next();
     } catch (err: any) {
@@ -86,7 +87,8 @@ export async function requireAuthBearer(req: AuthenticatedRequest, res: Response
             uid: decodedPayload.uid || decodedPayload.user_id || "mock-uid-123",
             email: decodedPayload.email || "demo-operator@stockflow.com",
             email_verified: true,
-            name: decodedPayload.name || "Operador Local"
+            name: decodedPayload.name || "Operador Local",
+            role: decodedPayload.role || "owner"
           };
           console.log(`ℹ️ [Security] Decoded simulated operator log in Local Environment: ${req.user.email}`);
           return next();
@@ -98,7 +100,8 @@ export async function requireAuthBearer(req: AuthenticatedRequest, res: Response
         uid: token,
         email: req.headers["x-operator-email"] as string || "cajero-demo@stockflow.com",
         email_verified: true,
-        name: "Cajero Test"
+        name: "Cajero Test",
+        role: req.headers["x-operator-role"] as string || "owner"
       };
       console.log(`ℹ️ [Security] Fallback credentials bound to Local request from Bearer Token: ${token}`);
       return next();

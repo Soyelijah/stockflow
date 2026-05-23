@@ -10,28 +10,60 @@ const db = getFirestore();
 
 // 1. HTTP Callable para definir roles (Custom Claims y DB Sync)
 export const setUserRole = onCall(async (request) => {
-  const { userId, role } = request.data || {};
-  
-  if (!userId || !role) {
-    throw new HttpsError("invalid-argument", "userId y role son requeridos.");
+  // 1. Verify caller is authenticated
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Only authenticated users can set roles.");
   }
 
-  const validRoles = ["admin", "manager", "seller", "logistics"];
-  if (!validRoles.includes(role)) {
-    throw new HttpsError("invalid-argument", "Rol inválido.");
+  const callerRole = request.auth.token.role || "customer";
+  const callerEmail = request.auth.token.email || "";
+
+  if (!["admin", "owner"].includes(callerRole)) {
+    throw new HttpsError("permission-denied", "Only admins and owners can modify roles.");
+  }
+
+  const { uid, userId, role } = request.data || {};
+  const targetUid = uid || userId; // Support both param names
+
+  if (!targetUid || typeof targetUid !== "string") {
+    throw new HttpsError("invalid-argument", "Missing or invalid 'userId' or 'uid' parameter.");
+  }
+
+  if (!role || typeof role !== "string") {
+    throw new HttpsError("invalid-argument", "Missing or invalid 'role' parameter.");
+  }
+
+  // Full role whitelist — all roles used in the app
+  const allowedRoles = ["owner", "admin", "manager", "seller", "logistics", "driver"];
+  if (!allowedRoles.includes(role)) {
+    throw new HttpsError("invalid-argument", `Role must be one of: ${allowedRoles.join(", ")}`);
+  }
+
+  // Only an owner can assign owner role
+  if (role === "owner" && callerRole !== "owner") {
+    throw new HttpsError("permission-denied", "Only an owner can assign the owner role.");
   }
 
   try {
     // 1. Establecer Custom Claims
-    await getAuth().setCustomUserClaims(userId, { role });
+    await getAuth().setCustomUserClaims(targetUid, { role });
     
     // 2. Actualizar documento de usuario en Firestore
-    await db.collection("users").doc(userId).set({
+    await db.collection("users").doc(targetUid).set({
       role: role,
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
 
-    return { success: true, message: `Rol ${role} asignado al usuario ${userId}.` };
+    // 3. Audit log — track every role change for compliance
+    await db.collection("role_audit").doc().set({
+      targetUid,
+      assignedRole: role,
+      assignedBy: request.auth.uid,
+      assignedByEmail: callerEmail,
+      timestamp: FieldValue.serverTimestamp()
+    });
+
+    return { success: true, message: `Rol ${role} asignado al usuario ${targetUid}.` };
   } catch (error: any) {
     console.error("Error en setUserRole:", error);
     throw new HttpsError("internal", error.message || "Error al asignar rol.");

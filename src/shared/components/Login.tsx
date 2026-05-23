@@ -100,7 +100,7 @@ export function Login() {
             matchedRole && 
             passwordToUse === matchedRole.defaultPass
           ) {
-            console.log(`Auto-provisioning real firebase auth account for ${emailToUse}...`);
+            console.log("Auto-provisioning real firebase auth account...");
             await register(emailToUse, passwordToUse, `Operador ${matchedRole.title}`, matchedRole.id);
             // Real login retry
             await login(emailToUse, passwordToUse);
@@ -179,7 +179,7 @@ export function Login() {
 
     // Since standard login with all common candidates failed, let's try to register it
     try {
-      console.log(`Sandbox: Trying primary registration for ${email}`);
+      console.log("Sandbox: Trying primary registration");
       await register(email, matched.defaultPass, `${matched.title} (Oficial)`, matched.id);
       await login(email, matched.defaultPass);
       setFormData({ email, password: matched.defaultPass });

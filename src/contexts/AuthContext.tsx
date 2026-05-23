@@ -10,11 +10,12 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
+import { UserRole } from "../lib/roles";
 
 interface UserProfile {
   uid: string;
   email: string | null;
-  role: "admin" | "manager" | "seller" | "logistics" | "driver" | "owner";
+  role: UserRole;
   name: string;
   photoURL?: string;
   avatarUrl?: string;
@@ -30,7 +31,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name: string, role?: "admin" | "manager" | "seller" | "logistics" | "driver" | "owner") => Promise<void>;
+  register: (email: string, pass: string, name: string, role?: UserRole) => Promise<void>;
   sendVerification: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -184,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const register = async (email: string, pass: string, name: string, role: "admin" | "manager" | "seller" | "logistics" = "seller") => {
+  const register = async (email: string, pass: string, name: string, role: UserRole = "seller") => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     
     // Send verification email
