@@ -10,6 +10,8 @@ import { paymentsRouter, healthCheck as paymentsHealth } from "./server/routes/p
 import { commsRouter, healthCheck as commsHealth } from "./server/routes/comms";
 import { aiRouter, healthCheck as aiHealth } from "./server/routes/ai";
 import { startLowStockMonitor } from "./server/services/lowStockMonitor";
+import { shrinkageRouter, healthCheck as shrinkageHealth } from "./server/routes/shrinkage";
+import { auditRouter, expressAuditMiddleware, healthCheck as auditHealth } from "./server/routes/audit";
 
 dotenv.config();
 
@@ -70,6 +72,7 @@ async function startServer() {
   // Global High-Capacity Middlewares for our Hybrid API Gateway
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(expressAuditMiddleware);
 
   // Apply Rate Limiters
   app.use("/api/ai/insights", aiLimiter);
@@ -81,12 +84,16 @@ async function startServer() {
     const paymentsStatus = paymentsHealth();
     const commsStatus = commsHealth();
     const aiStatus = aiHealth();
+    const shrinkageStatus = shrinkageHealth();
+    const auditStatus = auditHealth();
 
     const allOnline = 
       barcodeStatus.status === "online" && 
       paymentsStatus.status === "online" && 
       commsStatus.status === "online" && 
-      aiStatus.status === "online";
+      aiStatus.status === "online" &&
+      shrinkageStatus.status === "online" &&
+      auditStatus.status === "online";
 
     res.json({ 
       status: allOnline ? "online" : "degraded", 
@@ -97,7 +104,9 @@ async function startServer() {
         barcode: barcodeStatus,
         payments: paymentsStatus,
         comms: commsStatus,
-        ai: aiStatus
+        ai: aiStatus,
+        shrinkage: shrinkageStatus,
+        audit: auditStatus
       }
     });
   });
@@ -107,6 +116,8 @@ async function startServer() {
   app.use("/api", paymentsRouter);
   app.use("/api", commsRouter);
   app.use("/api", aiRouter);
+  app.use("/api", shrinkageRouter);
+  app.use("/api", auditRouter);
 
   // Vite development compiler integration or static production delivery
   if (process.env.NODE_ENV !== "production") {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { collection, query, onSnapshot, limit, orderBy, where, getDocs } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
   Package, 
   TrendingUp, 
@@ -17,11 +17,11 @@ import {
   Users,
   Smartphone
 } from "lucide-react";
-import { formatCurrency, cn } from "../../lib/utils";
+import { formatCurrency, cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
-import { useAuth } from "../../contexts/AuthContext";
-import { useSettings } from "../../contexts/SettingsContext";
-import { getStockInsights, StockInsight } from "../../services/aiService";
+import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
+import { getStockInsights, StockInsight } from "../services/aiService";
 
 const DashboardAreaChart = React.lazy(() => import("./DashboardCharts").then(m => ({ default: m.DashboardAreaChart })));
 const DashboardPieChart = React.lazy(() => import("./DashboardCharts").then(m => ({ default: m.DashboardPieChart })));

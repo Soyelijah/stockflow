@@ -178,7 +178,7 @@ export async function seedCustomersIfEmpty() {
         id: "cust-elijah-solier",
         name: "Elijah Solier",
         taxId: "25.551.228-5",
-        email: "elijah.solier@stockflow.com",
+        email: "solier.elijah@gmail.com",
         phone: "+56 9 1234 5678",
         points: 2450,
         balance: 45000,

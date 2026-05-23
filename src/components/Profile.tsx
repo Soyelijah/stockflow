@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { 
   User, 
   Mail, 
@@ -13,8 +13,8 @@ import {
 import { motion } from "motion/react";
 import { doc, updateDoc } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../../lib/firebase";
-import { cn } from "../../lib/utils";
+import { db, storage } from "../lib/firebase";
+import { cn } from "../lib/utils";
 
 export function Profile() {
   const { profile, user } = useAuth();

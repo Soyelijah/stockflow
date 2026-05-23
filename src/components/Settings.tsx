@@ -22,17 +22,17 @@ import {
   Trash2,
   Truck
 } from "lucide-react";
-import { collection, getDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, limit } from "firebase/firestore";
+import { collection, getDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { db, handleFirestoreError, OperationType, functions } from "../../lib/firebase";
-import { cn, formatChileanPhone } from "../../lib/utils";
+import { db, handleFirestoreError, OperationType, functions } from "../lib/firebase";
+import { cn, formatChileanPhone } from "../lib/utils";
 import { motion } from "motion/react";
 
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 
 export function Settings() {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<"general" | "users" | "audit">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "users">("general");
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
@@ -40,96 +40,6 @@ export function Settings() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any[] | null>(null);
 
-  // System Audit State
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [isAuditLoading, setIsAuditLoading] = useState(false);
-  const [auditError, setAuditError] = useState<string | null>(null);
-  const [auditPageSize, setAuditPageSize] = useState(25);
-
-  const fetchAuditLogs = async () => {
-    setIsAuditLoading(true);
-    setAuditError(null);
-    try {
-      const res = await fetch(`/api/audit/logs?limit=${auditPageSize}`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      if (data.success) {
-        setAuditLogs(data.logs || []);
-      } else {
-        throw new Error(data.error || "Fallo inesperado");
-      }
-    } catch (err: any) {
-      console.warn("Fallo al cargar registros en el backend, intentando snapshot directo...", err);
-      try {
-        const auditCol = collection(db, "role_audit");
-        const qDocs = query(auditCol, orderBy("timestamp", "desc"), limit(auditPageSize));
-        const snap = await getDocs(qDocs);
-        const fbLogs = snap.docs.map(doc => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            ...d,
-            timestamp: d.timestamp?.toDate ? d.timestamp.toDate().toISOString() : d.timestamp
-          };
-        });
-        setAuditLogs(fbLogs);
-      } catch (innerErr: any) {
-        console.error("Direct Firestore read fallback failed as well:", innerErr);
-        setAuditError(innerErr.message || String(innerErr));
-      }
-    } finally {
-      setIsAuditLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === "audit") {
-      fetchAuditLogs();
-    }
-  }, [activeTab, auditPageSize]);
-
-  // API Gateway Monitoring State
-  const [gatewayStatus, setGatewayStatus] = useState<any>(null);
-  const [isGatewayLoading, setIsGatewayLoading] = useState(false);
-  const [gatewayError, setGatewayError] = useState<string | null>(null);
-  const [latencyHistory, setLatencyHistory] = useState<number[]>([]);
-
-  // Function to query local API Gateway health endpoint with exact ms tracking
-  const checkGatewayHealth = async () => {
-    setIsGatewayLoading(true);
-    setGatewayError(null);
-    const startTime = performance.now();
-    try {
-      const res = await fetch("/api/health");
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      const endTime = performance.now();
-      const duration = Math.round(endTime - startTime);
-      setGatewayStatus({
-        ...data,
-        responseTime: duration
-      });
-      setLatencyHistory(prev => {
-        const updated = [...prev, duration];
-        if (updated.length > 5) updated.shift();
-        return updated;
-      });
-    } catch (err: any) {
-      console.warn("Error pinging API Gateway:", err);
-      setGatewayError(err.message || String(err));
-      setGatewayStatus((prev: any) => ({
-        ...(prev || {}),
-        status: "offline",
-        responseTime: 0
-      }));
-    } finally {
-      setIsGatewayLoading(false);
-    }
-  };
 
   const [coupons, setCoupons] = useState<any[]>([]);
   const [couponError, setCouponError] = useState("");
@@ -244,76 +154,34 @@ export function Settings() {
     const fetchUsers = async () => {
       if (profile?.role !== "admin") return;
       try {
-        // High-performance query leveraging the users collection index sorting by creation time
-        const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(50));
+        const q = query(collection(db, "users"));
         const snap = await getDocs(q);
         setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
       } catch (err) {
-        console.warn("Index-sorted user fetch warm-up failed, falling back to unordered list:", err);
-        try {
-          const qSimple = query(collection(db, "users"));
-          const snapSimple = await getDocs(qSimple);
-          setUsers(snapSimple.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
-        } catch (innerErr) {
-          console.error("Error fetching all users fallback:", innerErr);
-        }
+        console.error("Error fetching users:", err);
       }
     };
     fetchUsers();
   }, [profile?.role]);
 
-  useEffect(() => {
-    if (activeTab === "general") {
-      checkGatewayHealth();
-      const interval = setInterval(checkGatewayHealth, 10000); // 10 seconds interval
-      return () => clearInterval(interval);
-    }
-  }, [activeTab]);
-
   const handleSearchUser = async () => {
-    const term = searchEmail.trim();
+    const term = searchEmail.trim().toLowerCase();
     if (!term) {
       setSearchResult(null);
       return;
     }
     setIsSearching(true);
     try {
-      const termLower = term.toLowerCase();
-      // Optimized starts-with range query leveraging the users collection indexes
-      const qEmail = query(
-        collection(db, "users"),
-        where("email", ">=", termLower),
-        where("email", "<=", termLower + "\uf8ff")
+      const q = query(collection(db, "users"));
+      const snap = await getDocs(q);
+      const allUsers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      const matches = allUsers.filter((u: any) => 
+        (u.email && u.email.toLowerCase().includes(term)) ||
+        (u.name && u.name.toLowerCase().includes(term))
       );
-      const snapEmail = await getDocs(qEmail);
-      let results = snapEmail.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-
-      if (results.length === 0) {
-        const qName = query(
-          collection(db, "users"),
-          where("name", ">=", term),
-          where("name", "<=", term + "\uf8ff")
-        );
-        const snapName = await getDocs(qName);
-        const nameResults = snapName.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        results = [...results, ...nameResults];
-      }
-
-      const uniqueResults = Array.from(new Map(results.map(item => [item.id, item])).values());
-      setSearchResult(uniqueResults);
+      setSearchResult(matches);
     } catch (err) {
-      console.warn("Index-based search failed or missing, compiling fallback scan client-side:", err);
-      try {
-        const snap = await getDocs(collection(db, "users"));
-        const allUsers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        const matches = allUsers.filter((u: any) => 
-          (u.email && u.email.toLowerCase().includes(term.toLowerCase())) ||
-          (u.name && u.name.toLowerCase().includes(term.toLowerCase()))
-        );
-        setSearchResult(matches);
-      } catch (innerErr) {
-        console.error("Scanning users collection failed:", innerErr);
-      }
+      console.error("Error searching users:", err);
     } finally {
       setIsSearching(false);
     }
@@ -326,25 +194,10 @@ export function Settings() {
       const res: any = await setUserRoleCall({ userId, role: newRole });
       
       if (res.data?.success) {
-        const previousRole = users.find(u => u.id === userId)?.role || "unknown";
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
         if (searchResult) {
           setSearchResult(prev => prev ? prev.map(u => u.id === userId ? { ...u, role: newRole } : u) : null);
         }
-        
-        // Asynchronously post to our new secure centralized audit log
-        fetch("/api/audit/log", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            operatorEmail: profile?.email || "admin@stockflow.com",
-            operatorUid: profile?.uid || "sys",
-            action: "ROLE_CHANGE",
-            targetId: userId,
-            details: { previousRole, newRole }
-          })
-        }).catch(err => console.error("Failed to post audit log:", err));
-
         alert(`Rol actualizado correctamente a ${newRole} mediante Cloud Function`);
       } else {
         alert("Error: " + (res.data?.message || "No se pudo actualizar el rol"));
@@ -379,7 +232,7 @@ export function Settings() {
       </header>
 
       {/* Sub-tabs Navigation */}
-      <div className={cn("flex space-x-1 p-1 bg-slate-100 rounded-2xl", profile?.role === "admin" ? "max-w-xl" : "max-w-md")}>
+      <div className="flex space-x-1 p-1 bg-slate-100 rounded-2xl max-w-md">
         <button
           type="button"
           onClick={() => {
@@ -410,21 +263,6 @@ export function Settings() {
           <Users size={16} />
           <span>Gestión de Usuarios</span>
         </button>
-        {profile?.role === "admin" && (
-          <button
-            type="button"
-            onClick={() => setActiveTab("audit")}
-            className={cn(
-              "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2 border-none cursor-pointer outline-none",
-              activeTab === "audit" 
-                ? "bg-white text-slate-800 shadow-sm" 
-                : "text-slate-500 hover:text-slate-800 bg-transparent"
-            )}
-          >
-            <ShieldCheck size={16} />
-            <span>Auditoría</span>
-          </button>
-        )}
       </div>
 
       {activeTab === "general" && (
@@ -650,136 +488,6 @@ export function Settings() {
             </div>
 
           </div>
-
-          {/* API Gateway Health Monitor Card */}
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6 md:col-span-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-slate-100 text-slate-700 rounded-2xl flex items-center justify-center">
-                  <Globe size={24} className={cn(isGatewayLoading ? "animate-spin text-indigo-600" : "text-slate-600")} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-800 tracking-tight">API Gateway Health</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Estado y Latencia de Servicios Independientes</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={isGatewayLoading}
-                onClick={(e) => {
-                  e.preventDefault();
-                  checkGatewayHealth();
-                }}
-                className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-colors outline-none cursor-pointer border-none"
-              >
-                <RefreshCw size={12} className={cn(isGatewayLoading && "animate-spin")} />
-                <span>{isGatewayLoading ? "Ping..." : "Probar Conexión"}</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-100">
-              {/* Overall Status */}
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gateway Status</span>
-                <div className="flex items-center space-x-2">
-                  <span className={cn(
-                    "w-3 h-3 rounded-full animate-pulse",
-                    gatewayStatus?.status === "online" ? "bg-emerald-500" : gatewayStatus?.status === "degraded" ? "bg-amber-500" : "bg-rose-500"
-                  )} />
-                  <span className="text-sm font-extrabold uppercase tracking-wider text-slate-800">
-                    {gatewayStatus?.status === "online" ? "Operativo" : gatewayStatus?.status === "degraded" ? "Degradado" : gatewayStatus?.status === "offline" ? "Sin Conexión" : "Verificando..."}
-                  </span>
-                </div>
-              </div>
-
-              {/* Real-time Response Time */}
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiempo de Respuesta</span>
-                <p className="text-sm font-extrabold text-slate-800">
-                  {gatewayStatus?.status === "offline" ? (
-                    <span className="text-rose-500">Error / Timeout</span>
-                  ) : gatewayStatus?.responseTime ? (
-                    <span className={cn(
-                      gatewayStatus.responseTime < 150 ? "text-emerald-500" : gatewayStatus.responseTime < 350 ? "text-amber-500" : "text-rose-500"
-                    )}>
-                      {gatewayStatus.responseTime} <span className="text-xs text-slate-400 font-bold">ms</span>
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">Calculando...</span>
-                  )}
-                </p>
-              </div>
-
-              {/* Version & Arch details */}
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Versión de API</span>
-                <p className="text-xs font-black text-slate-700">
-                  v{gatewayStatus?.apiVersion || "2.0.0"} <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight bg-slate-200/50 px-1.5 py-0.5 rounded ml-1">{gatewayStatus?.architecture || "hybrid-modular"}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Micro Latency History Line */}
-            {latencyHistory.length > 0 && gatewayStatus?.status !== "offline" && (
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Historial de Ráfagas (ms)</span>
-                <div className="flex items-center space-x-3">
-                  {latencyHistory.map((pt, i) => (
-                    <div key={i} className="flex flex-col items-center">
-                      <span className={cn("text-[8px] font-mono font-bold", pt < 150 ? "text-emerald-500" : pt < 350 ? "text-amber-500" : "text-rose-500")}>
-                        {pt}ms
-                      </span>
-                      <div className="w-8 bg-slate-200 rounded-full h-1 mt-0.5 overflow-hidden">
-                        <div 
-                          className={cn("h-full rounded-full", pt < 150 ? "bg-emerald-500" : pt < 350 ? "bg-amber-500" : "bg-rose-500")}
-                          style={{ width: `${Math.min(100, Math.max(15, (pt / 500) * 100))}%` }} 
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Error Message if offline */}
-            {gatewayError && (
-              <div className="flex items-start space-x-2.5 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-700">
-                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-                <div className="text-xs">
-                  <p className="font-extrabold">Fallo en Conexión: {gatewayError}</p>
-                  <p className="text-[10px] font-medium leading-relaxed opacity-90 mt-0.5">El servidor de desarrollo no responde en `/api/health`. Certifique que el backend esté montado y escuchando peticiones en el puerto 3000.</p>
-                </div>
-              </div>
-            )}
-
-            {/* Individual Modular Diagnostics */}
-            {gatewayStatus?.modules && (
-              <div className="space-y-3.5">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Diagnóstico por Módulo</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {Object.entries(gatewayStatus.modules).map(([name, mod]: [string, any]) => (
-                    <div key={name} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between hover:bg-white hover:border-slate-200 transition-all">
-                      <div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{name === "barcode" ? "Código Barras" : name === "payments" ? "Pasarela Pago" : name === "comms" ? "Alertas/Comms" : name.toUpperCase()}</span>
-                        <p className="text-[10px] font-bold text-slate-700 leading-normal mt-0.5">{mod.message || mod.statusText || "Servicio en línea"}</p>
-                      </div>
-                      <div className="flex items-center space-x-1.5 mt-2 pt-2 border-t border-slate-200/50">
-                        <span className={cn(
-                          "w-2 h-2 rounded-full",
-                          mod.status === "online" ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
-                        )} />
-                        <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">
-                          {mod.status === "online" ? "OK" : "Error"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
         </div>
 
         {/* User Management removed from general tab */}
@@ -1103,111 +811,6 @@ export function Settings() {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === "audit" && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600">
-                  <ShieldCheck size={24} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Historial de Auditoría de Seguridad</h2>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Registros de mutación de privilegios y gastos</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <select
-                  value={auditPageSize}
-                  onChange={(e) => setAuditPageSize(Number(e.target.value))}
-                  className="bg-slate-50 border border-slate-100 text-xs font-bold rounded-xl px-3 py-2 text-slate-700 cursor-pointer"
-                >
-                  <option value={10}>10 registros</option>
-                  <option value={25}>25 registros</option>
-                  <option value={50}>50 registros</option>
-                  <option value={100}>100 registros</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={fetchAuditLogs}
-                  disabled={isAuditLoading}
-                  className="p-3 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-all cursor-pointer border-none flex items-center justify-center outline-none"
-                >
-                  <RefreshCw size={16} className={cn(isAuditLoading && "animate-spin")} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              {isAuditLoading && auditLogs.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 font-bold flex flex-col items-center justify-center space-y-2">
-                  <RefreshCw className="animate-spin text-slate-300" size={32} />
-                  <span>Cargando registros de auditoría...</span>
-                </div>
-              ) : auditError ? (
-                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-center text-rose-600 text-xs font-bold">
-                  {auditError}
-                </div>
-              ) : auditLogs.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 font-bold">
-                  No se registran eventos de auditoría todavía.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <th className="pb-4 pl-4">Fecha / Hora</th>
-                        <th className="pb-4">Operador (Email)</th>
-                        <th className="pb-4">Acción</th>
-                        <th className="pb-4">Target / ID</th>
-                        <th className="pb-4 pr-4">Detalles del Cambio</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {auditLogs.map((log: any) => {
-                        const dateStr = log.timestamp 
-                          ? new Date(log.timestamp).toLocaleString("es-CL") 
-                          : "Reciente";
-                        
-                        let badgeColor = "bg-slate-100 text-slate-700";
-                        if (log.action === "ROLE_CHANGE" || log.action?.includes("MUTATION")) {
-                          badgeColor = "bg-amber-50 border border-amber-100 text-amber-700";
-                        } else if (log.action?.includes("DELETED")) {
-                          badgeColor = "bg-rose-50 border border-rose-100 text-rose-700";
-                        } else if (log.action?.includes("CREATED")) {
-                          badgeColor = "bg-green-50 border border-green-100 text-green-700";
-                        }
-
-                        return (
-                          <tr key={log.id} className="text-xs text-slate-600 hover:bg-slate-50/50 transition-colors">
-                            <td className="py-4 pl-4 font-mono font-medium whitespace-nowrap text-slate-500">{dateStr}</td>
-                            <td className="py-4 font-bold text-slate-700 truncate max-w-[180px]">{log.operatorEmail || "sistema@stockflow.com"}</td>
-                            <td className="py-4">
-                              <span className={cn("px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider", badgeColor)}>
-                                {log.action || "SYSTEM_EVENT"}
-                              </span>
-                            </td>
-                            <td className="py-4 font-mono text-[10px] text-slate-400 truncate max-w-[120px]">{log.targetId || "N/A"}</td>
-                            <td className="py-4 pr-4">
-                              <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 max-w-sm overflow-hidden text-[10px] font-mono text-slate-500 whitespace-pre-wrap max-h-24 overflow-y-auto">
-                                {typeof log.details === "object" 
-                                  ? JSON.stringify(log.details, null, 2) 
-                                  : log.details || "Sin detalles adicionales"}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
           </div>
         </div>
