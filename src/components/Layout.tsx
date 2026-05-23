@@ -424,8 +424,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         <div className="p-4 border-t border-slate-100">
           {!isSidebarCollapsed && (
             <div className="bg-slate-50 rounded-2xl p-3 mb-4 flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
-                {profile?.name.charAt(0)}
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold overflow-hidden shrink-0">
+                {profile?.avatarUrl || profile?.photoURL ? (
+                  <img src={profile.avatarUrl || profile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  profile?.name.charAt(0)
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-slate-900 truncate">{profile?.name}</p>

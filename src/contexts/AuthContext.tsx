@@ -17,6 +17,7 @@ interface UserProfile {
   role: "admin" | "manager" | "seller" | "logistics";
   name: string;
   photoURL?: string;
+  avatarUrl?: string;
   phone?: string;
   rut?: string;
   birthday?: string;

@@ -127,6 +127,7 @@ export function Profile() {
         
         await updateDoc(doc(db, "users", user.uid), {
           photoURL: downloadUrl,
+          avatarUrl: downloadUrl,
           updatedAt: new Date().toISOString()
         });
       } catch (err) {
@@ -147,6 +148,7 @@ export function Profile() {
       await updateDoc(doc(db, "users", user.uid), {
         name: formData.name,
         photoURL: formData.photoURL,
+        avatarUrl: formData.photoURL,
         phone: formData.phone,
         rut: formData.rut,
         birthday: formData.birthday,

@@ -1,4 +1,4 @@
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onDocumentWritten, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
@@ -85,6 +85,42 @@ export const onProductStockChange = onDocumentWritten("products/{productId}", as
       await db.collection("notifications").doc(productId).delete();
     } catch (err) {
       console.error("Error borrando notificación de stock alto:", err);
+    }
+  }
+});
+
+// 3. Firestore Trigger for claims resolution
+export const onClaimResolved = onDocumentUpdated("claims/{claimId}", async (event) => {
+  const claimId = event.params.claimId;
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const beforeData = snapshot.before.data();
+  const afterData = snapshot.after.data();
+
+  if (!beforeData || !afterData) return;
+
+  // Si el campo status cambia a "resolved"
+  if (beforeData.status !== "resolved" && afterData.status === "resolved") {
+    const customerId = afterData.customerId;
+    if (!customerId) {
+      console.warn("No customerId found on resolved claim", claimId);
+      return;
+    }
+
+    try {
+      await db.collection("notifications").doc(`${customerId}_claim_${claimId}`).set({
+        type: "claim_resolved",
+        title: "Reclamo Resuelto",
+        message: `Tu reclamo con código #${claimId} ha sido resuelto por soporte.`,
+        claimId: claimId,
+        customerId: customerId,
+        resolvedAt: FieldValue.serverTimestamp(),
+        read: false
+      });
+      console.log(`Notification created for resolved claim: ${claimId} and customer: ${customerId}`);
+    } catch (err) {
+      console.error("Error creating claim resolution notification:", err);
     }
   }
 });

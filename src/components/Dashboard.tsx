@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { collection, query, onSnapshot, limit, orderBy, where } from "firebase/firestore";
+import { collection, query, onSnapshot, limit, orderBy, where, getDocs } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
   Package, 
@@ -313,47 +313,47 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       handleFirestoreError(error, OperationType.LIST, "expenses (Dashboard)");
     });
 
-    // Listen to claims for support metrics (Optimized Dual Queries)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Fetch claims once on load (instead of real-time listener) to optimize connections
+    const fetchClaims = async () => {
+      try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const qPendingClaims = query(
-      collection(db, "claims"), 
-      where("status", "!=", "resolved"), 
-      limit(100)
-    );
-    const unsubPendingClaims = onSnapshot(qPendingClaims, (snapshot) => {
-      const list: any[] = [];
-      snapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() });
-      });
-      setPendingClaimsList(list);
-    }, (error) => {
-      console.error("Error listening to pending claims:", error);
-    });
+        const qPendingClaims = query(
+          collection(db, "claims"), 
+          where("status", "!=", "resolved"), 
+          limit(100)
+        );
+        const pendingSnap = await getDocs(qPendingClaims);
+        const pendingList: any[] = [];
+        pendingSnap.forEach(doc => {
+          pendingList.push({ id: doc.id, ...doc.data() });
+        });
+        setPendingClaimsList(pendingList);
 
-    const qRecentClaims = query(
-      collection(db, "claims"), 
-      where("timestamp", ">=", thirtyDaysAgo), 
-      limit(100)
-    );
-    const unsubRecentClaims = onSnapshot(qRecentClaims, (snapshot) => {
-      const list: any[] = [];
-      snapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() });
-      });
-      setRecentClaimsList(list);
-    }, (error) => {
-      console.error("Error listening to recent claims:", error);
-    });
+        const qRecentClaims = query(
+          collection(db, "claims"), 
+          where("timestamp", ">=", thirtyDaysAgo), 
+          limit(100)
+        );
+        const recentSnap = await getDocs(qRecentClaims);
+        const recentList: any[] = [];
+        recentSnap.forEach(doc => {
+          recentList.push({ id: doc.id, ...doc.data() });
+        });
+        setRecentClaimsList(recentList);
+      } catch (error) {
+        console.error("Error fetching claims for dashboard stats:", error);
+      }
+    };
+
+    fetchClaims();
 
     return () => {
       unsubCust();
       unsubProducts();
       unsubTransactions();
       unsubExpenses();
-      unsubPendingClaims();
-      unsubRecentClaims();
     };
   }, []);
 
