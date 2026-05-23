@@ -6,8 +6,3 @@ coverage/
 *.log
 .env*
 !.env.example
-serviceAccountKey.json
-
-# Claude Code / Devlmer Ecosystem Engine ephemera
-.claude/__pycache__/
-.claude/logs/

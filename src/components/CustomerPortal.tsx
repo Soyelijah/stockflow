@@ -12,7 +12,7 @@ import {
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
-import { db } from "../../lib/firebase";
+import { db } from "../lib/firebase";
 import { 
   User, 
   Star, 
@@ -51,103 +51,16 @@ import {
   Ticket
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../../lib/utils";
-import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon, seedCustomersIfEmpty } from "../../lib/coupons";
-import { PHYSICAL_REWARDS_CATALOGUE, PhysicalReward } from "../../lib/rewards";
+import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../lib/utils";
+import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon, seedCustomersIfEmpty } from "../lib/coupons";
+import { PHYSICAL_REWARDS_CATALOGUE, PhysicalReward } from "../lib/rewards";
 import { ModernAlert } from "./ui/ModernAlert";
 import { QRCodeCanvas } from "qrcode.react";
 import { DeliveryMap } from "./DeliveryMap";
-import { useSettings } from "../../contexts/SettingsContext";
+import { useSettings } from "../contexts/SettingsContext";
 
 export function CustomerPortal() {
   const { settings } = useSettings();
-  const [lang, setLang] = useState<"es" | "en">("es");
-
-  const t = {
-    es: {
-      points: "Puntos Flow",
-      pointsAvailable: "Puntos Disponibles",
-      pointsRequired: "Puntos Requeridos",
-      pointsRemaining: "Puntos Restantes",
-      history: "Mi Historial",
-      claims: "Mis Reclamos",
-      activeClaims: "Reclamos Activos",
-      rewardsCatalog: "Catálogo de Canjes",
-      canjes: "Mis Canjes",
-      claimsForm: "Soporte y Reclamos",
-      enterRut: "Ingresar RUT o Email",
-      enterPassword: "Ingresa tu Contraseña",
-      login: "Iniciar Sesión",
-      logout: "Cerrar Sesión Móvil",
-      resolved: "Resuelto",
-      pending: "Pendiente",
-      approved: "Aprobado",
-      rejected: "Rechazado",
-      insufficientPoints: "Puntos Insuficientes",
-      pointsDeducted: "Puntos canjeados con éxito",
-      claimSuccess: "Reclamo enviado correctamente",
-      newClaim: "Radicar Nuevo Reclamo",
-      rut: "RUT Cliente",
-      orderId: "Número de Boleta",
-      reason: "Motivo del Reclamo",
-      description: "Detalle o Descripción",
-      submitClaim: "Radicar Reclamo",
-      available: "Disponibles",
-      myVouchers: "Mis Cupones",
-      challenges: "Desafíos",
-      shop: "Tienda Online",
-      home: "Inicio",
-      offers: "Mis Ofertas",
-      wallet: "Mi Billetera",
-      settings: "Configuración",
-      delivery: "Seguimiento Despacho",
-      claimDetails: "Detalles del Reclamo",
-      claimStatus: "Estado del Reclamo",
-      claimResolvedMessage: "Tu reclamo ha sido resuelto por soporte.",
-    },
-    en: {
-      points: "Flow Points",
-      pointsAvailable: "Available Points",
-      pointsRequired: "Points Required",
-      pointsRemaining: "Remaining Points",
-      history: "My History",
-      claims: "My Claims",
-      activeClaims: "Active Claims",
-      rewardsCatalog: "Redemption Catalog",
-      canjes: "My Redemptions",
-      claimsForm: "Support & Claims",
-      enterRut: "Enter RUT or Email",
-      enterPassword: "Enter your Password",
-      login: "Log In",
-      logout: "Log Out",
-      resolved: "Resolved",
-      pending: "Pending",
-      approved: "Approved",
-      rejected: "Rejected",
-      insufficientPoints: "Insufficient Points",
-      pointsDeducted: "Points successfully redeemed",
-      claimSuccess: "Claim submitted successfully",
-      newClaim: "File New Claim",
-      rut: "Customer RUT",
-      orderId: "Receipt Number",
-      reason: "Claim Reason",
-      description: "Description / Details",
-      submitClaim: "Submit Claim",
-      available: "Available",
-      myVouchers: "My Vouchers",
-      challenges: "Challenges",
-      shop: "Online Shop",
-      home: "Home",
-      offers: "My Offers",
-      wallet: "My Wallet",
-      settings: "Settings",
-      delivery: "Delivery Tracker",
-      claimDetails: "Claim Details",
-      claimStatus: "Claim Status",
-      claimResolvedMessage: "Your claim has been resolved by our support team.",
-    }
-  };
-
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -209,8 +122,6 @@ export function CustomerPortal() {
   const [activeHistorySubTab, setActiveHistorySubTab] = useState<"receipts" | "claims">("receipts");
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [claimOrderId, setClaimOrderId] = useState("");
-  const [claimCustomerTaxId, setClaimCustomerTaxId] = useState("");
-  const [taxIdError, setTaxIdError] = useState("");
   const [claimReason, setClaimReason] = useState("Llegó roto");
   const [claimDescription, setClaimDescription] = useState("");
   const [claimPhoto, setClaimPhoto] = useState("");
@@ -220,24 +131,6 @@ export function CustomerPortal() {
   const [rewardViewTab, setRewardViewTab] = useState<"available" | "vouchers" | "desafios">("available");
   const [confirmReward, setConfirmReward] = useState<PhysicalReward | null>(null);
   const [rewardCategory, setRewardCategory] = useState<string>("Todos");
-
-  const validateChileanRUT = (rut: string): boolean => {
-    if (!rut) return false;
-    const clean = rut.replace(/\./g, "").replace(/-/g, "").trim().toUpperCase();
-    if (clean.length < 2) return false;
-    const body = clean.slice(0, -1);
-    const dv = clean.slice(-1);
-    if (!/^\d+$/.test(body)) return false;
-    let sum = 0;
-    let mul = 2;
-    for (let i = body.length - 1; i >= 0; i--) {
-      sum += Number(body[i]) * mul;
-      mul = mul === 7 ? 2 : mul + 1;
-    }
-    const dvr = 11 - (sum % 11);
-    const expectedDv = dvr === 11 ? "0" : dvr === 10 ? "K" : String(dvr);
-    return dv === expectedDv;
-  };
 
   // States to handle larger catalogs (e.g., 1000+ products)
   const [searchTerm, setSearchTerm] = useState("");
@@ -1741,14 +1634,6 @@ export function CustomerPortal() {
         </button>
 
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setLang(prev => prev === "es" ? "en" : "es")}
-            className="px-3.5 py-2 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 rounded-2xl transition-all active:scale-95 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-indigo-100/50 shadow-inner"
-            title={lang === "es" ? "Switch to English" : "Cambiar a Español"}
-          >
-            🌐 {lang === "es" ? "EN" : "ES"}
-          </button>
-          
           <button 
             onClick={() => setShowNotifications(true)}
             className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-slate-600 transition-all relative active:scale-95"
@@ -2553,7 +2438,7 @@ export function CustomerPortal() {
             >
               <div className="flex items-center space-x-3 mb-4">
                 <button onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">{t[lang].history}</h3>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Mi Historial</h3>
               </div>
 
               {/* History Sub-Tabs */}
@@ -2568,7 +2453,7 @@ export function CustomerPortal() {
                       : "text-slate-400 hover:text-slate-700"
                   )}
                 >
-                  {lang === "es" ? "Mis Boletas" : "My Receipts"}
+                  Mis Boletas
                 </button>
                 <button
                   type="button"
@@ -2580,7 +2465,7 @@ export function CustomerPortal() {
                       : "text-slate-400 hover:text-slate-700"
                   )}
                 >
-                  {t[lang].claimsForm}
+                  Soporte y Reclamos
                   {claimsList.length > 0 && (
                     <span className="w-2 h-2 rounded-full bg-rose-500 border border-white" />
                   )}
@@ -2638,24 +2523,6 @@ export function CustomerPortal() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Botón para radicar reclamos con validación */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setClaimOrderId("");
-                      setClaimCustomerTaxId(customer?.taxId || "");
-                      setClaimReason("Llegó roto");
-                      setClaimDescription("");
-                      setClaimPhoto("");
-                      setTaxIdError("");
-                      setShowClaimModal(true);
-                    }}
-                    className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    <Plus size={14} />
-                    {lang === "es" ? "Radicar Nuevo Reclamo" : "File New Claim"}
-                  </button>
-
                   {/* Informational intro card */}
                   <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-950 shadow-md">
                     <div className="flex items-start space-x-3.5">
@@ -2663,13 +2530,9 @@ export function CustomerPortal() {
                         <AlertCircle size={20} />
                       </div>
                       <div className="text-left space-y-1">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
-                          {lang === "es" ? "Garantía de Satisfacción" : "Satisfaction Guarantee"}
-                        </h4>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">Garantía de Satisfacción</h4>
                         <p className="text-[10px] font-medium leading-relaxed opacity-80">
-                          {lang === "es" 
-                            ? "¿Un producto llegó dañado o faltó en tu envío? No te preocupes. Selecciona una boleta en \"Mis Boletas\" e inicia tu reclamo con foto de evidencia para reembolso inmediato." 
-                            : "Did a product arrive damaged or was it missing from your shipment? Don't worry. Select any receipt in \"My Receipts\" and file a claim with photos for immediate replacement."}
+                          ¿Un producto llegó dañado o faltó en tu envío? No te preocupes. Selecciona una boleta en "Mis Boletas" e inicia tu reclamo con foto de evidencia para reembolso inmediato.
                         </p>
                       </div>
                     </div>
@@ -2677,9 +2540,9 @@ export function CustomerPortal() {
 
                   {claimsList.map(claim => {
                     const statusText = 
-                      claim.status === "resolved" || claim.status === "approved" ? (lang === "es" ? "Resuelto / Solucionado" : "Resolved / Approved") :
-                      claim.status === "rejected" ? (lang === "es" ? "Cerrado - Rechazado" : "Closed - Rejected") :
-                      (lang === "es" ? "Pendiente de Revisión" : "Pending Review");
+                      claim.status === "resolved" || claim.status === "approved" ? "Resuelto / Solucionado" :
+                      claim.status === "rejected" ? "Cerrado - Rechazado" :
+                      "Pendiente de Revisión";
 
                     const statusColor = 
                       claim.status === "resolved" || claim.status === "approved" ? "bg-emerald-50 text-emerald-700 border-emerald-250 shadow-sm" :
@@ -2694,13 +2557,13 @@ export function CustomerPortal() {
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
                             <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest inline-block">
-                              {lang === "es" ? "Reclamo de Compra" : "Purchase Claim"}
+                              Reclamo de Compra
                             </span>
                             <h4 className="text-xs font-black text-slate-900 tracking-tight mt-1">
-                              {lang === "es" ? "Motivo" : "Reason"}: {claim.reason}
+                              Motivo: {claim.reason}
                             </h4>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                              {lang === "es" ? "Orden" : "Order"}: #{claim.orderId.substring(0,8).toUpperCase()} • {toDate(claim.timestamp).toLocaleDateString(lang === "es" ? 'es-CL' : 'en-US')}
+                              Orden: #{claim.orderId.substring(0,8).toUpperCase()} • {toDate(claim.timestamp).toLocaleDateString('es-CL')}
                             </p>
                           </div>
                           
@@ -3915,8 +3778,6 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => {
                     setClaimOrderId(selectedReceipt.orderId);
-                    setClaimCustomerTaxId(customer?.taxId || "");
-                    setTaxIdError("");
                     setClaimReason("Llegó roto");
                     setClaimDescription("");
                     setClaimPhoto("");
@@ -4024,78 +3885,33 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                 <div className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <AlertCircle size={24} className="text-white" />
                 </div>
-                <h3 className="text-lg font-black tracking-tight">{lang === "es" ? "Iniciar Reclamo / Soporte" : "File Support Ticket / Claim"}</h3>
+                <h3 className="text-lg font-black tracking-tight">Iniciar Reclamo / Soporte</h3>
                 <p className="text-[10px] font-bold opacity-75 uppercase tracking-widest mt-1">
-                  {claimOrderId ? `${lang === "es" ? "Boleta" : "Receipt"} #${claimOrderId.substring(0, 10).toUpperCase()}` : (lang === "es" ? "Reclamo General Chile" : "General Claim Ticket")}
+                  Pedido #{claimOrderId.substring(0, 10).toUpperCase()}
                 </p>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
                 {/* Form fields */}
-                {/* RUT del Cliente */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-450 uppercase tracking-widest ml-1">
-                    {lang === "es" ? "RUT del Cliente" : "Customer RUT"}
-                  </label>
-                  <input
-                    type="text"
-                    value={claimCustomerTaxId}
-                    onChange={(e) => {
-                      const formatted = formatRUT(e.target.value);
-                      setClaimCustomerTaxId(formatted);
-                      if (formatted && !validateChileanRUT(formatted)) {
-                        setTaxIdError(lang === "es" ? "❌ RUT inválido (Dígito verificador incorrecto)" : "❌ Invalid RUT (Bad check-digit)");
-                      } else {
-                        setTaxIdError("");
-                      }
-                    }}
-                    placeholder="12.345.678-9"
-                    className="w-full h-12 bg-white border border-slate-250 rounded-xl px-4 text-xs font-bold focus:outline-hidden focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all shadow-sm"
-                  />
-                  {taxIdError && (
-                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-1 mt-1">
-                      {taxIdError}
-                    </p>
-                  )}
-                </div>
-
-                {/* Número de Boleta */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-450 uppercase tracking-widest ml-1">
-                    {lang === "es" ? "Número de Boleta de la Compra" : "Purchase Receipt Number"}
-                  </label>
-                  <input
-                    type="text"
-                    value={claimOrderId}
-                    onChange={(e) => setClaimOrderId(e.target.value)}
-                    placeholder="e.g. pos_171457..."
-                    className="w-full h-12 bg-white border border-slate-250 rounded-xl px-4 text-xs font-bold focus:outline-hidden focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all shadow-sm"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                    {lang === "es" ? "Motivo del Inconveniente" : "Reason For Ticket"}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Motivo del Inconveniente</label>
                   <select 
                     value={claimReason}
                     onChange={(e) => setClaimReason(e.target.value)}
                     className="w-full h-12 bg-white border border-slate-200 rounded-xl px-4 text-xs font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all shadow-sm appearance-none"
                   >
-                    <option value="Llegó roto">{lang === "es" ? "Llegó roto / dañado" : "Arrived broken / damaged"}</option>
-                    <option value="Faltó un producto">{lang === "es" ? "Faltó un producto en el envío" : "Missing item in delivery"}</option>
-                    <option value="Producto incorrecto">{lang === "es" ? "Recibí un producto equivocado" : "Received wrong item"}</option>
-                    <option value="Defecto de fábrica">{lang === "es" ? "Defecto de calidad/fábrica" : "Quality/Factory defect"}</option>
-                    <option value="Otro motivo">{lang === "es" ? "Otro inconveniente" : "Other issue"}</option>
+                    <option value="Llegó roto">Llegó roto / dañado</option>
+                    <option value="Faltó un producto">Faltó un producto en el envío</option>
+                    <option value="Producto incorrecto">Recibí un producto equivocado</option>
+                    <option value="Defecto de fábrica">Defecto de calidad/fábrica</option>
+                    <option value="Otro motivo">Otro inconveniente</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                    {lang === "es" ? "Detalle del Problema" : "Problem Details"}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detalle del Problema</label>
                   <textarea 
-                    placeholder={lang === "es" ? "Explica detalladamente qué sucedió con tu producto o pedido..." : "Please describe in detail what happened to your product or order..."}
+                    placeholder="Explica detalladamente qué sucedió con tu producto o pedido..."
                     rows={4}
                     value={claimDescription}
                     onChange={(e) => setClaimDescription(e.target.value)}
@@ -4110,9 +3926,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
 
                 {/* Evidence Photo upload */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                    {lang === "es" ? "Foto de Evidencia (Físico/Empaque)" : "Evidence Photo (Physical Receipt/Package)"}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Foto de Evidencia (Físico/Empaque)</label>
                   
                   <div className="flex items-center space-x-4">
                     <input 
@@ -4142,7 +3956,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                       className="w-16 h-16 bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 hover:border-rose-300 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-rose-500 transition-all active:scale-95 shadow-sm"
                     >
                       <Camera size={20} />
-                      <span className="text-[8px] font-black mt-1 uppercase tracking-wider">{lang === "es" ? "CÁMARA" : "CAMERA"}</span>
+                      <span className="text-[8px] font-black mt-1 uppercase tracking-wider">CÁMARA</span>
                     </button>
 
                     {claimPhoto ? (
@@ -4152,16 +3966,14 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                           type="button"
                           onClick={() => setClaimPhoto("")}
                           className="absolute -top-1 -right-1 p-1 bg-red-500 text-white rounded-full hover:scale-105 transition-transform"
-                          title={lang === "es" ? "Eliminar foto" : "Delete photo"}
+                          title="Eliminar foto"
                         >
                           <X size={10} />
                         </button>
                       </div>
                     ) : (
                       <p className="text-[9px] font-bold text-slate-400 leading-normal max-w-[180px]">
-                        {lang === "es" 
-                          ? "Toma una fotografía clara del producto roto, vencido o del empaque completo."
-                          : "Take a clear picture of the damaged/expired product or of the package."}
+                        Toma una fotografía clara del producto roto, vencido o del empaque completo.
                       </p>
                     )}
                   </div>
@@ -4175,26 +3987,20 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                   onClick={() => setShowClaimModal(false)}
                   className="flex-1 py-3.5 bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 transition-colors rounded-xl font-bold text-[10px]"
                 >
-                  {lang === "es" ? "Cancelar" : "Cancel"}
+                  Cancelar
                 </button>
                 <button
                   type="button"
-                  disabled={isSubmittingClaim || !claimDescription.trim() || !claimOrderId.trim() || !claimCustomerTaxId.trim() || !!taxIdError}
+                  disabled={isSubmittingClaim || !claimDescription.trim()}
                   onClick={async () => {
-                    if (!claimDescription.trim() || !claimOrderId.trim() || !claimCustomerTaxId.trim() || !!taxIdError) return;
-                    
-                    if (!validateChileanRUT(claimCustomerTaxId)) {
-                      setTaxIdError(lang === "es" ? "❌ RUT inválido" : "❌ Invalid RUT");
-                      return;
-                    }
-
+                    if (!claimDescription.trim()) return;
                     setIsSubmittingClaim(true);
                     try {
                       await addDoc(collection(db, "claims"), {
                         customerId: customer.id,
                         customerName: customer.name || "Cliente",
-                        customerRUT: claimCustomerTaxId.trim(),
-                        orderId: claimOrderId.trim(),
+                        customerRUT: customer.taxId || "Sin RUT",
+                        orderId: claimOrderId,
                         reason: claimReason,
                         description: claimDescription.trim(),
                         photo: claimPhoto || null,
@@ -4206,10 +4012,8 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                       setAlertConfig({
                         isOpen: true,
                         type: "success",
-                        title: lang === "es" ? "¡Reclamo Registrado!" : "Claim Registered!",
-                        message: lang === "es" 
-                          ? "Tu caso fue subido con éxito y enviado a bodega. Estaremos evaluando tu caso de inmediato."
-                          : "Your claims ticket was successfully saved and routed to fulfillment. We will review your case immediately."
+                        title: "¡Reclamo Registrado!",
+                        message: "Tu caso fue subido con éxito y enviado a bodega. Estaremos evaluando tu caso de inmediato."
                       });
                       setShowClaimModal(false);
                       setActiveTab("history");
@@ -4219,10 +4023,8 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                       setAlertConfig({
                         isOpen: true,
                         type: "error",
-                        title: lang === "es" ? "Error de Envío" : "Submission Error",
-                        message: lang === "es" 
-                          ? "No se pudo registrar el reclamo. Verifica tu conexión a internet e intenta nuevamente."
-                          : "Could not submit your claim ticket. Please check your network connection and try again."
+                        title: "Error de Envío",
+                        message: "No se pudo registrar el reclamo. Verifica tu conexión a internet e intenta nuevamente."
                       });
                     } finally {
                       setIsSubmittingClaim(false);
@@ -4230,7 +4032,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                   }}
                   className={cn(
                     "flex-1 py-3.5 text-white transition-all rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-1.5 shadow-md",
-                    (claimDescription.trim() && claimOrderId.trim() && claimCustomerTaxId.trim() && !taxIdError) 
+                    claimDescription.trim() 
                       ? "bg-rose-600 hover:bg-rose-700 shadow-rose-100 dark:shadow-none"
                       : "bg-slate-300 shadow-none cursor-not-allowed"
                   )}
@@ -4239,7 +4041,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>{lang === "es" ? "Enviar Caso" : "Submit Case"}</span>
+                      <span>Enviar Caso</span>
                     </>
                   )}
                 </button>

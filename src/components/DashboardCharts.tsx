@@ -12,7 +12,7 @@ import {
   Cell,
   Legend
 } from 'recharts';
-import { formatCurrency } from "../../lib/utils";
+import { formatCurrency } from "../lib/utils";
 
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 

@@ -1,123 +1,160 @@
 import { onDocumentWritten, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import { initializeApp } from "firebase-admin/app";
 
 initializeApp();
 
 const db = getFirestore();
 
-// ─── Cloud Function 1: setUserRole ───────────────────────────────────────────
-// Assigns Firebase Auth Custom Claims (role) to a user.
-// Called from the admin UI to grant role-based permissions server-side.
-// Uses Firebase Functions v2 (onCall) for modern SDK compatibility.
+// 1. HTTP Callable para definir roles (Custom Claims y DB Sync)
 export const setUserRole = onCall(async (request) => {
-  // 1. Verify caller is authenticated
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Only authenticated users can set roles.");
+  const { userId, role } = request.data || {};
+  
+  if (!userId || !role) {
+    throw new HttpsError("invalid-argument", "userId y role son requeridos.");
   }
 
-  const callerRole = request.auth.token.role || "customer";
-  const callerEmail = request.auth.token.email || "";
-
-  if (!["admin", "owner"].includes(callerRole)) {
-    throw new HttpsError("permission-denied", "Only admins and owners can modify roles.");
-  }
-  const { uid, userId, role } = request.data || {};
-  const targetUid = uid || userId; // Support both param names
-
-  if (!targetUid || typeof targetUid !== "string") {
-    throw new HttpsError("invalid-argument", "Missing or invalid 'uid' parameter.");
-  }
-
-  if (!role || typeof role !== "string") {
-    throw new HttpsError("invalid-argument", "Missing or invalid 'role' parameter.");
-  }
-
-  // Full role whitelist — all roles used in the app
-  const allowedRoles = ["owner", "admin", "manager", "seller", "logistics", "driver"];
-  if (!allowedRoles.includes(role)) {
-    throw new HttpsError("invalid-argument", `Role must be one of: ${allowedRoles.join(", ")}`);
-  }
-
-  // Only an owner can assign owner role
-  if (role === "owner" && callerRole !== "owner") {
-    throw new HttpsError("permission-denied", "Only an owner can assign the owner role.");
+  const validRoles = ["admin", "manager", "seller", "logistics"];
+  if (!validRoles.includes(role)) {
+    throw new HttpsError("invalid-argument", "Rol inválido.");
   }
 
   try {
-    // Set Custom Claim on Firebase Auth (this is what secures server-side checks)
-    await getAuth().setCustomUserClaims(targetUid, { role });
-
-    // Mirror role to Firestore for UI reads and display
-    await db.collection("users").doc(targetUid).set({
-      role,
+    // 1. Establecer Custom Claims
+    await getAuth().setCustomUserClaims(userId, { role });
+    
+    // 2. Actualizar documento de usuario en Firestore
+    await db.collection("users").doc(userId).set({
+      role: role,
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
 
-    // Audit log — track every role change for compliance
-    await db.collection("role_audit").doc().set({
-      targetUid,
-      assignedRole: role,
-      assignedBy: request.auth.uid,
-      assignedByEmail: callerEmail,
-      timestamp: FieldValue.serverTimestamp()
-    });
-
-    return { success: true, message: `Role '${role}' assigned to user '${targetUid}'.` };
+    return { success: true, message: `Rol ${role} asignado al usuario ${userId}.` };
   } catch (error: any) {
-    console.error("Error in setUserRole:", error);
-    throw new HttpsError("internal", error.message || "An error occurred while setting the role.");
+    console.error("Error en setUserRole:", error);
+    throw new HttpsError("internal", error.message || "Error al asignar rol.");
   }
 });
 
-// ─── Cloud Function 2: onProductStockChange ──────────────────────────────────
-// Firestore trigger: keeps /notifications/{productId} in sync with stock levels.
-// When stock <= minThreshold → write low_stock notification.
-// When stock recovers above threshold → delete notification.
-// This allows Layout.tsx to listen to a small /notifications collection
-// instead of reading the entire /products collection (eliminates O(N) reads).
+// 2. Firestore Trigger para cambios de stock (Throttled/Batched to prevent excessive writes)
 export const onProductStockChange = onDocumentWritten("products/{productId}", async (event) => {
   const productId = event.params.productId;
   const snapshot = event.data;
-  const notifRef = db.collection("notifications").doc(productId);
 
-  // Product was deleted — clean up its notification
-  if (!snapshot || !snapshot.after.exists) {
+  // We group updates under a central buffer document to avoid excessive individual document writes.
+  const batchRef = db.collection("notifications_buffer").doc("low_stock_batch");
+
+  if (!snapshot) {
+    // Product deleted: remove from low stock batch Map in transaction
     try {
-      await notifRef.delete();
+      await db.runTransaction(async (transaction) => {
+        const docSnap = await transaction.get(batchRef);
+        if (docSnap.exists) {
+          const items = docSnap.data()?.items || {};
+          if (items[productId]) {
+            delete items[productId];
+            transaction.set(batchRef, { items, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          }
+        }
+      });
     } catch (err) {
-      console.error("Error deleting notification for removed product:", err);
+      console.error("Error setting deleted product in batch queue:", err);
     }
     return;
   }
 
   const data = snapshot.after.data();
-  if (!data) return;
+  if (!data) {
+    // Product cleared: remove from low stock batch
+    try {
+      await db.runTransaction(async (transaction) => {
+        const docSnap = await transaction.get(batchRef);
+        if (docSnap.exists) {
+          const items = docSnap.data()?.items || {};
+          if (items[productId]) {
+            delete items[productId];
+            transaction.set(batchRef, { items, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          }
+        }
+      });
+    } catch (err) {
+      console.error("Error setting cleared product in batch:", err);
+    }
+    return;
+  }
 
   const stock = Number(data.stock) || 0;
   const minThreshold = Number(data.minThreshold) || 0;
   const name = data.name || "Producto";
 
   if (stock <= minThreshold) {
+    // Add product to consolidated low stock Map inside the single buffer document via transaction
     try {
-      await notifRef.set({
-        type: "low_stock",  // Must match Layout.tsx filter: where("type", "==", "low_stock")
-        title: "Stock Bajo",
-        message: `El producto "${name}" tiene stock bajo (${stock} unidades).`,
-        productId,
-        updatedAt: FieldValue.serverTimestamp()
+      await db.runTransaction(async (transaction) => {
+        const docSnap = await transaction.get(batchRef);
+        const currentItems = docSnap.exists ? (docSnap.data()?.items || {}) : {};
+        currentItems[productId] = {
+          name,
+          stock,
+          minThreshold,
+          updatedAt: new Date().toISOString()
+        };
+        
+        transaction.set(batchRef, {
+          items: currentItems,
+          lastUpdatedProductId: productId,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+      });
+
+      // Throttle client notification: check if a consolidated alert was written in client_notifications recently
+      const lastNotifRef = db.collection("client_notifications").doc("low-stock-consolidated-alerts");
+      await db.runTransaction(async (transaction) => {
+        const notifSnap = await transaction.get(lastNotifRef);
+        let lastWriteTime = 0;
+        if (notifSnap.exists) {
+          const ts = notifSnap.data()?.timestamp;
+          if (ts) {
+            lastWriteTime = ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime();
+          }
+        }
+
+        const now = Date.now();
+        // If an alert was updated within the last 10 seconds, skip writing to avoid excessive writes
+        if (now - lastWriteTime > 10000) {
+          transaction.set(lastNotifRef, {
+            title: "Alerta de Stock Crítico",
+            message: `Se han detectado productos con stock crítico en bodega (Último: "${name}" con ${stock} un.). Por favor revise el panel de Stock Crítico.`,
+            type: "alert",
+            link: "inventory",
+            timestamp: FieldValue.serverTimestamp(),
+            isConsolidated: true
+          });
+        }
       });
     } catch (err) {
-      console.error("Error writing low-stock notification:", err);
+      console.error("Error bundling low stock notification:", err);
     }
   } else {
-    // Stock recovered — remove the notification
+    // Stock is healthy: remove from batch map if present
     try {
-      await notifRef.delete();
+      await db.runTransaction(async (transaction) => {
+        const docSnap = await transaction.get(batchRef);
+        if (docSnap.exists) {
+          const currentItems = docSnap.data()?.items || {};
+          if (currentItems[productId]) {
+            delete currentItems[productId];
+            transaction.set(batchRef, {
+              items: currentItems,
+              updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+          }
+        }
+      });
     } catch (err) {
-      // Safe to ignore if notification doesn't exist
+      console.error("Error removing healthy product from batch:", err);
     }
   }
 });
@@ -157,3 +194,49 @@ export const onClaimResolved = onDocumentUpdated("claims/{claimId}", async (even
     }
   }
 });
+
+// 4. Firestore Trigger for User Role or status changes (Audit real-time Auth block)
+export const onUserRoleChanged = onDocumentUpdated("users/{userId}", async (event) => {
+  const userId = event.params.userId;
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const beforeData = snapshot.before.data();
+  const afterData = snapshot.after.data();
+
+  if (!beforeData || !afterData) return;
+
+  const oldRole = beforeData.role;
+  const newRole = afterData.role;
+  const oldDisabled = beforeData.disabled || false;
+  const newDisabled = afterData.disabled || false;
+
+  // Trigger if role is demoted to customer OR disabled becomes true
+  const roleDemotedToCustomer = (oldRole && oldRole !== "customer" && newRole === "customer");
+  const accountJustDisabled = (!oldDisabled && newDisabled);
+
+  if (roleDemotedToCustomer || accountJustDisabled) {
+    try {
+      // 1. Disable the user account in Firebase Authentication in real-time
+      await getAuth().updateUser(userId, {
+        disabled: true
+      });
+      console.log(`User ${userId} disabled in Firebase Auth due to role demotion or account deactivation.`);
+
+      // 2. Revoke active refresh tokens immediately to force logout
+      await getAuth().revokeRefreshTokens(userId);
+      console.log(`Revoked active refresh tokens for user ${userId}.`);
+
+      // 3. Document in audit logs immutably
+      await db.collection("role_audit").add({
+        action: "REALTIME_AUTH_BLOCK",
+        operatorEmail: "SYSTEM_TRIGGER",
+        timestamp: FieldValue.serverTimestamp(),
+        details: `Usuario ${userId} bloqueado en Firebase Auth en tiempo real. Razón: ${roleDemotedToCustomer ? "Rol descendido a customer" : "Cuenta desactivada por administador"}.`
+      });
+    } catch (err: any) {
+      console.error(`Error deactivating Firebase Auth user ${userId}:`, err.message);
+    }
+  }
+});
+

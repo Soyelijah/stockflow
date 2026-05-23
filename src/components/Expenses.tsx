@@ -28,9 +28,9 @@ import {
   getDocs,
   startAfter,
 } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
-import { useAuth } from "../../contexts/AuthContext";
-import { cn, formatCurrency } from "../../lib/utils";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
+import { useAuth } from "../contexts/AuthContext";
+import { cn, formatCurrency } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { ModernAlert } from "./ui/ModernAlert";
 
@@ -179,20 +179,6 @@ export function Expenses() {
       onConfirm: async () => {
         try {
           await deleteDoc(doc(db, "expenses", id));
-          
-          // Log deletion in our secure server audit logs
-          fetch("/api/audit/log", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              operatorEmail: user?.email || "sistema@stockflow.com",
-              operatorUid: user?.uid || "sys",
-              action: "EXPENSE_DELETED",
-              targetId: id,
-              details: { description }
-            })
-          }).catch(err => console.error("Audit log deletion failed:", err));
-
           setAlertConfig((prev) => ({
             ...prev,
             isOpen: true,
@@ -235,19 +221,6 @@ export function Expenses() {
           timestamp: Timestamp.now(),
         });
       }
-
-      // Log creation or alteration to centralized audit logging
-      fetch("/api/audit/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          operatorEmail: user?.email || "sistema@stockflow.com",
-          operatorUid: user?.uid || "sys",
-          action: editingExpense ? "EXPENSE_MODIFIED" : "EXPENSE_CREATED",
-          targetId: editingExpense ? editingExpense.id : "new-expense",
-          details: { ...formData, id: editingExpense?.id }
-        })
-      }).catch(err => console.error("Audit log submit failed:", err));
 
       setIsModalOpen(false);
       setEditingExpense(null);

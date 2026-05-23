@@ -1,45 +1,29 @@
 import { Router } from "express";
 import PDFDocument from "pdfkit";
-import { z } from "zod";
 
 export const shrinkageRouter = Router();
-
-// Zod schema for input validation and CPU amplification mitigation
-const ShrinkagePDFSchema = z.object({
-  title: z.string().max(150).optional(),
-  responsible: z.string().max(100).optional(),
-  comments: z.string().max(1000).optional(),
-  items: z.array(
-    z.object({
-      name: z.string().min(1).max(200),
-      stockActual: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
-      theoStock: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
-      stockFisico: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
-      realStock: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
-      motive: z.string().max(200).optional(),
-      comments: z.string().max(200).optional()
-    })
-  ).max(200) // Mitigation for Finding-004 CPU amplification: limit items to 200
-});
 
 // Secure PDF generation for physical stock audits and shrinkage reporting
 shrinkageRouter.post("/shrinkage/pdf", (req, res) => {
   try {
-    const parsed = ShrinkagePDFSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Payload inválido", details: parsed.error.format() });
-    }
-
     const { 
       title = "Reporte de Mermas y Ajuste de Inventario", 
       items = [], 
       responsible = "Administrador", 
-      comments = "" 
-    } = parsed.data;
+      comments = "",
+      isHistorical = false
+    } = req.body;
     
     // Set response headers for direct secure PDF download
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename=reporte_auditoria_${Date.now()}.pdf`);
+    
+    if (isHistorical) {
+      // Direct cache-control header optimization for finalized historic audits that never mutate
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    }
     
     // Initialize PDF Document
     const doc = new PDFDocument({ margin: 50, size: "A4" });

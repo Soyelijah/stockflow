@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { 
   Lock, 
   Mail, 
@@ -13,7 +13,7 @@ import {
   Info
 } from "lucide-react";
 import { motion } from "motion/react";
-import { cn } from "../../lib/utils";
+import { cn } from "../lib/utils";
 
 type AppRole = "admin" | "manager" | "seller" | "logistics";
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { collection, query, onSnapshot, limit, orderBy, where, getDocs } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
   Package, 
   TrendingUp, 
@@ -17,11 +17,11 @@ import {
   Users,
   Smartphone
 } from "lucide-react";
-import { formatCurrency, cn } from "../../lib/utils";
+import { formatCurrency, cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
-import { useAuth } from "../../contexts/AuthContext";
-import { useSettings } from "../../contexts/SettingsContext";
-import { getStockInsights, StockInsight } from "../../services/aiService";
+import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
+import { getStockInsights, StockInsight } from "../services/aiService";
 
 const DashboardAreaChart = React.lazy(() => import("./DashboardCharts").then(m => ({ default: m.DashboardAreaChart })));
 const DashboardPieChart = React.lazy(() => import("./DashboardCharts").then(m => ({ default: m.DashboardPieChart })));
@@ -67,7 +67,6 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [expenseChartData, setExpenseChartData] = useState<any[]>([]);
   
   const [isMounted, setIsMounted] = useState(false);
-  const [activeDashboardTab, setActiveDashboardTab] = useState<"overview" | "charts" | "finances" | "sales" | "inventory">("overview");
   const allProductsRef = React.useRef<any[]>([]);
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
   
@@ -127,35 +126,6 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       avgResolutionTimeText: avgText
     };
   }, [pendingClaimsList, recentClaimsList]);
-
-  const executiveStats = useMemo(() => {
-    // Total stock valuation and cost
-    let totalStockCost = 0;
-    let inactiveStockCost = 0;
-    
-    const activeProductIds = new Set(recentTransactions.filter(t => t.type === "sale").map(t => t.productId));
-
-    allProducts.forEach(p => {
-      const cost = Number(p.costPrice || p.price * 0.6 || 0);
-      const qty = Number(p.stock || 0);
-      const itemCostVal = cost * qty;
-      totalStockCost += itemCostVal;
-      
-      if (!activeProductIds.has(p.id) && qty > 0) {
-        inactiveStockCost += itemCostVal;
-      }
-    });
-
-    const netProfit = stats.totalProfit - stats.totalExpenses;
-    const projectedExpenses = stats.totalExpenses > 0 ? stats.totalExpenses * 1.15 : 120000;
-
-    return {
-      totalStockCost,
-      netProfit,
-      projectedExpenses,
-      inactiveStockCost
-    };
-  }, [allProducts, stats.totalProfit, stats.totalExpenses, recentTransactions]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 1000);
@@ -653,135 +623,68 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
         </div>
       </div>
 
-      {/* Sub-Navigation Tabs */}
-      <div className="bg-slate-100 p-1.5 rounded-[1.8rem] flex items-center overflow-x-auto gap-1 border border-slate-200/80 scrollbar-none shadow-inner no-scrollbar">
-        <button
-          onClick={() => setActiveDashboardTab("overview")}
-          className={cn(
-            "flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider shrink-0 transition-all duration-300 active:scale-[0.97]",
-            activeDashboardTab === "overview"
-              ? "bg-white text-indigo-600 shadow-sm border border-slate-200/40"
-              : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-          )}
-        >
-          <Activity size={16} />
-          <span>Resumen</span>
-        </button>
-        <button
-          onClick={() => setActiveDashboardTab("charts")}
-          className={cn(
-            "flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider shrink-0 transition-all duration-300 active:scale-[0.97]",
-            activeDashboardTab === "charts"
-              ? "bg-white text-indigo-600 shadow-sm border border-slate-200/40"
-              : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-          )}
-        >
-          <BarChart3 size={16} />
-          <span>Análisis Visual</span>
-        </button>
-        {(profile?.role === "owner" || profile?.role === "admin") && (
-          <button
-            onClick={() => setActiveDashboardTab("finances")}
-            className={cn(
-              "flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider shrink-0 transition-all duration-300 active:scale-[0.97]",
-              activeDashboardTab === "finances"
-                ? "bg-white text-indigo-600 shadow-sm border border-slate-200/40"
-                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-          )}
-        >
-          <DollarSign size={16} />
-          <span>Mando Directivo</span>
-        </button>
-        )}
-        <button
-          onClick={() => setActiveDashboardTab("sales")}
-          className={cn(
-            "flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider shrink-0 transition-all duration-300 active:scale-[0.97]",
-            activeDashboardTab === "sales"
-              ? "bg-white text-indigo-600 shadow-sm border border-slate-200/40"
-              : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-          )}
-        >
-          <ShoppingCart size={16} />
-          <span>Ventas y Actividad</span>
-        </button>
-        <button
-          onClick={() => setActiveDashboardTab("inventory")}
-          className={cn(
-            "flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider shrink-0 transition-all duration-300 active:scale-[0.97]",
-            activeDashboardTab === "inventory"
-              ? "bg-white text-indigo-600 shadow-sm border border-slate-200/40"
-              : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-          )}
-        >
-          <Box size={16} />
-          <span>Salud de Stock</span>
-        </button>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {topStats.map((stat, i) => (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            key={stat.label}
+            className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className={cn("p-4 rounded-3xl text-white shadow-lg", stat.color)}>
+                <stat.icon size={24} />
+              </div>
+              <div className={cn(
+                "flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                stat.up ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+              )}>
+                {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                <span>{stat.trend}</span>
+              </div>
+            </div>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-1">{stat.label}</p>
+            <h3 className="text-2xl font-black text-slate-800 tracking-tight">{stat.value}</h3>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Tab Contents */}
-      {activeDashboardTab === "overview" && (
-        <div className="space-y-10">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {topStats.map((stat, i) => (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                key={stat.label}
-                className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={cn("p-4 rounded-3xl text-white shadow-lg", stat.color)}>
-                    <stat.icon size={24} />
-                  </div>
-                  <div className={cn(
-                    "flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                    stat.up ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
-                  )}>
-                    {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                    <span>{stat.trend}</span>
-                  </div>
-                </div>
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-1">{stat.label}</p>
-                <h3 className="text-2xl font-black text-slate-800 tracking-tight">{stat.value}</h3>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* AI CTA - Only for Admins */}
-          {isAdmin && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[3rem] p-8 text-white shadow-2xl shadow-indigo-200"
-            >
-              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="space-y-3 text-center md:text-left max-w-xl">
-                  <div className="inline-flex items-center space-x-2 bg-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
-                    <Sparkles size={12} className="text-yellow-300" />
-                    <span>Gemini IA Sincronizada</span>
-                  </div>
-                  <h2 className="text-4xl font-black tracking-tight leading-tight">Optimización Inteligente</h2>
-                  <p className="text-indigo-100 font-medium text-lg leading-relaxed">
-                    Nuestro motor de IA analiza tus 100 transacciones más recientes y el stock actual para darte sugerencias estratégicas.
-                  </p>
-                </div>
-                <button 
-                  onClick={handleFetchAI}
-                  className="bg-white text-indigo-600 px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-indigo-50 transition-all flex items-center space-x-3 shadow-xl hover:scale-105 active:scale-95 group"
-                >
-                  <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
-                  <span>Consultar a la IA</span>
-                </button>
+      {/* AI CTA - Only for Admins */}
+      {isAdmin && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[3rem] p-8 text-white shadow-2xl shadow-indigo-200"
+        >
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="space-y-3 text-center md:text-left max-w-xl">
+              <div className="inline-flex items-center space-x-2 bg-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
+                <Sparkles size={12} className="text-yellow-300" />
+                <span>Gemini IA Sincronizada</span>
               </div>
-              <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] rounded-full -mr-40 -mt-40" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/30 blur-[80px] rounded-full -ml-32 -mb-32" />
-            </motion.div>
-          )}
+              <h2 className="text-4xl font-black tracking-tight leading-tight">Optimización Inteligente</h2>
+              <p className="text-indigo-100 font-medium text-lg leading-relaxed">
+                Nuestro motor de IA analiza tus 100 transacciones más recientes y el stock actual para darte sugerencias estratégicas.
+              </p>
+            </div>
+            <button 
+              onClick={handleFetchAI}
+              className="bg-white text-indigo-600 px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-indigo-50 transition-all flex items-center space-x-3 shadow-xl hover:scale-105 active:scale-95 group"
+            >
+              <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
+              <span>Consultar a la IA</span>
+            </button>
+          </div>
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] rounded-full -mr-40 -mt-40" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/30 blur-[80px] rounded-full -ml-32 -mb-32" />
+        </motion.div>
+      )}
 
-          {/* Apps & Channels Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Apps & Channels Section */}
+        <div className="lg:col-span-12">
           <div className="bg-indigo-50 border border-indigo-100 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center space-x-6">
               <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
@@ -817,436 +720,238 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             </div>
           </div>
         </div>
-      )}
 
-      {activeDashboardTab === "charts" && (
-        <div className="space-y-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Sales Chart Area - Restricted to Admin or simplified for Seller */}
-            <div className={cn(isAdmin ? "lg:col-span-8" : "lg:col-span-12")}>
-              <div className="bg-white p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-sm h-full">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
-                      {isAdmin ? <BarChart3 size={20} /> : <Zap size={20} />}
-                    </div>
-                    <div>
-                      <h2 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">
-                        {isAdmin ? "Rendimiento de Ventas" : "Resumen de Actividad"}
-                      </h2>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Últimos 7 días</p>
-                    </div>
-                  </div>
-                  <div className="text-left sm:text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                      {isAdmin ? "Ventas vs Utilidad" : "Tendencia de Ventas"}
-                    </p>
-                    <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-1.5"><div className="w-2 h-2 rounded-full bg-indigo-600" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Ventas</span></div>
-                        {isAdmin && (
-                          <div className="flex items-center space-x-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Utilidad</span></div>
-                        )}
-                    </div>
-                  </div>
+        {/* Sales Chart Area - Restricted to Admin or simplified for Seller */}
+        <div className={cn(isAdmin ? "lg:col-span-8" : "lg:col-span-12")}>
+          <div className="bg-white p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-sm h-full">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
+                  {isAdmin ? <BarChart3 size={20} /> : <Zap size={20} />}
                 </div>
-                
-                <div className="h-[300px] w-full relative overflow-hidden" style={{ minHeight: '300px' }}>
-                  <React.Suspense fallback={<div className="h-[300px] w-full flex items-center justify-center text-slate-400">Cargando gráfico de ventas...</div>}>
-                    <DashboardAreaChart chartData={chartData} isAdmin={isAdmin} isMounted={isMounted} />
-                  </React.Suspense>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">
+                    {isAdmin ? "Rendimiento de Ventas" : "Resumen de Actividad"}
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Últimos 7 días</p>
+                </div>
+              </div>
+              <div className="text-left sm:text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  {isAdmin ? "Ventas vs Utilidad" : "Tendencia de Ventas"}
+                </p>
+                <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-1.5"><div className="w-2 h-2 rounded-full bg-indigo-600" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Ventas</span></div>
+                    {isAdmin && (
+                      <div className="flex items-center space-x-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Utilidad</span></div>
+                    )}
                 </div>
               </div>
             </div>
-
-            {/* Expenses Pie Chart Area - Only for Admins */}
-            {isAdmin && (
-              <div className="lg:col-span-4">
-                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm h-full flex flex-col">
-                  <div className="flex items-center space-x-3 mb-8">
-                    <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
-                      <PieIcon size={20} />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-black text-slate-800 tracking-tight">Distribución Gastos</h2>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Costos Operativos</p>
-                    </div>
-                  </div>
-                  
-                  <div className="h-[250px] relative w-full overflow-hidden" style={{ minHeight: '250px' }}>
-                    {isMounted && expenseChartData.length > 0 ? (
-                      <React.Suspense fallback={<div className="h-[250px] w-full flex items-center justify-center text-slate-400">Cargando gráfico de gastos...</div>}>
-                        <DashboardPieChart expenseChartData={expenseChartData} isMounted={isMounted} />
-                      </React.Suspense>
-                    ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center space-y-3">
-                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
-                           <CreditCard size={32} />
-                         </div>
-                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sin gastos registrados</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Curva de Tendencia Ventas vs Gastos - Semanal */}
-          <div className="bg-slate-900 text-white rounded-[2.5rem] border border-slate-800 p-8 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-84 h-84 bg-indigo-500/5 blur-[100px] rounded-full pointer-events-none" />
-            <div className="relative z-10">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-                <div>
-                  <h4 className="text-sm font-black uppercase text-slate-300">Tendencia de Rentabilidad Semanal</h4>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase">Comparativa de ingresos vs gastos operacionales</p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <span className="flex items-center text-[10px] font-black uppercase text-indigo-400">
-                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 mr-1.5" /> Ventas
-                  </span>
-                  <span className="flex items-center text-[10px] font-black uppercase text-rose-400">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 mr-1.5" /> Gastos
-                  </span>
-                </div>
-              </div>
-              <React.Suspense fallback={<div className="h-[240px] w-full flex items-center justify-center text-slate-500">Iniciando gráficos de tendencia...</div>}>
-                <ExecutiveTrendChart data={executiveTrendData} isMounted={isMounted} />
+            
+            <div className="h-[300px] w-full relative overflow-hidden" style={{ minHeight: '300px' }}>
+              <React.Suspense fallback={<div className="h-[300px] w-full flex items-center justify-center text-slate-400">Cargando gráfico de ventas...</div>}>
+                <DashboardAreaChart chartData={chartData} isAdmin={isAdmin} isMounted={isMounted} />
               </React.Suspense>
             </div>
           </div>
         </div>
-      )}
 
-      {activeDashboardTab === "finances" && (profile?.role === "owner" || profile?.role === "admin") && (
-        <div className="space-y-10">
-          {/* Executive Cockpit for Owners and Admins */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-900 text-white rounded-[3rem] p-8 border border-slate-800 shadow-2xl relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none" />
-            <div className="relative z-10">
-              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-800 pb-6 mb-6 gap-4">
+        {/* Expenses Pie Chart Area - Only for Admins */}
+        {isAdmin && (
+          <div className="lg:col-span-4">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm h-full flex flex-col">
+              <div className="flex items-center space-x-3 mb-8">
+                <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
+                  <PieIcon size={20} />
+                </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest bg-indigo-50/20 text-indigo-300 px-3 py-1 rounded-full border border-indigo-500/30">
-                    Mando Directivo y Administrativo
-                  </span>
-                  <h2 className="text-2xl font-black tracking-tight mt-1">Executive Cockpit ("Mando Corporativo")</h2>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <span className="text-xs font-black uppercase py-2 px-3 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">
-                    Rentabilidad Máxima
-                  </span>
-                  <button 
-                    onClick={handlePrintZReport}
-                    className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/10 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all shadow-sm shrink-0"
-                  >
-                    <FileText size={16} />
-                    <span>Imprimir Reporte Z</span>
-                  </button>
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Distribución Gastos</h2>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Costos Operativos</p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Margen de Ganancia Neto */}
-                <div className="bg-slate-800/40 border border-slate-800 p-6 rounded-2xl">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Margen de Ganancia Neto</p>
-                  <div className="flex items-baseline space-x-2">
-                    <h3 className="text-2xl font-black text-emerald-400">
-                      {formatCurrency(executiveStats.netProfit)}
-                    </h3>
-                    <span className="text-[10px] font-bold text-slate-400">Neto real</span>
+              
+              <div className="h-[250px] relative w-full overflow-hidden" style={{ minHeight: '250px' }}>
+                {isMounted && expenseChartData.length > 0 ? (
+                  <React.Suspense fallback={<div className="h-[250px] w-full flex items-center justify-center text-slate-400">Cargando gráfico de gastos...</div>}>
+                    <DashboardPieChart expenseChartData={expenseChartData} isMounted={isMounted} />
+                  </React.Suspense>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center space-y-3">
+                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
+                       <CreditCard size={32} />
+                     </div>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sin gastos registrados</p>
                   </div>
-                  <div className="mt-4">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-tight text-slate-400 mb-1">
-                      <span>Rentabilidad</span>
-                      <span>{stats.totalProfit > 0 ? Math.round((executiveStats.netProfit / stats.totalProfit) * 100) : 0}%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-emerald-400 h-full transition-all duration-1000" 
-                        style={{ width: `${Math.max(0, Math.min(100, stats.totalProfit > 0 ? (executiveStats.netProfit / stats.totalProfit) * 100 : 0))}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Proyección de Gastos Mensuales */}
-                <div className="bg-slate-800/40 border border-slate-800 p-6 rounded-2xl">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Proyección de Gastos Mensuales</p>
-                  <div className="flex items-baseline space-x-2">
-                    <h3 className="text-2xl font-black text-amber-400">
-                      {formatCurrency(executiveStats.projectedExpenses)}
-                    </h3>
-                    <span className="text-[10px] font-bold text-slate-400">Estimado 30d</span>
-                  </div>
-                  <div className="mt-4">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-tight text-slate-400 mb-1">
-                      <span>Desviación Presupuestaria</span>
-                      <span>+15% oper</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                      <div className="bg-amber-400 h-full" style={{ width: "85%" }} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Costo Total del Stock Inmovilizado */}
-                <div className="bg-slate-800/40 border border-slate-800 p-6 rounded-2xl">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Costo de Stock Inmovilizado</p>
-                  <div className="flex items-baseline space-x-2">
-                    <h3 className="text-2xl font-black text-rose-400">
-                      {formatCurrency(executiveStats.inactiveStockCost)}
-                    </h3>
-                    <span className="text-[10px] font-bold text-slate-400">Inactivo 30d</span>
-                  </div>
-                  <div className="mt-4">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-tight text-slate-400 mb-1">
-                      <span>Valuación Total Activos</span>
-                      <span>{formatCurrency(executiveStats.totalStockCost)}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-rose-400 h-full transition-all duration-1000" 
-                        style={{ width: `${Math.max(0, Math.min(100, executiveStats.totalStockCost > 0 ? (executiveStats.inactiveStockCost / executiveStats.totalStockCost) * 100 : 0))}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
-
-              {/* Curva de Tendencia Ventas vs Gastos */}
-              <div className="mt-8 bg-slate-800/20 border border-slate-800/80 p-6 rounded-3xl">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                  <div>
-                    <h4 className="text-sm font-black uppercase text-slate-300">Tendencia de Rentabilidad Semanal</h4>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Comparativa de ingresos vs gastos operacionales</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="flex items-center text-[10px] font-black uppercase text-indigo-400">
-                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 mr-1.5" /> Ventas
-                    </span>
-                    <span className="flex items-center text-[10px] font-black uppercase text-rose-400">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 mr-1.5" /> Gastos
-                    </span>
-                  </div>
-                </div>
-                <React.Suspense fallback={<div className="h-[210px] w-full flex items-center justify-center text-slate-500">Iniciando gráficos de tendencia...</div>}>
-                  <ExecutiveTrendChart data={executiveTrendData} isMounted={isMounted} />
-                </React.Suspense>
-              </div>
-
-              <p className="text-slate-400 text-xs font-medium mt-6 leading-relaxed">
-                💡 **Análisis de Cartera**: Tienes un <span className="font-bold text-rose-300">{executiveStats.totalStockCost > 0 ? Math.round((executiveStats.inactiveStockCost / executiveStats.totalStockCost) * 100) : 0}%</span> de tu capital invertido en inventario inmovilizado. Se aconseja utilizar el módulo de **Optimización Inteligente de IA** para liquidar o programar reabastecimiento estratégico.
-              </p>
             </div>
-          </motion.div>
+          </div>
+        )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Clientes VIP */}
+        {/* Main Activity Feed */}
+        <div className={cn(isAdmin ? "lg:col-span-8" : "lg:col-span-12", "space-y-10")}>
+          {/* VIP Customers Section - Admin Only */}
+          {isAdmin && (
             <div className="space-y-6">
-              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1">Mayores Compradores</h3>
-              <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
-                {topCustomers.slice(0, 4).map((cust, i) => (
-                  <div key={cust.id || i} className="bg-slate-50/50 p-4 rounded-2xl flex items-center justify-between border border-slate-100 transition-all hover:bg-slate-50 gap-2">
-                    <div className="flex items-center space-x-3 min-w-0">
-                      <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 font-extrabold text-xs shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-emerald-600 rounded-2xl text-white shadow-lg shadow-emerald-100">
+                    <Users size={20} />
+                  </div>
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Clientes VIP</h2>
+                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mayores Compradores</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {topCustomers.map((cust, i) => (
+                  <div key={cust.id || i} className="bg-white p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between hover:border-emerald-200 transition-all group gap-2">
+                    <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 rounded-xl sm:rounded-2xl flex items-center justify-center text-emerald-600 font-black text-sm sm:text-lg shrink-0">
                         {cust.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-bold text-slate-800 text-xs truncate">{cust.name}</h4>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{cust.visits} compras</p>
+                        <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate max-w-[100px] xs:max-w-[130px] sm:max-w-[150px]">{cust.name}</h4>
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{cust.visits} compras</p>
                       </div>
-                    </div>
-                    <p className="font-black text-emerald-600 text-xs shrink-0">{formatCurrency(cust.total)}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* High Margin Analysis */}
-            <div className="space-y-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Productos de Alta Rentabilidad</h3>
-              <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
-                {allProducts.sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice))).slice(0, 4).map((p) => (
-                  <div key={p.id} className="bg-emerald-50/20 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between gap-1.5">
-                    <div>
-                      <p className="text-[11px] font-black text-slate-800">{p.name}</p>
-                      <p className="text-[9px] font-bold text-emerald-600 uppercase mt-0.5">
-                        +{Math.round(((Number(p.price) - Number(p.costPrice)) / Number(p.price)) * 100) || 0}% margen
-                      </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-[8px] font-bold text-slate-400 uppercase">Utilidad unitaria</p>
-                      <p className="text-xs font-black text-emerald-600">{formatCurrency(p.price - p.costPrice)}</p>
+                      <p className="font-black text-emerald-600 text-xs sm:text-sm">{formatCurrency(cust.total)}</p>
+                      <div className="flex items-center justify-end space-x-1 mt-0.5">
+                        <div className="w-1 h-1 bg-emerald-500 rounded-full" />
+                        <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-tight">VIP</span>
+                      </div>
                     </div>
                   </div>
                 ))}
+                {topCustomers.length === 0 && (
+                  <div className="col-span-2 p-12 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Sin clientes registrados aún</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-slate-900 rounded-2xl text-white">
+                  <Activity size={20} />
+                </div>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">
+                  {isAdmin ? "Actividad del Sistema" : "Mis Ventas Recientes"}
+                </h2>
+              </div>
+              <button 
+                onClick={() => onNavigate?.("transactions")}
+                className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-400 transition-colors"
+              >
+                {isAdmin ? "Ver Registro" : "Ver Mi Historial"}
+              </button>
+            </div>
+
+            <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-1.5">
+              <div className="divide-y divide-slate-50">
+                {recentTransactions.map((tx, i) => (
+                  <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    key={tx.id} 
+                    className="flex items-center justify-between p-3 sm:p-5 hover:bg-slate-50/80 transition-all rounded-2xl sm:rounded-3xl group gap-3"
+                  >
+                    <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                      <div className={cn(
+                        "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shrink-0",
+                        tx.type === "sale" || tx.type === "out" ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
+                      )}>
+                        {tx.type === "sale" ? <ShoppingCart size={20} className="sm:w-[22px] sm:h-[22px]" /> : 
+                         tx.type === "in" ? <ArrowDownRight size={20} className="sm:w-[22px] sm:h-[22px]" /> : <ArrowUpRight size={20} className="sm:w-[22px] sm:h-[22px]" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-800 text-xs sm:text-sm truncate">{tx.productName}</p>
+                        <div className="flex items-center space-x-1 sm:space-x-2 mt-1 min-w-0">
+                          <Clock size={10} className="text-slate-400 shrink-0" />
+                          <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wide flex items-center gap-1 truncate">
+                            <span>{tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Reciente"}</span>
+                            <span>•</span>
+                            <span className="truncate max-w-[80px] xs:max-w-[120px]">{tx.customerName || "General"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={cn(
+                        "font-black text-xs sm:text-sm",
+                        tx.type === "sale" || tx.type === "out" ? "text-rose-600" : "text-emerald-600"
+                      )}>
+                        {tx.type === "sale" || tx.type === "out" ? "-" : "+"}{tx.quantity}
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wide mt-0.5 max-w-[70px] xs:max-w-[110px] truncate" title={tx.userName}>
+                        {tx.userName || "Sistema"}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+                {recentTransactions.length === 0 && (
+                  <div className="p-16 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                    Sin actividad registrada
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      )}
 
-      {activeDashboardTab === "sales" && (
-        <div className="space-y-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Recent activity logs */}
-            <div className="lg:col-span-8 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-3 bg-slate-900 rounded-2xl text-white">
-                    <Activity size={20} />
-                  </div>
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">
-                    {isAdmin ? "Actividad Reciente del Sistema" : "Mis Ventas Recientes"}
-                  </h2>
-                </div>
-                <button 
-                  onClick={() => onNavigate?.("transactions")}
-                  className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-400 transition-colors"
-                >
-                  {isAdmin ? "Ver Todo el Registro" : "Ver Mi Historial"}
-                </button>
-              </div>
-
-              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden p-1.5">
-                <div className="divide-y divide-slate-50">
-                  {recentTransactions.map((tx, i) => (
-                    <motion.div 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      key={tx.id} 
-                      className="flex items-center justify-between p-4 sm:p-5 hover:bg-slate-50/80 transition-all rounded-2xl group gap-3"
-                    >
-                      <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                        <div className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shrink-0",
-                          tx.type === "sale" || tx.type === "out" ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
-                        )}>
-                          {tx.type === "sale" ? <ShoppingCart size={20} /> : 
-                           tx.type === "in" ? <ArrowDownRight size={20} /> : <ArrowUpRight size={20} />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-800 text-xs sm:text-sm truncate">{tx.productName}</p>
-                          <div className="flex items-center space-x-2 mt-1 min-w-0">
-                            <Clock size={10} className="text-slate-400 shrink-0" />
-                            <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide flex items-center gap-1 truncate">
-                              <span>{tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Reciente"}</span>
-                              <span>•</span>
-                              <span className="truncate max-w-[124px]">{tx.customerName || "Venta General"}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className={cn(
-                          "font-black text-xs sm:text-sm",
-                          tx.type === "sale" || tx.type === "out" ? "text-rose-600" : "text-emerald-600"
-                        )}>
-                          {tx.type === "sale" || tx.type === "out" ? "-" : "+"}{tx.quantity}
-                        </p>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide mt-0.5 max-w-[110px] truncate" title={tx.userName}>
-                          {tx.userName || "Sistema"}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
-                  {recentTransactions.length === 0 && (
-                    <div className="p-16 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
-                      Sin actividad registrada
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Side column: VIP + Trending */}
+          {/* Status Side Panel - Restricted for Sellers */}
+          {(isAdmin || isLogistics) && (
             <div className="lg:col-span-4 space-y-10">
-              {/* Clientes VIP */}
-              {isAdmin && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Compradores Estrella</h3>
-                    <span className="text-[8px] bg-emerald-50 text-emerald-600 py-0.5 px-2.5 rounded-full font-black uppercase">Cliente VIP</span>
-                  </div>
-                  <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
-                    {topCustomers.slice(0, 3).map((cust, i) => (
-                      <div key={cust.id || i} className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center space-x-3 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 font-bold text-xs flex items-center justify-center shrink-0">
-                            {cust.name[0]?.toUpperCase()}
-                          </div>
-                          <span className="text-xs font-bold text-slate-800 truncate">{cust.name}</span>
-                        </div>
-                        <span className="text-xs font-black text-emerald-600">{formatCurrency(cust.total)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Trending Products */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Los Más Vendidos</h3>
-                <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
-                  {topProducts.map((p, idx) => (
-                    <div key={p.name} className="flex items-center justify-between gap-1.5">
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <span className="text-xs font-black text-slate-200">0{idx + 1}</span>
-                        <p className="text-xs font-bold text-slate-800 truncate">{p.name}</p>
-                      </div>
-                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0">
-                        {p.count} vtas
-                      </span>
-                    </div>
-                  ))}
-                  {topProducts.length === 0 && (
-                    <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest py-4">
-                      Pendiente de datos
-                    </p>
+              {/* KPIs de Reclamos */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Soporte y Reclamos</h3>
+                  {claimsStats.pendingCount > 0 && (
+                    <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full animate-pulse transition-all">
+                      {claimsStats.pendingCount} Activos
+                    </span>
                   )}
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeDashboardTab === "inventory" && (
-        <div className="space-y-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left side column: Support ticket, inventory health bar */}
-            <div className="lg:col-span-6 space-y-10">
-              {/* Soporte y Reclamos */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Auditoría de Reclamos y Soporte</h3>
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="p-3 bg-rose-50 rounded-2xl">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                      <AlertCircle size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-800">Casos de Soporte</h4>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Historial de Reclamos</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-50">
+                    <div className="p-2 bg-rose-50/50 rounded-2xl">
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">Pendientes</p>
-                      <p className="text-xl font-black text-rose-500 mt-1">{claimsStats.pendingCount}</p>
+                      <p className="text-sm font-black text-rose-600 mt-1">{claimsStats.pendingCount}</p>
                     </div>
-                    <div className="p-3 bg-emerald-50 rounded-2xl">
+                    <div className="p-2 bg-emerald-50/50 rounded-2xl">
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">Resueltos (30d)</p>
-                      <p className="text-xl font-black text-emerald-600 mt-1">{claimsStats.resolvedLastMonth}</p>
+                      <p className="text-sm font-black text-emerald-600 mt-1">{claimsStats.resolvedLastMonth}</p>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-2xl">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">Diag. Promedio</p>
-                      <p className="text-xl font-black text-slate-700 mt-1">{claimsStats.avgResolutionTimeText}</p>
+                    <div className="p-2 bg-slate-50 rounded-2xl">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">Promedio</p>
+                      <p className="text-sm font-black text-slate-700 mt-1">{claimsStats.avgResolutionTimeText}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Salud del Inventario */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between px-1">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Salud del Inventario</h3>
-                  <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg">
-                    {Math.round(((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100) || 0}% Óptimo
+              {/* Stock Health KPI */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Salud del Inventario</h3>
+                  <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">
+                    {Math.round(((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100) || 0}% Optimo
                   </span>
                 </div>
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
@@ -1256,69 +961,119 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Items en buen nivel</p>
-                       <p className="text-2xl font-black text-emerald-600">{stats.totalProducts - stats.lowStockCount} SKU</p>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Items OK</p>
+                       <p className="text-lg font-black text-slate-800">{stats.totalProducts - stats.lowStockCount}</p>
                     </div>
                     <div>
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Items en quiebre crítico</p>
-                       <p className="text-2xl font-black text-amber-500">{stats.lowStockCount} SKU</p>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Críticos</p>
+                       <p className="text-lg font-black text-amber-600">{stats.lowStockCount}</p>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Right side column: Predictive alerts, restocking button */}
-            <div className="lg:col-span-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-3 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-100">
-                    <AlertTriangle size={20} />
-                  </div>
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Stock Inteligente</h2>
-                </div>
-                <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-2 py-1 rounded-lg uppercase">Predicción de Demanda</span>
+              <div>
+                 <div className="flex items-center justify-between mb-6">
+                   <div className="flex items-center space-x-3">
+                     <div className="p-3 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-100">
+                       <AlertTriangle size={20} />
+                     </div>
+                     <h2 className="text-xl font-black text-slate-800 tracking-tight">Stock Inteligente</h2>
+                   </div>
+                   <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-2 py-1 rounded-lg uppercase">Predicción</span>
+                 </div>
+
+                 <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
+                   {predictiveStockAlerts.map((product) => (
+                     <div key={product.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-transparent hover:border-amber-200 transition-all group">
+                       <div className="flex-1 min-w-0 pr-4">
+                         <p className="text-xs font-black text-slate-800 leading-tight truncate">{product.name}</p>
+                         <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
+                           Stock: {product.stock} | ~{Math.round(product.velocity * 7)} vtas/sem
+                         </p>
+                       </div>
+                       <div className="text-right">
+                         <p className={cn(
+                           "text-[9px] font-black uppercase tracking-tighter",
+                           product.daysRemaining < 5 ? "text-rose-600" : "text-amber-500"
+                         )}>
+                           {product.daysRemaining < 30 ? `Agotado en ~${product.daysRemaining}d` : "Stock Crítico"}
+                         </p>
+                       </div>
+                     </div>
+                   ))}
+                   {predictiveStockAlerts.length === 0 && (
+                     <div className="text-center py-10">
+                       <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-4">
+                         <TrendingUp size={32} />
+                       </div>
+                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Nivel de stock óptimo</p>
+                     </div>
+                   )}
+                   <button 
+                     onClick={() => onNavigate?.("inventory")}
+                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+                   >
+                     Abastecer Inventario
+                   </button>
+                 </div>
               </div>
 
+              {/* Trending Products */}
+              <div className="flex items-center space-x-3 mt-10">
+                <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
+                  <Zap size={20} />
+                </div>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">Más Vendidos</h2>
+              </div>
+              
               <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 space-y-4">
-                {predictiveStockAlerts.map((product) => (
-                  <div key={product.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-transparent hover:border-amber-200 transition-all group gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-slate-800 leading-tight truncate">{product.name}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                        Stock: {product.stock} u. | ~{Math.round(product.velocity * 7)} vtas/sem
-                      </p>
+                {topProducts.map((p, idx) => (
+                  <div key={p.name} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs font-black text-slate-200 w-4">0{idx + 1}</span>
+                      <p className="text-xs font-black text-slate-800">{p.name}</p>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className={cn(
-                        "text-[10px] font-black uppercase tracking-tighter",
-                        product.daysRemaining < 5 ? "text-rose-600 animate-pulse" : "text-amber-500"
-                      )}>
-                        {product.daysRemaining < 30 ? `Agotado en ~${product.daysRemaining}d` : "Nivel Crítico"}
-                      </p>
-                    </div>
+                    <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
+                      {p.count} vtas
+                    </span>
                   </div>
                 ))}
-                {predictiveStockAlerts.length === 0 && (
-                  <div className="text-center py-10">
-                    <div className="w-16 h-16 bg-emerald-55 rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-4">
-                      <TrendingUp size={32} />
-                    </div>
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Nivel de stock óptimo en toda la tienda</p>
-                  </div>
+                {topProducts.length === 0 && (
+                  <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest py-4">
+                    Pendiente de datos
+                  </p>
                 )}
-                <button 
-                  onClick={() => onNavigate?.("inventory")}
-                  className="w-full py-4.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2"
-                >
-                  <Plus size={16} />
-                  <span>Abastecer Inventario / Crear Orden</span>
-                </button>
               </div>
+
+              {/* High Margin Analysis - Admin Only */}
+              {isAdmin && (
+                <div className="space-y-4 pt-4">
+                  <div className="flex items-center justify-between px-1">
+                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Alta Rentabilidad</h3>
+                     <span className="text-[9px] font-bold text-emerald-500 uppercase">Margen Jefe</span>
+                  </div>
+                  <div className="space-y-3">
+                     {allProducts.sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice))).slice(0, 3).map((p) => (
+                       <div key={p.id} className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] font-black text-slate-800">{p.name}</p>
+                            <p className="text-[9px] font-bold text-emerald-600 uppercase mt-0.5">
+                              +{Math.round(((Number(p.price) - Number(p.costPrice)) / Number(p.price)) * 100) || 0}% margen
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Utilidad</p>
+                            <p className="text-xs font-black text-emerald-600">{formatCurrency(p.price - p.costPrice)}</p>
+                          </div>
+                       </div>
+                     ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-      )}
+          )}
+      </div>
       </div>
 
       {/* AI Insight Modal */}
