@@ -25,14 +25,14 @@ import {
   UserCircle,
   Settings as SettingsIcon
 } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
-import { useSettings } from "../../contexts/SettingsContext";
-import { cn } from "../../lib/utils";
+import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
+import { cn } from "../lib/utils";
 import { collection, query, onSnapshot, where, getDocs, limit, orderBy } from "firebase/firestore";
-import { db } from "../../lib/firebase";
+import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 
-import { formatCurrency } from "../../lib/utils";
+import { formatCurrency } from "../lib/utils";
 
 interface Notification {
   id: string;

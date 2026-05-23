@@ -11,18 +11,16 @@ import { commsRouter, healthCheck as commsHealth } from "./server/routes/comms";
 import { aiRouter, healthCheck as aiHealth } from "./server/routes/ai";
 import { startLowStockMonitor } from "./server/services/lowStockMonitor";
 
-// Load .env.local first (local dev secrets), then .env fallback
-dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Trust upstream reverse proxy headers — required for Cloud Run accurate IP detection
+  // Configure Express to trust upstream reverse proxy headers (vital for accurate rate limits in Cloud Run)
   app.set("trust proxy", 1);
 
-  // CORS — open in dev, restricted to project domains in production
+  // CORS Configuration
   const allowedOrigins = [
     "https://ais-pre-nviwywn3zhtjosxtuaeuaa-34034757239.us-east1.run.app",
     "https://ais-dev-nviwywn3zhtjosxtuaeuaa-34034757239.us-east1.run.app"
@@ -33,10 +31,14 @@ async function startServer() {
       if (process.env.NODE_ENV !== "production" || !origin) {
         callback(null, true);
       } else {
-        const isAllowed = allowedOrigins.includes(origin) ||
-                          origin.endsWith(".run.app") ||
+        const isAllowed = allowedOrigins.includes(origin) || 
+                          origin.endsWith(".run.app") || 
                           origin.includes("34034757239.us-east1.run.app");
-        callback(isAllowed ? null : new Error("No permitido por CORS en producción"), isAllowed);
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          callback(new Error("No permitido por CORS en producción"));
+        }
       }
     },
     credentials: true,
@@ -46,49 +48,49 @@ async function startServer() {
 
   app.use(cors(corsOptions));
 
-  // Rate Limiting — validate:false disables proxy header warnings in Cloud Run
+  // Rate Limiting Config
   const generalLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000,
-    max: 100,
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 100, // limit each IP to 100 requests per window
     standardHeaders: true,
     legacyHeaders: false,
-    validate: false,
+    validate: false, // disable validation warnings for proxies/forwarded headers
     message: { error: "Demasiadas peticiones. Por favor, intenta de nuevo más tarde." }
   });
 
   const aiLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000,
-    max: 10,
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 10, // limit each IP to 10 requests for AI routes
     standardHeaders: true,
     legacyHeaders: false,
-    validate: false,
+    validate: false, // disable validation warnings for proxies/forwarded headers
     message: { error: "Límite de peticiones de IA excedido. Por favor, intenta de nuevo en un minuto." }
   });
 
-  // Global High-Capacity Middlewares
+  // Global High-Capacity Middlewares for our Hybrid API Gateway
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Apply Rate Limiters (AI first — most specific)
+  // Apply Rate Limiters
   app.use("/api/ai/insights", aiLimiter);
   app.use("/api", generalLimiter);
 
-  // API Gateway Health-Check — real dynamic status from each module
+  // API Gateway Health-Check Probe Endpoint
   app.get("/api/health", (req, res) => {
     const barcodeStatus = barcodeHealth();
     const paymentsStatus = paymentsHealth();
     const commsStatus = commsHealth();
     const aiStatus = aiHealth();
 
-    const allOnline =
-      barcodeStatus.status === "online" &&
-      paymentsStatus.status === "online" &&
-      commsStatus.status === "online" &&
+    const allOnline = 
+      barcodeStatus.status === "online" && 
+      paymentsStatus.status === "online" && 
+      commsStatus.status === "online" && 
       aiStatus.status === "online";
 
-    res.json({
-      status: allOnline ? "online" : "degraded",
-      architecture: "hybrid-modular",
+    res.json({ 
+      status: allOnline ? "online" : "degraded", 
+      architecture: "hybrid-modular", 
       apiVersion: "2.0.0",
       timestamp: new Date().toISOString(),
       modules: {
@@ -100,13 +102,13 @@ async function startServer() {
     });
   });
 
-  // Modular Endpoint Routers
+  // Delegating to Modular Endpoint Routers (Decoupled Backends)
   app.use("/api", barcodeRouter);
   app.use("/api", paymentsRouter);
   app.use("/api", commsRouter);
   app.use("/api", aiRouter);
 
-  // Vite dev or static production
+  // Vite development compiler integration or static production delivery
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
