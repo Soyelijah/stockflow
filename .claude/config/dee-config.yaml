@@ -1,0 +1,53 @@
+# Devlmer Ecosystem Engine — Configuración del proyecto
+# Este archivo es generado automáticamente durante la instalación.
+# Puedes editarlo para personalizar el comportamiento de DEE.
+
+version: "3.0"
+engine: "devlmer-ecosystem-engine"
+
+# Proyecto
+project:
+  name: ""  # Se detecta automáticamente
+  domain: ""  # Se detecta automáticamente (fintech, saas, chatbot, etc.)
+  language: "es"  # Idioma preferido para outputs
+
+# Skills
+skills:
+  auto_activate: true  # Activar skills por contexto automáticamente
+  custom: []  # Skills personalizados adicionales
+
+# MCPs
+mcps:
+  auto_configure: true
+  skip: []  # MCPs a omitir durante instalación
+
+# Hooks
+hooks:
+  session_start: true
+  post_tool_use: true
+  auto_verify: true  # Verificación automática de código
+
+# Agents
+agents:
+  auto_generate: true
+  custom: []  # Agents personalizados adicionales
+
+# GitHub
+github:
+  auto_sync: false
+  verify_auth: true
+
+# Nano-Banana-MCP
+nano_banana:
+  enabled: false
+  api_key: ""  # Se configura via setup-wizard.sh
+  default_quality: "high"
+  default_format: "png"
+  default_size: "1024x1024"
+  cache_enabled: true
+
+# Logging
+logging:
+  enabled: true
+  level: "info"  # debug, info, warn, error
+  directory: ".claude/logs/"

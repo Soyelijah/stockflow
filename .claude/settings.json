@@ -1,0 +1,144 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJ_DIR=$(pwd); PROFILE=\"$PROJ_DIR/.claude/PROJECT_PROFILE.json\"; SKILLS=$(find \"$PROJ_DIR/.claude/skills\" -name 'SKILL.md' 2>/dev/null | wc -l | tr -d ' '); AGENTS=$(find \"$PROJ_DIR/.claude/agents\" -name '*.md' 2>/dev/null | wc -l | tr -d ' '); CMDS=$(find \"$PROJ_DIR/.claude/commands\" -name '*.md' 2>/dev/null | wc -l | tr -d ' '); MCPS=0; if [ -f \"$PROJ_DIR/.claude/settings.json\" ]; then MCPS=$(python3 -c \"import json; s=json.load(open('$PROJ_DIR/.claude/settings.json')); print(len(s.get('mcpServers',{})))\" 2>/dev/null || echo 0); fi; DOMAIN='unknown'; if [ -f \"$PROFILE\" ]; then DOMAIN=$(python3 -c \"import json; p=json.load(open('$PROFILE')); print(p.get('fingerprint',{}).get('domain','unknown').replace('_',' ').title())\" 2>/dev/null || echo unknown); fi; echo ''; echo '\ud83e\udde0 DEVLMER ECOSYSTEM ENGINE v3.1'; echo '\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501'; echo \"\ud83d\udcca Project: $(basename $PROJ_DIR) | Domain: $DOMAIN\"; echo \"\u26a1 $SKILLS skills | $CMDS commands | $AGENTS agents | $MCPS MCPs\"; echo ''; echo '\ud83d\udca1 Quick start: /dee-demo (tour) | /dee-status (dashboard) | /dee-doctor (health)'; echo '   Type / to see all available commands'; echo ''"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "EDITED_FILE=\"$CLAUDE_FILE_PATH\"; if echo \"$EDITED_FILE\" | grep -qE '\\.py$'; then python3 -m py_compile \"$EDITED_FILE\" 2>&1 && echo '\u2705 Python syntax OK' || echo '\u274c Python syntax error'; elif echo \"$EDITED_FILE\" | grep -qE '\\.(tsx?|jsx?)$'; then echo '\u26a1 TypeScript file edited \u2014 run build to verify'; fi"
+          }
+        ]
+      }
+    ]
+  },
+  "version": "3.0",
+  "engine": "devlmer-ecosystem-engine",
+  "mcpServers": {
+    "datadog": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "datadog-mcp"
+      ],
+      "env": {
+        "DD_API_KEY": "",
+        "DD_APP_KEY": ""
+      }
+    },
+    "elasticsearch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-elasticsearch"
+      ],
+      "env": {
+        "ELASTICSEARCH_URL": "http://localhost:9200"
+      }
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      }
+    },
+    "google-analytics": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-google-analytics"
+      ],
+      "env": {}
+    },
+    "npm": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "npm-mcp"
+      ],
+      "env": {}
+    },
+    "redis": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-redis"
+      ],
+      "env": {
+        "REDIS_URL": "redis://localhost:6379"
+      }
+    },
+    "sendgrid": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "sendgrid-mcp-server"
+      ],
+      "env": {
+        "SENDGRID_API_KEY": ""
+      }
+    },
+    "sentry": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "sentry-mcp"
+      ],
+      "env": {
+        "SENTRY_AUTH_TOKEN": ""
+      }
+    },
+    "shopify": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-shopify"
+      ],
+      "env": {}
+    },
+    "slack": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-slack"
+      ],
+      "env": {
+        "SLACK_BOT_TOKEN": "",
+        "SLACK_TEAM_ID": ""
+      }
+    },
+    "stripe": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-stripe"
+      ],
+      "env": {
+        "STRIPE_SECRET_KEY": ""
+      }
+    },
+    "twilio": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "twilio-mcp"
+      ],
+      "env": {}
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "version": "3.0",
+  "provider": "gemini",
+  "api_key": "",
+  "defaults": {
+    "quality": "high",
+    "format": "png",
+    "size": "1024x1024",
+    "style": "realistic",
+    "auto_optimize": true
+  },
+  "cache": {
+    "enabled": true,
+    "directory": ".claude/cache/images/",
+    "max_size_mb": 500
+  },
+  "history": {
+    "enabled": true,
+    "max_entries": 100
+  }
+}

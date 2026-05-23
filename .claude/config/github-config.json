@@ -1,0 +1,25 @@
+{
+  "version": "3.0",
+  "authentication": {
+    "method": "gh-cli",
+    "verified": false,
+    "verified_at": null
+  },
+  "repository": {
+    "owner": "",
+    "name": "",
+    "default_branch": "main",
+    "private": false
+  },
+  "sync": {
+    "auto_push": false,
+    "auto_pull": false,
+    "ignore_patterns": [".env", ".claude/config/*.json"]
+  },
+  "integrations": {
+    "issues": true,
+    "pull_requests": true,
+    "actions": true,
+    "releases": true
+  }
+}

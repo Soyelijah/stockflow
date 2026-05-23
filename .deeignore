@@ -1,0 +1,47 @@
+# Devlmer Ecosystem Engine — Archivos ignorados
+# Estos archivos y carpetas no serán procesados por el fingerprinter
+
+# Dependencias
+node_modules/
+vendor/
+.venv/
+__pycache__/
+
+# Build outputs
+dist/
+build/
+.next/
+.nuxt/
+out/
+
+# IDE y editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Logs y temporales
+*.log
+tmp/
+temp/
+.cache/
+
+# Secrets (nunca incluir en fingerprint)
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+secrets.yaml
+
+# Git
+.git/
+
+# Docker volumes
+data/
+volumes/
