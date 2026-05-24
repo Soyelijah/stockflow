@@ -209,12 +209,8 @@ service cloud.firestore {
     }
 
     match /system_config/{docId} {
-      allow read: if true;
+      allow read: if isAdmin();
       allow write: if isAdmin();
-    }
-
-    match /test/{docId} {
-      allow read: if true;
     }
   }
 }
