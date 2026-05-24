@@ -73,6 +73,9 @@ export async function requireAuthBearer(req: AuthenticatedRequest, res: Response
       return res.status(401).json({ error: "Token de sesión inválido o expirado." });
     }
   } else {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(503).json({ error: "Servicio de autenticación no disponible en producción." });
+    }
     // Graceful fallback for local developer sandbox without Firebase Service Account credentials.
     // Minimizes friction while ensuring that a structural Authorization header is still present.
     try {

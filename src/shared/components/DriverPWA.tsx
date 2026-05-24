@@ -115,25 +115,30 @@ export function DriverPWA() {
       
       let step = 0;
       const totalSteps = 10;
+      let isUpdating = false;
       
       const interval = setInterval(async () => {
-        step += 1;
-        const currentLat = startLat + (destLat - startLat) * (step / totalSteps);
-        const currentLng = startLng + (destLng - startLng) * (step / totalSteps);
-        
+        if (isUpdating) return;
+        isUpdating = true;
         try {
+          step += 1;
+          const currentLat = startLat + (destLat - startLat) * (step / totalSteps);
+          const currentLng = startLng + (destLng - startLng) * (step / totalSteps);
+          
           const docRef = doc(db, "shipments", activeNextStop.id);
           await updateDoc(docRef, {
             currentLat,
             currentLng,
             lastLocationUpdate: serverTimestamp()
           });
+          
+          if (step >= totalSteps) {
+            clearInterval(interval);
+          }
         } catch (e) {
           console.error("Error updating coordinates in transit:", e);
-        }
-        
-        if (step >= totalSteps) {
-          clearInterval(interval);
+        } finally {
+          isUpdating = false;
         }
       }, 4000); // Shift truck every 4 seconds to target customer coordinates
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface MercadoPagoWalletProps {
   amount: number;
@@ -16,6 +17,7 @@ declare global {
 export function MercadoPagoWallet({ amount, onSuccess, onError }: MercadoPagoWalletProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -59,10 +61,14 @@ export function MercadoPagoWallet({ amount, onSuccess, onError }: MercadoPagoWal
             },
             onSubmit: async (formData: any) => {
               try {
+                const token = await user?.getIdToken();
                 // Request to backend to process payment
                 const response = await fetch('/api/mercadopago/process-payment', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                  },
                   body: JSON.stringify({
                     ...formData,
                     transaction_amount: amount,

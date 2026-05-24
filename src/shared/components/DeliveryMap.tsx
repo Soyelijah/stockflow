@@ -267,8 +267,9 @@ export function DeliveryMap() {
         };
         setSimulatedVehiclePos(currentPos);
 
-        // Write real-time coordinates to Firebase for live client-side rendering
-        if (associatedStop?.id) {
+        // Mitigate OBS-D: Throttled coordinate updates (every 3s+ or only on milestones) to prevent quota abuse and order race conditions
+        const isMilestone = (s === 1 || s === stepsCount);
+        if (associatedStop?.id && isMilestone) {
           try {
             await updateDoc(doc(db, "shipments", associatedStop.id), {
               currentLat: currentPos.lat,
@@ -280,7 +281,7 @@ export function DeliveryMap() {
           }
         }
 
-        await new Promise((r) => setTimeout(r, 400));
+        await new Promise((r) => setTimeout(r, 1500)); // Sleep 1500ms per step (overall 3.0s+ between milestone writes)
       }
 
       legIndex++;

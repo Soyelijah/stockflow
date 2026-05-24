@@ -1644,11 +1644,12 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         
                         // Fire secure audit logging to Express backend
                         try {
+                          const token = await user?.getIdToken();
                           await fetch("/api/audit/log", {
                             method: "POST",
                             headers: {
                               "Content-Type": "application/json",
-                              "Authorization": `Bearer ${user?.uid || "sys-operator"}`
+                              "Authorization": `Bearer ${token || "sys-operator"}`
                             },
                             body: JSON.stringify({
                               action: `CLAIM_RESOLVED`,

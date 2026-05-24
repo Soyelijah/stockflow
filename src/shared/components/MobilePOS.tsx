@@ -62,7 +62,7 @@ interface CartItem {
 }
 
 export function MobilePOS() {
-  const { profile, logout } = useAuth();
+  const { profile, logout, user } = useAuth();
   const { settings } = useSettings();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -365,64 +365,85 @@ export function MobilePOS() {
     if (offlineQueue.length === 0 || isSyncingOfflineSales) return;
     setIsSyncingOfflineSales(true);
     let successfulCount = 0;
+    const failedSales: any[] = [];
     try {
-      const batch = writeBatch(db);
-      
       for (const sale of offlineQueue) {
         const orderId = sale.orderId;
-        
-        // Loop standard transaction logic
-        sale.items.forEach((item: any) => {
-          const productRef = doc(db, "products", item.id);
-          const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
-          
-          batch.update(productRef, {
-            stock: increment(-item.quantity),
-            updatedAt: serverTimestamp()
-          });
-          
-          batch.set(transactionRef, {
-            productId: item.id,
-            productName: item.name,
-            type: "sale",
-            documentType: sale.documentType || "boleta",
-            quantity: item.quantity,
-            amount: item.price * item.quantity,
-            cost: (item.costPrice || item.price * 0.7) * item.quantity, // fallback
-            profit: (item.price - (item.costPrice || item.price * 0.7)) * item.quantity,
-            userId: profile?.uid,
-            userName: profile?.name,
-            customerId: sale.customerId || null,
-            customerName: sale.customerName || "VENTA GENERAL",
-            paymentMethod: sale.paymentMethod || "efectivo",
-            timestamp: serverTimestamp(),
-            orderId: orderId,
-            source: "mobile_pos_offline",
-            couponCode: sale.couponCode || null,
-            discountApplied: sale.discountApplied || 0,
-          });
-        });
+        try {
+          await runTransaction(db, async (transaction) => {
+            const productDocs: any[] = [];
+            // Validate stock first
+            for (const item of sale.items) {
+              const productRef = doc(db, "products", item.id);
+              const pDoc = await transaction.get(productRef);
+              if (!pDoc.exists()) {
+                throw new Error(`Producto ${item.name} no existe.`);
+              }
+              const currentStock = pDoc.data().stock || 0;
+              if (currentStock < item.quantity) {
+                throw new Error(`Stock insuficiente para ${item.name} (${currentStock} disponible).`);
+              }
+              productDocs.push({ ref: productRef, newStock: currentStock - item.quantity });
+            }
 
-        // Award points if customer exists
-        if (sale.customerId) {
-          const customerRef = doc(db, "customers", sale.customerId);
-          const pointsAwarded = calculatePoints(sale.total);
-          
-          batch.update(customerRef, {
-            points: increment(pointsAwarded),
-            totalSpent: increment(sale.total),
-            lastPurchaseAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            // Update product stock
+            for (const p of productDocs) {
+              transaction.update(p.ref, {
+                stock: p.newStock,
+                updatedAt: serverTimestamp()
+              });
+            }
+
+            // Record transaction events
+            sale.items.forEach((item: any) => {
+              const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
+              transaction.set(transactionRef, {
+                productId: item.id,
+                productName: item.name,
+                type: "sale",
+                documentType: sale.documentType || "boleta",
+                quantity: item.quantity,
+                amount: item.price * item.quantity,
+                cost: (item.costPrice || item.price * 0.7) * item.quantity, // fallback
+                profit: (item.price - (item.costPrice || item.price * 0.7)) * item.quantity,
+                userId: profile?.uid || "sys",
+                userName: profile?.name || "Cajero",
+                customerId: sale.customerId || null,
+                customerName: sale.customerName || "VENTA GENERAL",
+                paymentMethod: sale.paymentMethod || "efectivo",
+                timestamp: serverTimestamp(),
+                orderId: orderId,
+                source: "mobile_pos_offline",
+                couponCode: sale.couponCode || null,
+                discountApplied: sale.discountApplied || 0,
+              });
+            });
+
+            // Handle customer loyalty points
+            if (sale.customerId) {
+              const customerRef = doc(db, "customers", sale.customerId);
+              const pointsVal = calculatePoints(sale.total);
+              transaction.update(customerRef, {
+                points: increment(pointsVal),
+                totalSpent: increment(sale.total),
+                lastPurchaseAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              });
+            }
           });
+          successfulCount++;
+        } catch (err: any) {
+          console.error(`Error al procesar venta offline ${orderId}:`, err);
+          failedSales.push(sale);
         }
-        successfulCount++;
       }
 
-      await batch.commit();
-      
-      // Update local stats after successful cloud syncing
-      setOfflineQueue([]);
-      alert(`🎉 ¡Sincronización Exitosa! Se enviaron ${successfulCount} ventas almacenadas localmente a la nube de AWS/Firebase.`);
+      setOfflineQueue(failedSales);
+      if (failedSales.length > 0) {
+        alert(`Sincronización parcial completa: Se sincronizaron exitosamente ${successfulCount} ventas. ${failedSales.length} fallaron debido a quiebres de stock o productos no encontrados.`);
+      } else {
+        alert(`🎉 ¡Sincronización Exitosa! Se enviaron las ${successfulCount} ventas almacenadas localmente a la nube.`);
+      }
     } catch (e) {
       console.error("Error syncing offline sales:", e);
       alert("Error al sincronizar con la nube. Revise su conexión de internet.");
@@ -807,9 +828,13 @@ export function MobilePOS() {
         if (selectedCustomer?.email) {
           setEmailSentTo(selectedCustomer.email);
           try {
+            const token = await user?.getIdToken();
             await fetch("/api/send-receipt", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                ...(token ? { "Authorization": `Bearer ${token}` } : {})
+              },
               body: JSON.stringify({
                 customerEmail: selectedCustomer.email,
                 orderDetails,

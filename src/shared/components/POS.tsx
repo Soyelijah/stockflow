@@ -68,7 +68,7 @@ interface PaymentBreakdown {
 }
 
 export function POS() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { settings } = useSettings();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -234,7 +234,10 @@ export function POS() {
     if (showFlowModal && flowToken && flowStatus === "pending") {
       interval = setInterval(async () => {
         try {
-          const res = await fetch(`/api/flow/payment-status?token=${flowToken}`);
+          const token = await user?.getIdToken();
+          const res = await fetch(`/api/flow/payment-status?token=${flowToken}`, {
+            headers: token ? { "Authorization": `Bearer ${token}` } : {}
+          });
           if (!res.ok) return;
           const statusData = await res.json();
           // status 2 = Aceptado
@@ -578,9 +581,13 @@ export function POS() {
     try {
       setIsProcessing(true);
       const baseUrl = window.location.origin;
+      const token = await user?.getIdToken();
       const response = await fetch("/api/flow/create-payment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           amount: payments.digital,
           email: profile?.email || "caja@stockflow.cl",
@@ -761,9 +768,13 @@ export function POS() {
       // If customer has email, send receipt
       if (selectedCustomer?.email) {
         try {
+          const token = await user?.getIdToken();
           await fetch("/api/send-receipt", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              ...(token ? { "Authorization": `Bearer ${token}` } : {})
+            },
             body: JSON.stringify({
               customerEmail: selectedCustomer.email,
               orderDetails: {

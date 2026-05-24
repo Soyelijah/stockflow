@@ -184,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const register = async (email: string, pass: string, name: string, role: "admin" | "manager" | "seller" | "logistics" = "seller") => {
+  const register = async (email: string, pass: string, name: string, role: "admin" | "manager" | "seller" | "logistics" | "driver" | "owner" | "customer" = "seller") => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     
     // Send verification email
@@ -193,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const profileData: UserProfile = {
       uid: userCredential.user.uid,
       email,
-      role: role,
+      role: (role === "admin" || role === "owner" || role === "logistics" || role === "manager") ? "customer" : role as any,
       name
     };
     

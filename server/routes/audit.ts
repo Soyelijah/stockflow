@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { getServerDb } from "../services/db";
-import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
+import { adminDb } from "../services/firebaseAdmin";
+import * as admin from "firebase-admin";
 import { requireAuthBearer, AuditLogSchema, AuthenticatedRequest } from "../services/security";
 
 export const auditRouter = Router();
@@ -10,21 +10,15 @@ auditRouter.post("/audit/log", requireAuthBearer as any, async (req: Authenticat
   try {
     // Validate payload with Zod
     const parsed = AuditLogSchema.parse(req.body);
-    
-    const db = getServerDb();
-    if (!db) {
-      return res.status(500).json({ error: "Firestore server connection unavailable" });
-    }
 
-    const auditRef = collection(db, "role_audit");
-    const docRef = await addDoc(auditRef, {
+    const docRef = await adminDb.collection("role_audit").add({
       operatorEmail: parsed.operatorEmail || req.user?.email || "sistema@stockflow.com",
       operatorUid: parsed.operatorUid || req.user?.uid || "sys-cron",
       action: parsed.action,
       targetId: parsed.targetId,
       details: parsed.details || {},
-      ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
-      timestamp: serverTimestamp()
+      ipAddress: req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1",
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
     });
 
     res.json({ success: true, id: docRef.id });
@@ -41,15 +35,11 @@ auditRouter.post("/audit/log", requireAuthBearer as any, async (req: Authenticat
 // Secure API endpoint to fetch audit logs for the Admin "Historial de Auditoría" panel
 auditRouter.get("/audit/logs", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
-    const db = getServerDb();
-    if (!db) {
-      return res.status(500).json({ error: "Firestore server connection unavailable" });
-    }
-
-    // High performance index-sorted query
-    const auditRef = collection(db, "role_audit");
-    const q = query(auditRef, orderBy("timestamp", "desc"), limit(40));
-    const snap = await getDocs(q);
+    // High performance index-sorted query via adminDb
+    const snap = await adminDb.collection("role_audit")
+      .orderBy("timestamp", "desc")
+      .limit(40)
+      .get();
     
     const logs = snap.docs.map(doc => {
       const data = doc.data();
@@ -64,9 +54,7 @@ auditRouter.get("/audit/logs", requireAuthBearer as any, async (req: Authenticat
   } catch (err: any) {
     console.warn("Audit logs retrieval failed. Trying fallback list:", err);
     try {
-      const db = getServerDb();
-      if (!db) throw new Error();
-      const snap = await getDocs(collection(db, "role_audit"));
+      const snap = await adminDb.collection("role_audit").get();
       const logs = snap.docs.map(doc => {
         const data = doc.data();
         return {
@@ -103,23 +91,22 @@ export async function expressAuditMiddleware(req: any, res: any, next: any) {
   if (isTarget && ["POST", "PUT", "DELETE"].includes(req.method)) {
     res.json = function (data: any) {
       res.json = originalJson;
-      const db = getServerDb();
-      if (db) {
-        addDoc(collection(db, "role_audit"), {
-          operatorEmail: req.headers["x-operator-email"] || req.query.operatorEmail || "api-gateway@stockflow.com",
-          operatorUid: req.headers["x-operator-uid"] || req.query.operatorUid || "gateway-token",
-          action: actionName,
-          targetId: req.params.id || req.body.id || "payload-body",
-          details: {
-            method: req.method,
-            path: req.originalUrl,
-            status: res.statusCode,
-            body: req.body ? { ...req.body, password: undefined } : {}
-          },
-          ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
-          timestamp: serverTimestamp()
-        }).catch(e => console.error("[expressAuditMiddleware] Logging failed:", e));
-      }
+      
+      adminDb.collection("role_audit").add({
+        operatorEmail: req.headers["x-operator-email"] || req.query.operatorEmail || "api-gateway@stockflow.com",
+        operatorUid: req.headers["x-operator-uid"] || req.query.operatorUid || "gateway-token",
+        action: actionName,
+        targetId: req.params.id || req.body.id || "payload-body",
+        details: {
+          method: req.method,
+          path: req.originalUrl,
+          status: res.statusCode,
+          body: req.body ? { ...req.body, password: undefined } : {}
+        },
+        ipAddress: req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1",
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      }).catch(e => console.error("[expressAuditMiddleware] Logging failed:", e));
+
       return originalJson.apply(this, arguments);
     };
   }

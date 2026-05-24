@@ -1,5 +1,5 @@
-import { collection, doc, setDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { getServerDb } from "./db";
+import { adminDb } from "./firebaseAdmin";
+import * as admin from "firebase-admin";
 
 export interface BoletaItem {
   name: string;
@@ -19,13 +19,11 @@ export interface BoletaInput {
 }
 
 export async function generateNextFolio(): Promise<number> {
-  const db = getServerDb();
-  if (!db) return Math.floor(Math.random() * 90000) + 152000;
-
   try {
-    const boletasRef = collection(db, "electronic_boletas");
-    const q = query(boletasRef, orderBy("folio", "desc"), limit(1));
-    const snap = await getDocs(q);
+    const snap = await adminDb.collection("electronic_boletas")
+      .orderBy("folio", "desc")
+      .limit(1)
+      .get();
     if (!snap.empty) {
       const topDoc = snap.docs[0].data();
       if (topDoc && typeof topDoc.folio === "number") {
@@ -70,12 +68,6 @@ export function generateTEDSymbol(folio: number, amount: number, dateStr: string
 }
 
 export async function emitElectronicBoleta(input: BoletaInput) {
-  const db = getServerDb();
-  if (!db) {
-    console.warn("[boletaService] Unable to emit boleta, Firestore database connection offline.");
-    return null;
-  }
-
   const { orderId, amount, buyerEmail, customerName = "Cliente Online", customerTaxId = "Sin RUT", gateway = "credit_card", paymentId = "direct", items = [] } = input;
   const folio = await generateNextFolio();
   const dateStr = new Date().toISOString().split("T")[0] || "2026-05-23";
@@ -105,23 +97,20 @@ export async function emitElectronicBoleta(input: BoletaInput) {
     tedXml,
     status: "emitted",
     deliveredAt: emittedAtStr,
-    timestamp: new Date()
+    timestamp: admin.firestore.FieldValue.serverTimestamp()
   };
 
   try {
-    const boletaRef = doc(db, "electronic_boletas", `BOL-${folio}`);
-    await setDoc(boletaRef, boletaData);
+    await adminDb.collection("electronic_boletas").doc(`BOL-${folio}`).set(boletaData);
     console.log(`🧾 [Boleta Electrónica] Emitida exitosamente. Folio: ${folio}, Total: $${total} CLP`);
 
     // Let's also verify and write a transaction in the transactions collection if they pay online,
     // so it shows up in both Admin Logistics and Customer Receipts History cleanly!
-    const txRef = doc(db, "transactions", `WEB-${orderId}`);
     const finalItems = items.length > 0 ? items : [{ name: "Compra Online StockFlow", price: total, quantity: 1 }];
 
     for (const finalItem of finalItems) {
       const idx = finalItems.indexOf(finalItem);
-      const subTxRef = doc(db, "transactions", `WEB-${orderId}_${idx}`);
-      await setDoc(subTxRef, {
+      await adminDb.collection("transactions").doc(`WEB-${orderId}_${idx}`).set({
         productId: `prod_online_${idx}`,
         productName: finalItem.name,
         type: "app_purchase",
@@ -133,7 +122,7 @@ export async function emitElectronicBoleta(input: BoletaInput) {
         customerName: customerName,
         customerTaxId: customerTaxIdByEmail(buyerEmail, customerTaxId),
         paymentBreakdown: { method: gateway, amount: total },
-        timestamp: new Date(),
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
         orderId: orderId,
         documentType: "Boleta Electrónica",
         folio: folio,

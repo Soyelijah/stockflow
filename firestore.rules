@@ -44,6 +44,13 @@ service cloud.firestore {
       );
     }
 
+    function isDriver() {
+      return isSignedIn() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver')
+      );
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -57,7 +64,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
-      allow create, update: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && incoming().role in ['customer', 'seller']
+        && incoming().keys().hasOnly(['uid', 'email', 'role', 'name', 'createdAt']);
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     match /products/{productId} {
@@ -86,8 +96,13 @@ service cloud.firestore {
     }
 
     match /transactions/{txId} {
-      allow read, list: if true; // Public for portal history (filtered by customerId in app)
-      allow create: if true; // Public for portal purchases
+      allow read, list: if isSignedIn() && (
+        isAdmin() || 
+        isSeller() || 
+        isLogistics() || 
+        (resource != null && resource.data.customerId == request.auth.uid)
+      );
+      allow create: if isSignedIn();
       allow update, delete: if false; 
     }
 
@@ -142,8 +157,17 @@ service cloud.firestore {
     }
 
     match /shipments/{shipmentId} {
-      allow read: if isAdmin() || isLogistics() || (isSignedIn() && resource.data.customerId == request.auth.uid);
-      allow write: if isAdmin() || isLogistics();
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        isLogistics() || 
+        isDriver() || 
+        (resource != null && resource.data.customerId == request.auth.uid)
+      );
+      allow create, delete: if isAdmin() || isLogistics();
+      allow update: if isAdmin() || isLogistics() || (
+        isDriver() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentLat', 'currentLng', 'updatedAt', 'lastLocationUpdate', 'startedTransitAt', 'deliveredAt'])
+      );
     }
 
     match /client_notifications/{docId} {

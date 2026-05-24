@@ -3,13 +3,13 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { initializeApp } from "firebase-admin/app";
+import * as firebaseConfig from "../firebase-applet-config.json";
 
-initializeApp();
-
-const db = getFirestore();
+const app = initializeApp();
+const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // 1. HTTP Callable para definir roles (Custom Claims y DB Sync)
-export const setUserRole = onCall(async (request) => {
+export const setUserRole = onCall(async (request: any) => {
   const { userId, role } = request.data || {};
   
   if (!userId || !role) {
@@ -39,7 +39,7 @@ export const setUserRole = onCall(async (request) => {
 });
 
 // 2. Firestore Trigger para cambios de stock (Throttled/Batched to prevent excessive writes)
-export const onProductStockChange = onDocumentWritten("products/{productId}", async (event) => {
+export const onProductStockChange = onDocumentWritten("products/{productId}", async (event: any) => {
   const productId = event.params.productId;
   const snapshot = event.data;
 
@@ -160,7 +160,7 @@ export const onProductStockChange = onDocumentWritten("products/{productId}", as
 });
 
 // 3. Firestore Trigger for claims resolution
-export const onClaimResolved = onDocumentUpdated("claims/{claimId}", async (event) => {
+export const onClaimResolved = onDocumentUpdated("claims/{claimId}", async (event: any) => {
   const claimId = event.params.claimId;
   const snapshot = event.data;
   if (!snapshot) return;
@@ -196,7 +196,7 @@ export const onClaimResolved = onDocumentUpdated("claims/{claimId}", async (even
 });
 
 // 4. Firestore Trigger for User Role or status changes (Audit real-time Auth block)
-export const onUserRoleChanged = onDocumentUpdated("users/{userId}", async (event) => {
+export const onUserRoleChanged = onDocumentUpdated("users/{userId}", async (event: any) => {
   const userId = event.params.userId;
   const snapshot = event.data;
   if (!snapshot) return;

@@ -74,7 +74,7 @@ import {
 } from "recharts";
 
 export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -194,11 +194,12 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
         lang: "es"
       };
 
+      const token = await user?.getIdToken();
       const response = await fetch("/api/shrinkage/pdf", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${profile?.uid || "sys-operator"}`
+          "Authorization": `Bearer ${token || "sys-operator"}`
         },
         body: JSON.stringify(payload)
       });

@@ -33,6 +33,53 @@ function getFlowSignature(params: Record<string, any>) {
 /* ==========================================
    ROUTE: Mercado Pago Process
    ========================================== */
+function verifyMPSignature(req: any): boolean {
+  const secret = process.env.MP_WEBHOOK_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      console.error("[verifyMPSignature] ERROR: MP_WEBHOOK_SECRET no está configurado en producción. Rechazando webhook.");
+      return false;
+    }
+    console.warn("[verifyMPSignature] WARNING: MP_WEBHOOK_SECRET no configurado. Bypasseando firma en dev.");
+    return true;
+  }
+
+  const signatureHeader = req.headers["x-signature"];
+  if (!signatureHeader) {
+    console.error("[verifyMPSignature] Missing x-signature header.");
+    return false;
+  }
+
+  try {
+    const parts = String(signatureHeader).split(",");
+    let ts = "";
+    let v1 = "";
+    for (const part of parts) {
+      const [k, v] = part.split("=");
+      if (k === "ts") ts = v;
+      if (k === "v1") v1 = v;
+    }
+
+    if (!ts || !v1) {
+      console.error("[verifyMPSignature] Invalid x-signature header structure.");
+      return false;
+    }
+
+    const dataId = req.query["data.id"] || req.body?.data?.id || "";
+    const manifest = `id:${dataId};request-id:${req.headers["x-request-id"] || ""};ts:${ts};`;
+    const calculated = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
+
+    if (calculated === v1) {
+      return true;
+    }
+    console.error("[verifyMPSignature] Signature mismatch.");
+    return false;
+  } catch (err) {
+    console.error("[verifyMPSignature] Error validating signature:", err);
+    return false;
+  }
+}
+
 paymentsRouter.post("/mercadopago/process-payment", async (req, res) => {
   try {
     if (!mpClient) {
@@ -64,6 +111,10 @@ paymentsRouter.post("/mercadopago/process-payment", async (req, res) => {
 
 paymentsRouter.post("/mercadopago/webhook", async (req, res) => {
   try {
+    if (!verifyMPSignature(req)) {
+      console.warn("[mercadopago/webhook] Unauthorized signature attempt blocked.");
+      return res.status(401).send("Unauthorized signature");
+    }
     const { action, data } = req.body;
     if (action === "payment.created" || action === "payment.updated") {
       console.log(`[Modular Webhook] Mercado Pago status push received for ID: ${data?.id}`);
