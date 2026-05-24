@@ -5,8 +5,9 @@ import { CustomerPortal } from "../../shared/components/CustomerPortal";
 export function StoreRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<CustomerPortal />} />
-      <Route path="*" element={<Navigate to="" replace />} />
+      <Route path="/cliente" element={<CustomerPortal />} />
+      <Route path="/cliente/*" element={<CustomerPortal />} />
+      <Route path="*" element={<Navigate to="/cliente" replace />} />
     </Routes>
   );
 }
