@@ -1,33 +1,14 @@
 import { Request, Response, NextFunction } from "express";
-import * as admin from "firebase-admin";
+import admin from "./firebaseAdmin";
 import { z } from "zod";
 
-// Lazy-initialized Firebase Admin instance
-let isFirebaseAdminInitialized = false;
-
 function getFirebaseAdmin(): typeof admin | null {
-  if (!isFirebaseAdminInitialized) {
-    try {
-      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount)
-        });
-        isFirebaseAdminInitialized = true;
-        console.log("🔒 [Security] Firebase Admin SDK dynamically initialized with service account certificate.");
-      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        admin.initializeApp();
-        isFirebaseAdminInitialized = true;
-        console.log("🔒 [Security] Firebase Admin SDK dynamically initialized with Application Default Credentials.");
-      } else {
-        // Fallback for demo or local dev environment when server keys aren't provisioned yet
-        console.warn("⚠️ [Security] Firebase Admin service account not found in env. Falling back to local verification.");
-      }
-    } catch (err) {
-      console.error("❌ [Security] Fail to initialize Firebase Admin SDK:", err);
-    }
+  const hasCredentials = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (!hasCredentials) {
+    // Fallback for demo or local dev environment when server keys aren't provisioned yet
+    return null;
   }
-  return isFirebaseAdminInitialized ? admin : null;
+  return admin;
 }
 
 // Extends Request interface to attach authenticated user info
