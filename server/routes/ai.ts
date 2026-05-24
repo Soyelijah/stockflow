@@ -1,17 +1,16 @@
 import { Router } from "express";
 import { GoogleGenAI, Type } from "@google/genai";
-import { admin } from "../services/firebaseAdmin";
-import { isAdminOrManager } from "../../src/lib/roles";
 
 export const aiRouter = Router();
 
-// Initialize Gemini safely — only if key exists
-const ai = process.env.GEMINI_API_KEY 
-  ? new GoogleGenAI({ 
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-    })
-  : null;
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 let lastCallLatencyMs: number | null = null;
 let lastCallStatus: number | string = "N/A";
@@ -19,66 +18,27 @@ let totalCalls = 0;
 let failedCalls = 0;
 let lastErrorMessage: string | null = null;
 
-// POST /api/ai/insights
-// Security: requires valid Firebase Bearer token with admin/owner/inventory_manager role
-// Products are read SERVER-SIDE from Firestore — costPrice NEVER exposed to client
 aiRouter.post("/ai/insights", async (req, res) => {
   const startTime = Date.now();
   totalCalls++;
   try {
-    // --- Auth check ---
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      lastCallStatus = 401;
-      failedCalls++;
-      return res.status(401).json({ error: "Unauthorized. Missing Bearer token." });
-    }
+    const { products, transactions, expenses } = req.body;
 
-    const token = authHeader.split('Bearer ')[1];
-    let decodedToken: any;
-    try {
-      decodedToken = await admin.auth().verifyIdToken(token);
-    } catch (err) {
-      lastCallStatus = 401;
-      failedCalls++;
-      return res.status(401).json({ error: "Unauthorized. Invalid or expired token." });
-    }
-
-    const role = decodedToken.role || "customer";
-    if (!isAdminOrManager(role)) {
-      lastCallStatus = 403;
-      failedCalls++;
-      return res.status(403).json({ error: "Forbidden. Insufficient permissions." });
-    }
-
-    if (!ai) {
-      lastCallStatus = 503;
-      failedCalls++;
-      return res.status(503).json({ error: "Gemini API key not configured on server." });
-    }
-
-    // --- Payload Validation ---
-    const { transactions, expenses } = req.body;
-    if (transactions && (!Array.isArray(transactions) || transactions.length > 50)) {
+    if (!Array.isArray(products) || !Array.isArray(transactions)) {
       lastCallStatus = 400;
       failedCalls++;
-      return res.status(400).json({ error: "Invalid or too many transactions in payload (max 50)." });
+      return res.status(400).json({ error: "Missing required products or transactions array." });
     }
 
-    // --- Server-Side Product Read (costPrice never leaves server) ---
-    const productsSnap = await admin.firestore().collection('products').limit(500).get();
-    const inventoryData = productsSnap.docs.map((d: any) => {
-      const p = d.data();
-      return {
-        name: p.name,
-        stock: p.stock,
-        min: p.minThreshold,
-        price: p.price,
-        cost: p.costPrice  // Read securely server-side, NOT from client payload
-      };
-    });
+    const inventoryData = products.map((p: any) => ({
+      name: p.name,
+      stock: p.stock,
+      min: p.minThreshold,
+      price: p.price,
+      cost: p.costPrice
+    }));
 
-    const salesData = (transactions || [])
+    const salesData = transactions
       .filter((t: any) => t.type === "sale")
       .slice(0, 50)
       .map((t: any) => ({

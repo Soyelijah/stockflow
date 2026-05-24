@@ -6,13 +6,3 @@ coverage/
 *.log
 .env*
 !.env.example
-serviceAccountKey.json
-
-# Functions build/runtime
-functions/lib/
-functions/node_modules/
-
-# Devlmer Ecosystem Engine — ephemera (auto-added by install.sh)
-.claude/__pycache__/
-.claude/logs/
-.claude/settings.local.json

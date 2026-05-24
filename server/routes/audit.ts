@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { admin } from "../services/firebaseAdmin";
+import { getServerDb } from "../services/db";
+import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import { requireAuthBearer, AuditLogSchema, AuthenticatedRequest } from "../services/security";
 
 export const auditRouter = Router();
@@ -7,39 +8,23 @@ export const auditRouter = Router();
 // Endpoint for the React client to post custom high-integrity audit logs
 auditRouter.post("/audit/log", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
-    const role = req.user?.role || "customer";
-    if (!["admin", "owner"].includes(role)) {
-      return res.status(403).json({ error: "Forbidden. Insufficient permissions to post audit logs." });
-    }
-
     // Validate payload with Zod
     const parsed = AuditLogSchema.parse(req.body);
-
-    // Whitelist of actions
-    const ALLOWED_ACTIONS = [
-      "ROLE_CHANGE", 
-      "EXPENSE_CREATED", 
-      "EXPENSE_DELETED", 
-      "EXPENSE_MODIFIED",
-      "role_change",
-      "manual_override",
-      "data_export",
-      "config_change"
-    ];
-
-    if (!parsed.action || !ALLOWED_ACTIONS.includes(parsed.action)) {
-      return res.status(400).json({ error: "Invalid or unauthorized action." });
+    
+    const db = getServerDb();
+    if (!db) {
+      return res.status(500).json({ error: "Firestore server connection unavailable" });
     }
 
-    const db = admin.firestore();
-    const docRef = await db.collection("role_audit").add({
-      operatorEmail: req.user?.email || parsed.operatorEmail || "sistema@stockflow.com",
-      operatorUid: req.user?.uid || parsed.operatorUid || "sys-cron",
+    const auditRef = collection(db, "role_audit");
+    const docRef = await addDoc(auditRef, {
+      operatorEmail: parsed.operatorEmail || req.user?.email || "sistema@stockflow.com",
+      operatorUid: parsed.operatorUid || req.user?.uid || "sys-cron",
       action: parsed.action,
-      targetId: parsed.targetId || "N/A",
+      targetId: parsed.targetId,
       details: parsed.details || {},
       ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
-      timestamp: admin.firestore.FieldValue.serverTimestamp()
+      timestamp: serverTimestamp()
     });
 
     res.json({ success: true, id: docRef.id });
@@ -56,18 +41,15 @@ auditRouter.post("/audit/log", requireAuthBearer as any, async (req: Authenticat
 // Secure API endpoint to fetch audit logs for the Admin "Historial de Auditoría" panel
 auditRouter.get("/audit/logs", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
-    const role = req.user?.role || "customer";
-    if (!["admin", "owner"].includes(role)) {
-      return res.status(403).json({ error: "Forbidden. Insufficient permissions to read audit logs." });
+    const db = getServerDb();
+    if (!db) {
+      return res.status(500).json({ error: "Firestore server connection unavailable" });
     }
 
-    const limitCount = Math.min(Number(req.query.limit) || 40, 100);
-
-    const db = admin.firestore();
-    const snap = await db.collection("role_audit")
-      .orderBy("timestamp", "desc")
-      .limit(limitCount)
-      .get();
+    // High performance index-sorted query
+    const auditRef = collection(db, "role_audit");
+    const q = query(auditRef, orderBy("timestamp", "desc"), limit(40));
+    const snap = await getDocs(q);
     
     const logs = snap.docs.map(doc => {
       const data = doc.data();
@@ -82,8 +64,9 @@ auditRouter.get("/audit/logs", requireAuthBearer as any, async (req: Authenticat
   } catch (err: any) {
     console.warn("Audit logs retrieval failed. Trying fallback list:", err);
     try {
-      const db = admin.firestore();
-      const snap = await db.collection("role_audit").get();
+      const db = getServerDb();
+      if (!db) throw new Error();
+      const snap = await getDocs(collection(db, "role_audit"));
       const logs = snap.docs.map(doc => {
         const data = doc.data();
         return {
@@ -118,35 +101,13 @@ export async function expressAuditMiddleware(req: any, res: any, next: any) {
   }
 
   if (isTarget && ["POST", "PUT", "DELETE"].includes(req.method)) {
-    res.json = async function (data: any) {
+    res.json = function (data: any) {
       res.json = originalJson;
-      
-      let operatorEmail = "api-gateway@stockflow.com";
-      let operatorUid = "gateway-token";
-
-      // Attempt to extract verified user identity from Authorization header
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith("Bearer ")) {
-        try {
-          const token = authHeader.split("Bearer ")[1];
-          const decoded = await admin.auth().verifyIdToken(token);
-          operatorEmail = decoded.email || operatorEmail;
-          operatorUid = decoded.uid || operatorUid;
-        } catch (e) {
-          // Silent fallback to headers/query for non-blocking audit logging
-          operatorEmail = req.headers["x-operator-email"] || req.query.operatorEmail || operatorEmail;
-          operatorUid = req.headers["x-operator-uid"] || req.query.operatorUid || operatorUid;
-        }
-      } else {
-        operatorEmail = req.headers["x-operator-email"] || req.query.operatorEmail || operatorEmail;
-        operatorUid = req.headers["x-operator-uid"] || req.query.operatorUid || operatorUid;
-      }
-
-      try {
-        const db = admin.firestore();
-        await db.collection("role_audit").add({
-          operatorEmail,
-          operatorUid,
+      const db = getServerDb();
+      if (db) {
+        addDoc(collection(db, "role_audit"), {
+          operatorEmail: req.headers["x-operator-email"] || req.query.operatorEmail || "api-gateway@stockflow.com",
+          operatorUid: req.headers["x-operator-uid"] || req.query.operatorUid || "gateway-token",
           action: actionName,
           targetId: req.params.id || req.body.id || "payload-body",
           details: {
@@ -156,12 +117,9 @@ export async function expressAuditMiddleware(req: any, res: any, next: any) {
             body: req.body ? { ...req.body, password: undefined } : {}
           },
           ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
-          timestamp: admin.firestore.FieldValue.serverTimestamp()
-        });
-      } catch (e) {
-        console.error("[expressAuditMiddleware] Logging failed:", e);
+          timestamp: serverTimestamp()
+        }).catch(e => console.error("[expressAuditMiddleware] Logging failed:", e));
       }
-      
       return originalJson.apply(this, arguments);
     };
   }

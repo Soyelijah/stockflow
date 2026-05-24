@@ -16,7 +16,7 @@ import {
   startAfter,
   getDocs
 } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
   ArrowDownLeft, 
   ArrowUpRight, 
@@ -51,8 +51,8 @@ import {
   Mail,
   Navigation
 } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
-import { cn } from "../../lib/utils";
+import { useAuth } from "../contexts/AuthContext";
+import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { ModernAlert } from "./ui/ModernAlert";
@@ -88,7 +88,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   
   const [mode, setMode] = useState<"reception" | "dispatch" | "audit" | "alerts" | "shipments" | "claims">("reception");
-  const [shipmentSubMode, setShipmentSubMode] = useState<"list" | "map">("list");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -176,49 +175,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
       setIsCreatingCategory(false);
     } catch (err) {
       alert("Error al crear la categoría. Verifique sus permisos.");
-    }
-  };
-
-  const downloadAuditPDF = async (adjustedItems: any[], responsible: string) => {
-    try {
-      const payload = {
-        title: "Reporte de Conciliación Física de Inventario",
-        items: adjustedItems.map(item => ({
-          name: item.name,
-          stockActual: Number(item.systemStock),
-          stockFisico: Number(item.physicalStock),
-          motive: item.motive || (Number(item.physicalStock) < Number(item.systemStock) ? "Merma de Auditoría" : "Ajuste por Sobrante")
-        })),
-        responsible: responsible || profile?.name || "Pierre Solier",
-        comments: `Sesión de toma de inventario físico completada con éxito. Se cuadraron ${adjustedItems.length} SKU con descuadres físicos.`,
-        lang: "es"
-      };
-
-      const response = await fetch("/api/shrinkage/pdf", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${profile?.uid || "sys-operator"}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error("Fallo al generar archivo PDF en el gateway del servidor");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `reporte_auditoria_${Date.now()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      console.error("PDF generation fail:", err);
-      alert(`No se pudo descargar el reporte PDF automáticamente: ${err.message}`);
     }
   };
 
@@ -1112,7 +1068,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           let mermasTotal = 0;
                           let sobrantesTotal = 0;
 
-                          const adjustedItems: any[] = [];
                           products.forEach(p => {
                             const physical = auditScans[p.id] || 0;
                             const system = p.stock || 0;
@@ -1122,13 +1077,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                               modifiedCount++;
                               if (diff < 0) mermasTotal += Math.abs(diff);
                               if (diff > 0) sobrantesTotal += diff;
-
-                              adjustedItems.push({
-                                name: p.name,
-                                systemStock: system,
-                                physicalStock: physical,
-                                motive: diff < 0 ? "Merma / Pérdida en Auditoría" : "Excedente / Sobrante"
-                              });
 
                               // Update product stock directly
                               const prodRef = doc(db, "products", p.id);
@@ -1166,15 +1114,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           });
 
                           await batch.commit();
-
-                          // Automatically generate and download high-integrity bilingual PDF
-                          if (adjustedItems.length > 0) {
-                            try {
-                              await downloadAuditPDF(adjustedItems, profile?.name || "Pierre Solier");
-                            } catch (pdfErr) {
-                              console.error("Auto PDF generation failed:", pdfErr);
-                            }
-                          }
 
                           setAlertConfig({
                             isOpen: true,
@@ -1552,30 +1491,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             </div>
           </div>
 
-          {/* Submode Selection Menu */}
-          <div className="flex bg-slate-100 p-1 rounded-2xl max-w-md w-full">
-            <button
-              onClick={() => setShipmentSubMode("list")}
-              className={cn(
-                "flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center font-bold",
-                shipmentSubMode === "list" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              📋 Listado
-            </button>
-            <button
-              onClick={() => setShipmentSubMode("map")}
-              className={cn(
-                "flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center font-bold",
-                shipmentSubMode === "map" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              🗺️ Mapa y Simulación en Vivo
-            </button>
-          </div>
-
-          {shipmentSubMode === "list" ? (
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
             {shipmentsLoading ? (
               <div className="p-20 text-center flex flex-col items-center justify-center space-y-4">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
@@ -1668,11 +1584,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               </div>
             )}
           </div>
-          ) : (
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-4 md:p-6 overflow-hidden">
-              <DeliveryMap />
-            </div>
-          )}
         </div>
       ) : mode === "claims" ? (
         <div className="w-full space-y-6 text-left">

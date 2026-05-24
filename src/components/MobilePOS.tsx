@@ -13,7 +13,7 @@ import {
   runTransaction
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
-import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { 
   Search, 
   ShoppingCart, 
@@ -44,13 +44,13 @@ import {
   TrendingUp,
   Coins
 } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
-import { useSettings } from "../../contexts/SettingsContext";
-import { AUTOMATIC_POINT_COUPONS } from "../../lib/coupons";
+import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
+import { AUTOMATIC_POINT_COUPONS } from "../lib/coupons";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
-import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, calculatePoints, getCustomerTier } from "../../lib/utils";
+import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, calculatePoints, getCustomerTier } from "../lib/utils";
 import confetti from "canvas-confetti";
-import { printReceipt } from "../../lib/printUtils";
+import { printReceipt } from "../lib/printUtils";
 
 interface CartItem {
   id: string;
@@ -68,14 +68,7 @@ export function MobilePOS() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("pos_active_cart");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [emailSentTo, setEmailSentTo] = useState<string | null>(null);
@@ -152,10 +145,6 @@ export function MobilePOS() {
   useEffect(() => {
     localStorage.setItem("pos_offline_queue", JSON.stringify(offlineQueue));
   }, [offlineQueue]);
-
-  useEffect(() => {
-    localStorage.setItem("pos_active_cart", JSON.stringify(cart));
-  }, [cart]);
 
   // Handle Online/Offline browser changes automatically
   useEffect(() => {
@@ -485,10 +474,6 @@ export function MobilePOS() {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const addToCart = (product: any) => {
-    if (!registerOpen) {
-       alert("⚠ Operación Bloqueada: Por favor define el Monto Inicial de Apertura para abrir la caja antes de agregar productos al carro.");
-       return;
-    }
     setCart(prev => {
        const existing = prev.find(item => item.id === product.id);
        const stockVal = Number(product.stock) || 0;

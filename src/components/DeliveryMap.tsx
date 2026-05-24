@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 import { collection, onSnapshot, query, doc, updateDoc, setDoc, serverTimestamp, getDocs, writeBatch } from "firebase/firestore";
-import { db } from "../../lib/firebase";
-import { useAuth } from "../../contexts/AuthContext";
-import { cn } from "../../lib/utils";
+import { db } from "../lib/firebase";
+import { useAuth } from "../contexts/AuthContext";
+import { cn } from "../lib/utils";
 import { MapPin, Navigation, Truck, User, Phone, CheckCircle, Package, Plus, Map as MapIcon, Loader2, Sparkles, RefreshCw, Save, ArrowRight, Play, Square, Leaf } from "lucide-react";
 
 // Default coordinate (Santiago, Chile) for warehouse
@@ -261,25 +261,10 @@ export function DeliveryMap() {
       const stepsCount = 5;
       for (let s = 1; s <= stepsCount; s++) {
         const ratio = s / stepsCount;
-        const currentPos = {
+        setSimulatedVehiclePos({
           lat: origin.lat + (dest.lat - origin.lat) * ratio,
           lng: origin.lng + (dest.lng - origin.lng) * ratio
-        };
-        setSimulatedVehiclePos(currentPos);
-
-        // Write real-time coordinates to Firebase for live client-side rendering
-        if (associatedStop?.id) {
-          try {
-            await updateDoc(doc(db, "shipments", associatedStop.id), {
-              currentLat: currentPos.lat,
-              currentLng: currentPos.lng,
-              vehicleStatus: "moving"
-            });
-          } catch (ge) {
-            console.warn("Failed to write live gps coordinates to Firestore:", ge);
-          }
-        }
-
+        });
         await new Promise((r) => setTimeout(r, 400));
       }
 
@@ -299,18 +284,6 @@ export function DeliveryMap() {
           type: "success",
           userId: associatedStop.customerId || "all"
         });
-
-        // Set state to delivered, save final coordinates, and notify customer
-        try {
-          await updateDoc(doc(db, "shipments", associatedStop.id), {
-            status: "delivered",
-            currentLat: associatedStop.lat,
-            currentLng: associatedStop.lng,
-            vehicleStatus: "arrived"
-          });
-        } catch (stE) {
-          console.warn("Failed to update status to delivered in Firestore:", stE);
-        }
 
         setSimulatedLogs(prev => [
           ...prev,
@@ -1080,23 +1053,6 @@ export function DeliveryMap() {
                   </div>
                 </AdvancedMarker>
               )}
-
-              {/* Firestore Real-Time Coordinates Tracker for Customers & Inactive Simizers */}
-              {!isSimulating && shipments.map((s) => {
-                if (s.status === "in_route" && s.currentLat && s.currentLng) {
-                  return (
-                    <AdvancedMarker key={`realtime_truck_${s.id}`} position={{ lat: s.currentLat, lng: s.currentLng }}>
-                      <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-[85%]">
-                        <span className="absolute inline-flex h-8 w-8 rounded-full bg-emerald-500 opacity-40 animate-ping" />
-                        <div className="w-9 h-9 bg-slate-950 border-2 border-emerald-400 rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-bounce" title={`Pedido #${s.orderId} en camino`}>
-                          🚚
-                        </div>
-                      </div>
-                    </AdvancedMarker>
-                  );
-                }
-                return null;
-              })}
 
               {/* Optimized multi-stop route computation overlay */}
               {isOptimizedMode && activeShipments.length > 0 && (

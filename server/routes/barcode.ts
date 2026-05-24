@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { GoogleGenAI, Type } from "@google/genai";
-import { z } from "zod";
 
 export const barcodeRouter = Router();
 
@@ -128,19 +127,15 @@ const LOCAL_BARCODE_DB: Record<string, { name: string; category: string; brand: 
   }
 };
 
-const BarcodeLookupSchema = z.object({
-  barcode: z.string().trim().min(5).max(30).regex(/^\d+$/, "El código de barras debe contener solo números.")
-});
-
 // Barcode lookup with optional Google Search grounded Gemini intelligence
 barcodeRouter.get("/barcode-lookup", async (req, res) => {
   try {
-    const parsed = BarcodeLookupSchema.safeParse(req.query);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Código de barras inválido o malformado." });
+    const { barcode } = req.query;
+    if (!barcode || typeof barcode !== "string") {
+      return res.status(400).json({ error: "No barcode provided" });
     }
 
-    const cleanBarcode = parsed.data.barcode;
+    const cleanBarcode = barcode.trim();
 
     // 1. Instant local database check (highly efficient)
     if (LOCAL_BARCODE_DB[cleanBarcode]) {

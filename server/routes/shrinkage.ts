@@ -9,7 +9,6 @@ shrinkageRouter.post("/shrinkage/pdf", requireAuthBearer as any, (req: Authentic
   try {
     // Validate schema with Zod
     const parsed = ShrinkagePdfSchema.parse(req.body);
-    
     const { 
       items = [], 
       responsible = "Administrador", 
