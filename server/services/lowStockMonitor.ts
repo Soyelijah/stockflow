@@ -1,5 +1,5 @@
 import { adminDb } from "./firebaseAdmin";
-import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function startLowStockMonitor() {
   try {
@@ -29,7 +29,7 @@ export async function startLowStockMonitor() {
               message: `El producto "${data.name}" tiene stock bajo (${stock} unidades).`,
               type: "alert",
               link: "inventory",
-              timestamp: admin.firestore.FieldValue.serverTimestamp()
+              timestamp: FieldValue.serverTimestamp()
             });
           } catch (err) {
             console.error(`[Low Stock Monitor] Error writing low stock notification for ${docId}:`, err);

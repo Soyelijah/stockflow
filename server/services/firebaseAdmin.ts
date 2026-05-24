@@ -2,6 +2,8 @@ import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import firebaseConfig from "../../firebase-applet-config.json";
+import fs from "fs";
+import path from "path";
 
 // Lazy-initialized Firebase Admin instance to ensure single instance
 function getFirebaseAdminInstance(): any {
@@ -11,7 +13,14 @@ function getFirebaseAdminInstance(): any {
   }
 
   try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const keyPath = path.join(process.cwd(), "serviceAccountKey.json");
+    
+    if (fs.existsSync(keyPath)) {
+      const serviceAccount = JSON.parse(fs.readFileSync(keyPath, "utf-8"));
+      return initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
       return initializeApp({
         credential: admin.credential.cert(serviceAccount)
