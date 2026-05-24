@@ -1,32 +1,18 @@
-import { initializeApp } from "firebase/app";
-import { initializeFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import fs from "fs";
-import path from "path";
+import { adminDb } from "./firebaseAdmin";
+import * as admin from "firebase-admin";
 
 export async function startLowStockMonitor() {
   try {
-    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-    if (!fs.existsSync(configPath)) {
-      console.warn("[Low Stock Monitor] No firebase-applet-config.json found.");
-      return;
-    }
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    console.log("[Low Stock Monitor] Listening to products collection for low stock thresholds using adminDb...");
 
-    const app = initializeApp(firebaseConfig, "low-stock-monitor");
-    const db = initializeFirestore(app, {
-      experimentalForceLongPolling: true
-    }, (firebaseConfig as any).firestoreDatabaseId);
-
-    console.log("[Low Stock Monitor] Listening to products collection for low stock thresholds...");
-
-    onSnapshot(collection(db, "products"), (snapshot) => {
+    adminDb.collection("products").onSnapshot((snapshot) => {
       snapshot.docChanges().forEach(async (change) => {
         const docId = change.doc.id;
         const data = change.doc.data();
 
         if (change.type === "removed") {
           try {
-            await deleteDoc(doc(db, "client_notifications", `low-stock-${docId}`));
+            await adminDb.collection("client_notifications").doc(`low-stock-${docId}`).delete();
           } catch (err) {
             console.error(`[Low Stock Monitor] Error deleting low stock notification for deleted product ${docId}:`, err);
           }
@@ -38,19 +24,19 @@ export async function startLowStockMonitor() {
 
         if (stock <= minThreshold && data.name) {
           try {
-            await setDoc(doc(db, "client_notifications", `low-stock-${docId}`), {
+            await adminDb.collection("client_notifications").doc(`low-stock-${docId}`).set({
               title: "Stock Bajo",
               message: `El producto "${data.name}" tiene stock bajo (${stock} unidades).`,
               type: "alert",
               link: "inventory",
-              timestamp: serverTimestamp()
+              timestamp: admin.firestore.FieldValue.serverTimestamp()
             });
           } catch (err) {
             console.error(`[Low Stock Monitor] Error writing low stock notification for ${docId}:`, err);
           }
         } else {
           try {
-            await deleteDoc(doc(db, "client_notifications", `low-stock-${docId}`));
+            await adminDb.collection("client_notifications").doc(`low-stock-${docId}`).delete();
           } catch (err) {
             // Safe to ignore if not existing
           }
