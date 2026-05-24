@@ -22,6 +22,8 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.role == 'owner' || 
+        request.auth.token.role == 'admin' || 
+        request.auth.token.role == 'manager' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager'))
@@ -31,6 +33,7 @@ service cloud.firestore {
     function isLogistics() {
       return isSignedIn() && (
         isAdmin() || 
+        request.auth.token.role == 'logistics' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'logistics')
       );
@@ -39,6 +42,7 @@ service cloud.firestore {
     function isSeller() {
       return isSignedIn() && (
         isAdmin() || 
+        request.auth.token.role == 'seller' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller')
       );
@@ -46,10 +50,12 @@ service cloud.firestore {
 
     function isDriver() {
       return isSignedIn() && (
+        request.auth.token.role == 'driver' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver')
       );
     }
+
 
     function incoming() {
       return request.resource.data;

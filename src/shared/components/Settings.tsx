@@ -1144,6 +1144,7 @@ export function Settings() {
                         <option value="manager">Gerente / Encargado</option>
                         <option value="seller">Vendedor / POS</option>
                         <option value="logistics">Logística / Bodega</option>
+                        <option value="driver">Transportista / Driver</option>
                       </select>
                       <div className={cn(
                         "w-2 h-2 rounded-full",
