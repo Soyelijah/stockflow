@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
-import { collection, onSnapshot, query, doc, updateDoc, serverTimestamp, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, updateDoc, serverTimestamp, getDocs, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
@@ -78,7 +78,12 @@ export function DriverPWA() {
 
   // Load shipments real-time
   useEffect(() => {
-    const q = query(collection(db, "shipments"));
+    if (!profile?.uid) return;
+    const q = query(
+      collection(db, "shipments"),
+      where("assignedDriverId", "==", profile.uid),
+      where("status", "in", ["assigned", "in_route", "preparing"])
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const allShipments = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -97,52 +102,60 @@ export function DriverPWA() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profile?.uid]);
 
   // Compute pending sequence & active sequential next stop
   const pendingStops = shipments.filter(s => s.status !== "delivered");
   const completedStopsCount = shipments.filter(s => s.status === "delivered").length;
   const activeNextStop = pendingStops[0] || null;
 
-  // Track coordinates transit simulation (autonomous step-by-step slide towards dest)
+  // Track coordinates via real browser Geolocation API
   useEffect(() => {
     if (activeNextStop && activeNextStop.status === "in_route") {
-      // Start real-time Firestore coordinates updates simulation to feedback client map
-      const startLat = activeNextStop.currentLat || WAREHOUSE_COORDS.lat;
-      const startLng = activeNextStop.currentLng || WAREHOUSE_COORDS.lng;
-      const destLat = activeNextStop.lat;
-      const destLng = activeNextStop.lng;
-      
-      let step = 0;
-      const totalSteps = 10;
-      let isUpdating = false;
-      
-      const interval = setInterval(async () => {
-        if (isUpdating) return;
-        isUpdating = true;
-        try {
-          step += 1;
-          const currentLat = startLat + (destLat - startLat) * (step / totalSteps);
-          const currentLng = startLng + (destLng - startLng) * (step / totalSteps);
-          
-          const docRef = doc(db, "shipments", activeNextStop.id);
-          await updateDoc(docRef, {
-            currentLat,
-            currentLng,
-            lastLocationUpdate: serverTimestamp()
-          });
-          
-          if (step >= totalSteps) {
-            clearInterval(interval);
-          }
-        } catch (e) {
-          console.error("Error updating coordinates in transit:", e);
-        } finally {
-          isUpdating = false;
-        }
-      }, 4000); // Shift truck every 4 seconds to target customer coordinates
+      if (!navigator.geolocation) {
+        console.warn("Geolocation is not supported by this browser.");
+        return;
+      }
 
-      return () => clearInterval(interval);
+      let isUpdating = false;
+
+      const watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          if (isUpdating) return;
+          isUpdating = true;
+          try {
+            const { latitude, longitude } = position.coords;
+
+            // Validate that the reported coordinates are within the real geographical limits of Chile:
+            // -56 <= lat <= -17, -77 <= lng <= -67
+            if (latitude >= -56 && latitude <= -17 && longitude >= -77 && longitude <= -67) {
+              const docRef = doc(db, "shipments", activeNextStop.id);
+              await updateDoc(docRef, {
+                currentLat: latitude,
+                currentLng: longitude,
+                locationSource: "gps",
+                lastLocationUpdate: serverTimestamp()
+              });
+            } else {
+              console.warn(`[Anti-Spoofing] Geolocation rejected: coordinates (${latitude}, ${longitude}) are outside Chile bounds.`);
+            }
+          } catch (e) {
+            console.error("Error updating coordinates from GPS watch:", e);
+          } finally {
+            isUpdating = false;
+          }
+        },
+        (error) => {
+          console.error("Error watching geolocation position:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 10000,
+          timeout: 15000
+        }
+      );
+
+      return () => navigator.geolocation.clearWatch(watchId);
     }
   }, [activeNextStop?.id, activeNextStop?.status]);
 
@@ -187,7 +200,7 @@ export function DriverPWA() {
     const cleanScanned = code.trim().toLowerCase();
     const cleanOrderId = activeNextStop.orderId.trim().toLowerCase();
 
-    if (cleanScanned.includes(cleanOrderId) || cleanOrderId.includes(cleanScanned) || cleanScanned.length > 5) {
+    if (cleanScanned === cleanOrderId) {
       await handleDeliverStop(activeNextStop.id);
     } else {
       setScannerError(`Código incorrecto. Escaneó: "${code}". Se esperaba comprobante de Orden #${activeNextStop.orderId}`);

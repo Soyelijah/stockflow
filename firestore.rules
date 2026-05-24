@@ -172,7 +172,7 @@ service cloud.firestore {
       allow create, delete: if isAdmin() || isLogistics();
       allow update: if isAdmin() || isLogistics() || (
         isDriver() && 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentLat', 'currentLng', 'updatedAt', 'lastLocationUpdate', 'startedTransitAt', 'deliveredAt'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentLat', 'currentLng', 'updatedAt', 'lastLocationUpdate', 'startedTransitAt', 'deliveredAt', 'locationSource'])
       );
     }
 

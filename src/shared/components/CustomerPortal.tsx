@@ -3778,6 +3778,8 @@ export function CustomerPortal() {
                     <p className="text-slate-800">
                       {selectedReceipt.documentType === "Factura" || selectedReceipt.documentType === "Factura Electrónica" 
                         ? "Factura Electrónica" 
+                        : selectedReceipt.documentType === "Comprobante Interno"
+                        ? "Comprobante Interno"
                         : "Boleta Electrónica"}
                     </p>
                   </div>
@@ -3895,7 +3897,25 @@ export function CustomerPortal() {
                 )}
 
                 {/* Chilean SII DTE Timbre Electrónico or basic Receipt QR */}
-                {selectedReceipt.documentType?.includes("Boleta") || selectedReceipt.folio ? (
+                {selectedReceipt.documentType === "Comprobante Interno" ? (
+                  <div className="p-4 bg-amber-50 text-amber-800 rounded-2.5xl border-2 border-amber-200 border-dashed text-center font-mono space-y-1.5 shadow-inner">
+                    <p className="text-[9px] font-black tracking-wider text-amber-700">COMPROBANTE INTERNO DE COMPRA</p>
+                    <p className="text-[8px] font-black uppercase tracking-widest leading-normal text-amber-600">
+                      NO VÁLIDO COMO BOLETA ELECTRÓNICA
+                    </p>
+                    <div className="py-2 flex justify-center">
+                      <QRCodeCanvas 
+                        value={selectedReceipt.orderId} 
+                        size={100}
+                        level="M"
+                        className="opacity-90 shrink-0 border-4 border-white rounded-lg p-0.5"
+                      />
+                    </div>
+                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                      Folio Borrador: {selectedReceipt.folio}
+                    </p>
+                  </div>
+                ) : selectedReceipt.documentType?.includes("Boleta") || selectedReceipt.folio ? (
                   <div className="p-4 bg-red-50/50 text-red-700 rounded-2.5xl border-2 border-red-200 border-dashed text-center font-mono space-y-1.5 shadow-inner">
                     <p className="text-[9px] font-black tracking-widest text-red-650">TIMBRE ELECTRÓNICO SII</p>
                     <p className="text-[7.5px] font-bold text-red-500 uppercase tracking-widest leading-none">
@@ -3958,6 +3978,8 @@ export function CustomerPortal() {
                       
                       const docTypeLabel = selectedReceipt.documentType === "Factura" || selectedReceipt.documentType === "Factura Electrónica" 
                         ? "FACTURA ELECTRÓNICA" 
+                        : selectedReceipt.documentType === "Comprobante Interno"
+                        ? "COMPROBANTE INTERNO (NO VÁLIDO COMO BOLETA)"
                         : "BOLETA ELECTRÓNICA";
                       
                       const deliveryMethodText = selectedReceipt.type === "app_purchase" 
