@@ -18,6 +18,7 @@ const Logistics = React.lazy(() => import("../../shared/components/Logistics").t
 const Customers = React.lazy(() => import("../../shared/components/Customers").then(m => ({ default: m.Customers })));
 const Profile = React.lazy(() => import("../../shared/components/Profile").then(m => ({ default: m.Profile })));
 const MobilePOS = React.lazy(() => import("../../shared/components/MobilePOS").then(m => ({ default: m.MobilePOS })));
+const ShrinkageReport = React.lazy(() => import("../../shared/components/ShrinkageReport").then(m => ({ default: m.ShrinkageReport })));
 
 const PageFallback = () => (
   <div className="flex h-[60vh] items-center justify-center">
@@ -63,6 +64,7 @@ export function AdminRoutes() {
   else if (path.startsWith("/suppliers")) currentPage = "suppliers";
   else if (path.startsWith("/expenses")) currentPage = "expenses";
   else if (path.startsWith("/settings")) currentPage = "settings";
+  else if (path.startsWith("/shrinkage")) currentPage = "shrinkage";
   else if (path.startsWith("/kardex")) currentPage = "kardex";
   else if (path.startsWith("/customers")) currentPage = "customers";
   else if (path.startsWith("/profile")) currentPage = "profile";
@@ -99,6 +101,7 @@ export function AdminRoutes() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/kardex" element={<StockLedger />} />
               <Route path="/customers" element={<Customers />} />
+              <Route path="/shrinkage" element={<ShrinkageReport />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

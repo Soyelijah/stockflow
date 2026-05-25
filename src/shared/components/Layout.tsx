@@ -23,7 +23,8 @@ import {
   MinusCircle,
   Receipt,
   UserCircle,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  TrendingDown
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
@@ -358,6 +359,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: "logistics", label: "Logística / Ent", icon: Truck, roles: ["admin", "manager", "logistics"] },
     { id: "suppliers", label: "Proveedores", icon: Building2, roles: ["admin", "manager", "logistics"] },
     { id: "expenses", label: "Control Gastos", icon: MinusCircle, roles: ["admin", "manager"] },
+    { id: "shrinkage", label: "Mermas / Rep.", icon: TrendingDown, roles: ["admin", "manager"] },
     { id: "kardex", label: "Kardex / Mov", icon: ArrowRightLeft, roles: ["admin", "manager", "logistics"] },
     { id: "transactions", label: "Historial Caja", icon: Receipt, roles: ["admin", "manager", "seller"] },
     { id: "profile", label: "Mi Perfil", icon: UserCircle, roles: ["admin", "manager", "seller", "logistics"] },
