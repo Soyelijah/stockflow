@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, doc, getDocFromServer } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 import firebaseConfig from "../../firebase-applet-config.json";
@@ -8,22 +8,10 @@ import firebaseConfig from "../../firebase-applet-config.json";
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true
+  ...((import.meta as any).env?.DEV ? { experimentalForceLongPolling: true } : {})
 }, (firebaseConfig as any).firestoreDatabaseId);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
-
-// Test connection as per critical directive
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, "test", "connection"));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("the client is offline")) {
-      console.error("Please check your Firebase configuration.");
-    }
-  }
-}
-testConnection();
 
 export enum OperationType {
   CREATE = "create",

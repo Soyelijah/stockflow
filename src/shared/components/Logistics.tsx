@@ -49,12 +49,13 @@ import {
   ArrowDownCircle,
   ShoppingBag,
   Mail,
-  Navigation
+  Navigation,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
-import { BarcodeScanner } from "./ui/BarcodeScanner";
+const BarcodeScanner = React.lazy(() => import("./ui/BarcodeScanner").then(m => ({ default: m.BarcodeScanner })));
 import { ModernAlert } from "./ui/ModernAlert";
 import { DeliveryMap } from "./DeliveryMap";
 import { 
@@ -954,34 +955,41 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <span>Escanear Cámara</span>
                     </button>
                     {isAuditScanning && (
-                      <BarcodeScanner
-                        onScan={(code) => {
-                          if (code) {
-                            const prod = products.find(p => p.barcode === code || p.sku === code || (p.barcodes && p.barcodes.includes(code)));
-                            if (prod) {
-                              setAuditScans(prev => ({
-                                ...prev,
-                                [prod.id]: (prev[prod.id] || 0) + 1
-                              }));
-                              setAlertConfig({
-                                isOpen: true,
-                                type: "success",
-                                title: "Pistoleado con Cámara",
-                                message: `Adicionado +1 a "${prod.name}"`
-                              });
-                            } else {
-                              setAlertConfig({
-                                isOpen: true,
-                                type: "error",
-                                title: "Desconocido",
-                                message: `No se reconoce el código [${code}]`
-                              });
+                      <React.Suspense fallback={
+                        <div className="fixed inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center">
+                          <Loader2 className="animate-spin text-white mb-4" size={48} />
+                          <p className="text-white font-bold tracking-widest uppercase text-sm">Cargando escáner...</p>
+                        </div>
+                      }>
+                        <BarcodeScanner
+                          onScan={(code) => {
+                            if (code) {
+                              const prod = products.find(p => p.barcode === code || p.sku === code || (p.barcodes && p.barcodes.includes(code)));
+                              if (prod) {
+                                setAuditScans(prev => ({
+                                  ...prev,
+                                  [prod.id]: (prev[prod.id] || 0) + 1
+                                }));
+                                setAlertConfig({
+                                  isOpen: true,
+                                  type: "success",
+                                  title: "Pistoleado con Cámara",
+                                  message: `Adicionado +1 a "${prod.name}"`
+                                });
+                              } else {
+                                setAlertConfig({
+                                  isOpen: true,
+                                  type: "error",
+                                  title: "Desconocido",
+                                  message: `No se reconoce el código [${code}]`
+                                });
+                              }
                             }
-                          }
-                          setIsAuditScanning(false);
-                        }}
-                        onClose={() => setIsAuditScanning(false)}
-                      />
+                            setIsAuditScanning(false);
+                          }}
+                          onClose={() => setIsAuditScanning(false)}
+                        />
+                      </React.Suspense>
                     )}
                   </div>
                 </div>
@@ -1926,23 +1934,30 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                 <AnimatePresence>
                   {isScanning && (
-                    <BarcodeScanner 
-                      onScan={(code) => {
-                        if (code) {
-                          const product = products.find(p => p.barcode === code || (p.barcodes && p.barcodes.includes(code)));
-                          if (product) {
-                            setSelectedProduct(product);
-                            setUnrecognizedBarcode(null);
-                          } else {
-                            setUnrecognizedBarcode(code);
-                            setSelectedProduct(null);
-                            setSearchTerm("");
+                    <React.Suspense fallback={
+                      <div className="fixed inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center">
+                        <Loader2 className="animate-spin text-white mb-4" size={48} />
+                        <p className="text-white font-bold tracking-widest uppercase text-sm">Cargando escáner...</p>
+                      </div>
+                    }>
+                      <BarcodeScanner 
+                        onScan={(code) => {
+                          if (code) {
+                            const product = products.find(p => p.barcode === code || (p.barcodes && p.barcodes.includes(code)));
+                            if (product) {
+                              setSelectedProduct(product);
+                              setUnrecognizedBarcode(null);
+                            } else {
+                              setUnrecognizedBarcode(code);
+                              setSelectedProduct(null);
+                              setSearchTerm("");
+                            }
                           }
-                        }
-                        setIsScanning(false);
-                      }}
-                      onClose={() => setIsScanning(false)}
-                    />
+                          setIsScanning(false);
+                        }}
+                        onClose={() => setIsScanning(false)}
+                      />
+                    </React.Suspense>
                   )}
                 </AnimatePresence>
 

@@ -9,7 +9,7 @@ import {
   Loader2, Sparkles, LogOut, ArrowRight, ShieldCheck, QrCode, ClipboardList, Award, Home
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { BarcodeScanner } from "./ui/BarcodeScanner";
+const BarcodeScanner = React.lazy(() => import("./ui/BarcodeScanner").then(m => ({ default: m.BarcodeScanner })));
 import { toDate, formatCurrency } from "../../lib/utils";
 
 const WAREHOUSE_COORDS = { lat: -33.4449, lng: -70.6562 };
@@ -496,10 +496,17 @@ export function DriverPWA() {
       {/* RENDER QR BARCODE SCANNER OVERLAY IF TOGGLED */}
       <AnimatePresence>
         {isScanning && (
-          <BarcodeScanner 
-            onScan={handleBarcodeScan}
-            onClose={() => setIsScanning(false)}
-          />
+          <React.Suspense fallback={
+            <div className="fixed inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center">
+              <Loader2 className="animate-spin text-white mb-4" size={48} />
+              <p className="text-white font-bold tracking-widest uppercase text-sm">Cargando escáner...</p>
+            </div>
+          }>
+            <BarcodeScanner 
+              onScan={handleBarcodeScan}
+              onClose={() => setIsScanning(false)}
+            />
+          </React.Suspense>
         )}
       </AnimatePresence>
     </div>
