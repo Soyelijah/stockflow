@@ -227,6 +227,18 @@
         "timestamp": { "type": "string" }
       },
       "required": ["orderId", "customerName", "address", "status"]
+    },
+    "FCMToken": {
+      "title": "FCM Registration Token",
+      "description": "FCM push notification registration token for tracking clients or drivers",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["driver", "customer", "admin"] },
+        "updatedAt": { "type": "string", "format": "date" }
+      },
+      "required": ["token", "userId", "role"]
     }
   },
   "firestore": {
@@ -277,6 +289,10 @@
     "shipments": {
       "schema": "Shipment",
       "description": "Dispatched shipments and their tracking coordinates"
+    },
+    "fcm_tokens": {
+      "schema": "FCMToken",
+      "description": "Mapping from user or customer IDs to their FCM push registration tokens"
     }
   }
 }

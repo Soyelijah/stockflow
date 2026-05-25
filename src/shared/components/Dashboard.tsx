@@ -78,38 +78,23 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [pendingClaimsList, setPendingClaimsList] = useState<any[]>([]);
   const [recentClaimsList, setRecentClaimsList] = useState<any[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<any | null>(null);
+  const [isImageZoomed, setIsImageZoomed] = useState<boolean>(false);
   const [resolutionNote, setResolutionNote] = useState<string>("");
   const [isResolvingClaim, setIsResolvingClaim] = useState<boolean>(false);
   const [claimFilter, setClaimFilter] = useState<"pending" | "resolved">("pending");
 
   const loadClaims = async () => {
     try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const qPendingClaims = query(
-        collection(db, "claims"), 
-        where("status", "!=", "resolved"), 
-        limit(100)
-      );
-      const pendingSnap = await getDocs(qPendingClaims);
-      const pendingList: any[] = [];
-      pendingSnap.forEach(doc => {
-        pendingList.push({ id: doc.id, ...doc.data() });
+      const qClaims = query(collection(db, "claims"), limit(250));
+      const snap = await getDocs(qClaims);
+      const allClaims: any[] = [];
+      snap.forEach(doc => {
+        allClaims.push({ id: doc.id, ...doc.data() });
       });
+
+      const pendingList = allClaims.filter(c => c.status !== "resolved");
       setPendingClaimsList(pendingList);
-
-      const qRecentClaims = query(
-        collection(db, "claims"), 
-        where("timestamp", ">=", thirtyDaysAgo), 
-        limit(100)
-      );
-      const recentSnap = await getDocs(qRecentClaims);
-      const recentList: any[] = [];
-      recentSnap.forEach(doc => {
-        recentList.push({ id: doc.id, ...doc.data() });
-      });
-      setRecentClaimsList(recentList);
+      setRecentClaimsList(allClaims);
     } catch (error) {
       console.error("Error fetching claims for dashboard stats:", error);
     }
@@ -146,7 +131,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       }
     });
     
-    let avgText = "N/A";
+    let avgText = "Sin casos";
     if (resolvedWithTimeCount > 0) {
       const avgMs = totalResolutionTimeMs / resolvedWithTimeCount;
       const avgHours = avgMs / (1000 * 60 * 60);
@@ -1527,21 +1512,21 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       {/* Support Ticket Resolution Modal */}
       <AnimatePresence>
         {selectedClaim && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 overflow-y-auto flex items-start justify-center p-2 sm:p-4 md:p-10">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedClaim(null)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+              className="fixed inset-0 bg-slate-900/70 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 40 }}
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 40 }}
-              className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-slate-100"
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-xl rounded-3xl md:rounded-[2.5rem] shadow-2xl overflow-hidden my-auto flex flex-col border border-slate-100 z-10"
             >
-              <div className="p-6 overflow-y-auto space-y-5">
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 max-h-[85vh]">
                 <div className="flex justify-between items-start">
                   <div>
                     <span className={cn(
@@ -1589,14 +1574,43 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                   {selectedClaim.photo && (
                     <div className="border-t border-slate-200/60 pt-2 mt-2">
-                      <p className="text-slate-400 font-bold uppercase mb-1">Evidencia visual / Foto:</p>
-                      <div className="rounded-xl overflow-hidden border border-slate-200 max-h-48 flex justify-center bg-slate-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-slate-400 font-bold uppercase">Evidencia visual / Foto:</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsImageZoomed(true)}
+                            className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider"
+                          >
+                            🔍 Ampliar
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <a
+                            href={selectedClaim.photo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider"
+                          >
+                            Abrir nueva pestaña ↗
+                          </a>
+                        </div>
+                      </div>
+                      <div 
+                        onClick={() => setIsImageZoomed(true)}
+                        className="group relative rounded-xl overflow-hidden border border-slate-200 max-h-48 flex justify-center bg-slate-200 cursor-pointer hover:border-indigo-400 transition-all"
+                        title="Haga clic para expandir en pantalla completa"
+                      >
                         <img 
                           src={selectedClaim.photo} 
                           alt="Evidencia" 
                           referrerPolicy="no-referrer"
-                          className="object-contain max-h-48 w-full"
+                          className="object-contain max-h-48 w-full group-hover:scale-105 transition-all duration-300"
                         />
+                        <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                          <span className="bg-white/90 text-slate-950 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1">
+                            <span>🔍 VER PANTALLA COMPLETA</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1692,6 +1706,60 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   </div>
                 )}
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox Modal for Claim Evidence Image */}
+      <AnimatePresence>
+        {isImageZoomed && selectedClaim?.photo && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 bg-slate-950/95 backdrop-blur-md overflow-hidden select-none">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsImageZoomed(false)}
+              className="absolute inset-0 cursor-zoom-out"
+            />
+            
+            {/* Control bar */}
+            <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+              <a 
+                href={selectedClaim.photo} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all backdrop-blur-sm shadow flex items-center gap-1.5"
+                title="Abrir en pestaña nueva"
+              >
+                <span>Abrir Original ↗</span>
+              </a>
+              <button 
+                type="button"
+                onClick={() => setIsImageZoomed(false)}
+                className="bg-white/20 hover:bg-white/40 text-white p-2 w-8 h-8 flex items-center justify-center rounded-full text-xs font-black transition-all backdrop-blur-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-full max-h-[90vh] flex flex-col items-center justify-center p-2"
+            >
+              <div className="overflow-auto max-w-full max-h-[80vh] rounded-2xl shadow-2xl bg-slate-900 border border-white/10">
+                <img 
+                  src={selectedClaim.photo} 
+                  alt="Evidencia Ampliada" 
+                  className="max-w-none md:max-w-4xl max-h-[75vh] object-contain rounded-xl cursor-zoom-out"
+                  onClick={() => setIsImageZoomed(false)}
+                />
+              </div>
+              <p className="text-white/60 text-[10px] font-bold mt-3 text-center uppercase tracking-wider">
+                Haga clic para cerrar • Evidencia de {selectedClaim.customerName}
+              </p>
             </motion.div>
           </div>
         )}

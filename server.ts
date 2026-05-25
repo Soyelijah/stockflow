@@ -11,6 +11,7 @@ import { paymentsRouter, healthCheck as paymentsHealth } from "./server/routes/p
 import { commsRouter, healthCheck as commsHealth } from "./server/routes/comms";
 import { aiRouter, healthCheck as aiHealth } from "./server/routes/ai";
 import { startLowStockMonitor } from "./server/services/lowStockMonitor";
+import { startFCMStatusListener } from "./server/services/fcmListener";
 import { shrinkageRouter, healthCheck as shrinkageHealth } from "./server/routes/shrinkage";
 import { auditRouter, expressAuditMiddleware, healthCheck as auditHealth } from "./server/routes/audit";
 
@@ -19,6 +20,9 @@ dotenv.config();
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Disable X-Powered-By header to prevent fingerprinting
+  app.disable("x-powered-by");
 
   // Use Helmet for advanced server-side header protection and Anti-Clickjacking
   app.use(helmet({
@@ -144,6 +148,7 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 [Hybrid Server Core] API Gateway executing cleanly on http://localhost:${PORT}`);
     startLowStockMonitor();
+    startFCMStatusListener();
   });
 }
 

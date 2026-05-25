@@ -156,20 +156,11 @@ export async function seedCouponsIfEmpty() {
 export async function seedCustomersIfEmpty() {
   try {
     const configRef = doc(db, "system_config", "customerSeeding");
-    try {
-      const configSnap = await getDoc(configRef);
-      if (configSnap.exists() && configSnap.data()?.customersSeeded) {
-        return;
-      }
-    } catch (err) {
-      console.warn("Could not check customerSeeding status from system_config (expected for non-admin):", err);
-    }
-
     const customersCol = collection(db, "customers");
     const snapshot = await getDocs(customersCol);
     
     const existingTaxIds = snapshot.empty ? [] : snapshot.docs.map(doc => {
-      const tid = doc.data().taxId;
+      const tid = doc.data().taxId || doc.data().rut;
       return tid ? tid.toString().replace(/[^0-9kK]/g, "").toUpperCase() : "";
     });
     
@@ -178,6 +169,7 @@ export async function seedCustomersIfEmpty() {
         id: "cust-elijah-solier",
         name: "Elijah Solier",
         taxId: "25.551.228-5",
+        rut: "25.551.228-5",
         email: "solier.elijah@gmail.com",
         phone: "+56 9 1234 5678",
         points: 2450,
@@ -190,6 +182,7 @@ export async function seedCustomersIfEmpty() {
         id: "cust-prueba",
         name: "Cliente de Prueba",
         taxId: "12.345.678-9",
+        rut: "12.345.678-9",
         email: "cliente.prueba@gmail.com",
         phone: "+56 9 8765 4321",
         points: 350,
@@ -209,8 +202,8 @@ export async function seedCustomersIfEmpty() {
           const docRef = doc(db, "customers", cust.id);
           await setDoc(docRef, {
             ...cust,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           });
           seededAny = true;
           console.log(`Seeded default customer: ${cust.name}`);

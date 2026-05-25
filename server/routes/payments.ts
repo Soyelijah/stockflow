@@ -1,9 +1,54 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { MercadoPagoConfig, Payment } from "mercadopago";
+import { z } from "zod";
 import { emitElectronicBoleta } from "../services/boletaService";
+import { requireAuthBearer, AuthenticatedRequest } from "../services/security";
 
 export const paymentsRouter = Router();
+
+// ZOD INPUT SECURITY SCHEMAS
+const MercadoPagoPaymentSchema = z.object({
+  token: z.string().min(1, "Token de pago requerido"),
+  issuer_id: z.union([z.string(), z.number()]).transform(val => Number(val)).optional(),
+  payment_method_id: z.string().min(1, "Método de pago requerido"),
+  transaction_amount: z.union([z.number(), z.string()]).transform(val => Number(val)),
+  installments: z.union([z.number(), z.string()]).transform(val => Number(val)).default(1),
+  description: z.string().optional(),
+  payer: z.object({
+    email: z.string().email("Correo de pagador inválido"),
+    identification: z.object({
+      type: z.string().optional(),
+      number: z.string().optional()
+    }).optional()
+  })
+});
+
+const FlowCreatePaymentSchema = z.object({
+  amount: z.union([z.number(), z.string()]).transform(val => Math.round(Number(val))),
+  email: z.string().email("Correo de cliente inválido"),
+  description: z.string().min(1, "Descripción del cobor requerida"),
+  externalId: z.string().min(1, "ID de orden externo requerido"),
+  baseUrl: z.string().url("URL de retorno inválida")
+});
+
+const FlowPaymentStatusSchema = z.object({
+  token: z.string().min(1, "Token de consulta de Flow requerido")
+});
+
+const EmisionManualSchema = z.object({
+  orderId: z.string().min(1),
+  amount: z.union([z.number(), z.string()]).transform(val => Math.round(Number(val))),
+  buyerEmail: z.string().email(),
+  customerName: z.string().optional(),
+  customerTaxId: z.string().optional(),
+  items: z.array(z.object({
+    name: z.string(),
+    quantity: z.union([z.number(), z.string()]).transform(val => Number(val)),
+    price: z.union([z.number(), z.string()]).transform(val => Number(val))
+  })).optional(),
+  gateway: z.string().optional()
+});
 
 // FLOW GLOBAL CONFIGURATIONS
 const FLOW_API_KEY = process.env.FLOW_API_KEY || "";
@@ -86,15 +131,17 @@ paymentsRouter.post("/mercadopago/process-payment", async (req, res) => {
       throw new Error("Mercado Pago no está configurado o requiere credenciales secretas.");
     }
 
-    const { token, issuer_id, payment_method_id, transaction_amount, installments, description, payer } = req.body;
+    // Validate input with Zod Schema
+    const parsed = MercadoPagoPaymentSchema.parse(req.body);
+    const { token, issuer_id, payment_method_id, transaction_amount, installments, description, payer } = parsed;
     
     const payment = new Payment(mpClient);
     const result = await payment.create({
       body: {
-        transaction_amount: Number(transaction_amount),
+        transaction_amount,
         token,
         description,
-        installments: Number(installments),
+        installments,
         payment_method_id,
         issuer_id,
         payer,
@@ -104,8 +151,11 @@ paymentsRouter.post("/mercadopago/process-payment", async (req, res) => {
 
     res.status(201).json(result);
   } catch (err: any) {
+    if (err.name === "ZodError") {
+      return res.status(400).json({ error: "Estructura de pago inválida.", details: err.errors });
+    }
     console.error("[Modular Payments MP ERROR]:", err);
-    res.status(500).json({ error: err.message || "Error al procesar el pago con Mercado Pago" });
+    res.status(500).json({ error: "Error de servidor al procesar el pago con Mercado Pago. Por favor, intente más tarde." });
   }
 });
 
@@ -151,19 +201,19 @@ paymentsRouter.post("/mercadopago/webhook", async (req, res) => {
    ========================================== */
 paymentsRouter.post("/flow/create-payment", async (req, res) => {
   try {
-    const { amount, email, description, externalId, baseUrl } = req.body;
+    // Validate schema with Zod
+    const parsed = FlowCreatePaymentSchema.parse(req.body);
+    const { amount, email, description, externalId, baseUrl } = parsed;
 
     if (!FLOW_API_KEY || !FLOW_SECRET_KEY) {
       throw new Error("FLOW_API_KEY y/o FLOW_SECRET_KEY no se encuentran declarados.");
     }
 
-    const cleanAmount = Math.round(Number(amount));
-
     const params: Record<string, any> = {
       apiKey: FLOW_API_KEY,
       commerceOrder: externalId,
       subject: description,
-      amount: cleanAmount,
+      amount: amount,
       currency: "CLP",
       email: email,
       urlConfirmation: `${baseUrl}/api/payments/flow/confirm`,
@@ -192,8 +242,11 @@ paymentsRouter.post("/flow/create-payment", async (req, res) => {
       res.status(400).json({ error: data.message || "Error devuelto por el servidor de Flow" });
     }
   } catch (err: any) {
+    if (err.name === "ZodError") {
+      return res.status(400).json({ error: "Parámetros de pago inválidos.", details: err.errors });
+    }
     console.error("[Modular Payments Flow ERROR]:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Error de servidor al crear la transacción con Flow Chile. Por favor, intente más tarde." });
   }
 });
 
@@ -203,12 +256,15 @@ paymentsRouter.post("/flow/create-payment", async (req, res) => {
 paymentsRouter.post("/flow/confirm", async (req, res) => {
   try {
     const { token } = req.body;
-    if (!token) return res.status(400).send("No token");
+    if (!token || typeof token !== "string") return res.status(400).send("No token supplied");
+
+    // Clean token string of unwanted characters to prevent command triggers
+    const cleanToken = token.trim().replace(/[^a-zA-Z0-9_-]/g, "");
 
     // Verify payment authenticity and parse status with Flow endpoints
     const params = {
       apiKey: FLOW_API_KEY,
-      token: token
+      token: cleanToken
     };
     
     const s = getFlowSignature(params);
@@ -221,7 +277,7 @@ paymentsRouter.post("/flow/confirm", async (req, res) => {
     
     // Status 2 is PAID / APPROVED in Flow
     if (statusData.status === 2 || statusData.status === "2") {
-      const orderId = statusData.commerceOrder || `FLOW-ORD-${token.substring(0, 8)}`;
+      const orderId = statusData.commerceOrder || `FLOW-ORD-${cleanToken.substring(0, 8)}`;
       const amount = Number(statusData.amount);
       const buyerEmail = statusData.payer || "cliente@flow.cl";
       const subject = statusData.subject || "Compra Online Flow";
@@ -232,7 +288,7 @@ paymentsRouter.post("/flow/confirm", async (req, res) => {
         buyerEmail,
         customerName: statusData.payerName || "Cliente Flow",
         gateway: "flow",
-        paymentId: token,
+        paymentId: cleanToken,
         items: [{ name: subject, quantity: 1, price: amount }]
       });
     }
@@ -247,29 +303,30 @@ paymentsRouter.post("/flow/confirm", async (req, res) => {
 /* ==========================================
    ROUTE: Manual / Demo Electronic Receipt Emission Endpoint (Testing/Simulation)
    ========================================== */
-paymentsRouter.post("/payments/emit-boleta-manual", async (req, res) => {
+paymentsRouter.post("/payments/emit-boleta-manual", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
-    const { orderId, amount, buyerEmail, customerName, customerTaxId, items, gateway } = req.body;
-    
-    if (!orderId || !amount || !buyerEmail) {
-      return res.status(400).json({ error: "orderId, amount and buyerEmail are required fields." });
-    }
+    // Validate with Zod Schema
+    const parsed = EmisionManualSchema.parse(req.body);
+    const { orderId, amount, buyerEmail, customerName, customerTaxId, items, gateway } = parsed;
 
     const boleta = await emitElectronicBoleta({
       orderId,
-      amount: Number(amount),
+      amount,
       buyerEmail,
       customerName: customerName || "Cliente Demo",
       customerTaxId: customerTaxId || "18.394.029-K",
       gateway: gateway || "direct_simulation",
       paymentId: `MOCK-PAY-${Date.now().toString().substring(6)}`,
-      items: items || [{ name: "Compra de Prueba StockFlow", quantity: 1, price: Number(amount) }]
+      items: (items || [{ name: "Compra de Prueba StockFlow", quantity: 1, price: amount }]) as any
     });
 
     res.status(201).json({ success: true, message: "Boleta electrónica simulada emitida con éxito en Sandbox.", boleta });
   } catch (err: any) {
+    if (err.name === "ZodError") {
+      return res.status(400).json({ error: "Esquema de emisión manual inválido.", details: err.errors });
+    }
     console.error("[Manual Emission Router ERROR]:", err);
-    res.status(500).json({ error: err.message || "Failed to manually emit virtual electronic boleta." });
+    res.status(500).json({ error: "Error interno al procesar y emitir el borrador de boleta virtual." });
   }
 });
 
@@ -279,11 +336,13 @@ paymentsRouter.post("/payments/emit-boleta-manual", async (req, res) => {
 paymentsRouter.get("/flow/payment-status", async (req, res) => {
   try {
     const { token } = req.query;
-    if (!token) return res.status(400).json({ error: "No token supplied in query params" });
+    const parsed = FlowPaymentStatusSchema.parse({ token });
+    
+    const cleanToken = parsed.token.trim().replace(/[^a-zA-Z0-9_-]/g, "");
 
     const params = {
       apiKey: FLOW_API_KEY,
-      token: token as string
+      token: cleanToken
     };
     
     const s = getFlowSignature(params);
@@ -294,7 +353,11 @@ paymentsRouter.get("/flow/payment-status", async (req, res) => {
 
     res.json(statusData);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    if (err.name === "ZodError") {
+      return res.status(400).json({ error: "Token de consulta inválido o vacío.", details: err.errors });
+    }
+    console.error("[Flow Instant Status Error]:", err);
+    res.status(500).json({ error: "Error interno del servidor al consultar el estado de la transacción en Flow." });
   }
 });
 

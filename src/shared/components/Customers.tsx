@@ -262,20 +262,33 @@ export function Customers() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Data Sanitization & Normalization
+      const normalizedData = {
+        ...formData,
+        name: formData.name.trim().replace(/\s+/g, " "), // Trim and remove double-spaces
+        taxId: formatRUT(formData.taxId).trim(), // Consistent RUT format (e.g. X.XXX.XXX-X with uppercase K)
+        rut: formatRUT(formData.taxId).trim(), // Save rut field as well for database queries consistency
+        email: formData.email.trim().toLowerCase(), // Case-insensitive emails
+        phone: formData.phone.trim(),
+        address: formData.address.trim().replace(/\s+/g, " "),
+        notes: formData.notes.trim().replace(/\s+/g, " "),
+        points: Math.max(0, Math.round(Number(formData.points || 0))), // Standardize numeric entries
+      };
+
       if (editingCustomer) {
         await updateDoc(doc(db, "customers", editingCustomer.id), {
-          ...formData,
+          ...normalizedData,
           updatedAt: serverTimestamp(),
         });
         setAlertConfig({
           isOpen: true,
           type: "success",
           title: "¡Actualizado!",
-          message: `El cliente ${formData.name} ha sido actualizado correctamente.`,
+          message: `El cliente ${normalizedData.name} ha sido actualizado correctamente.`,
         });
       } else {
         await addDoc(collection(db, "customers"), {
-          ...formData,
+          ...normalizedData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });

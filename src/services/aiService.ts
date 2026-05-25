@@ -1,3 +1,5 @@
+import { auth } from "../lib/firebase";
+
 export interface StockInsight {
   analysis: string;
   recommendations: Array<{
@@ -10,10 +12,12 @@ export interface StockInsight {
 
 export async function getStockInsights(products: any[], transactions: any[], expenses: any[] = []): Promise<StockInsight> {
   try {
+    const token = await auth.currentUser?.getIdToken();
     const response = await fetch("/api/ai/insights", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token || "sys-operator"}`
       },
       body: JSON.stringify({ products, transactions, expenses })
     });

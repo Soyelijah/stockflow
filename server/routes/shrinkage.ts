@@ -183,7 +183,7 @@ shrinkageRouter.post("/shrinkage/pdf", requireAuthBearer as any, (req: Authentic
     if (err.name === "ZodError") {
       res.status(400).json({ error: "Estructura de reporte de auditoría no válida", details: err.errors });
     } else {
-      res.status(500).json({ error: "No se pudo generar el documento PDF.", details: err.message });
+      res.status(500).json({ error: "No se pudo generar el documento PDF debido a un problema de formato interno." });
     }
   }
 });

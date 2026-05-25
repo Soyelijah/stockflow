@@ -1,5 +1,5 @@
 import { adminDb } from "../server/services/firebaseAdmin";
-import admin from "firebase-admin";
+import * as admin from "firebase-admin";
 
 async function bootstrap() {
   console.log("🚀 [Bootstrap Admin] Starting user role setup and claim provisioning...");

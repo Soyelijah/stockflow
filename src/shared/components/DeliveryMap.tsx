@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
-import { collection, onSnapshot, query, doc, updateDoc, setDoc, serverTimestamp, getDocs, writeBatch } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, updateDoc, setDoc, serverTimestamp, getDocs, writeBatch, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
@@ -193,7 +193,11 @@ function OptimizedRouteDisplay({
   return null;
 }
 
-export function DeliveryMap() {
+interface DeliveryMapProps {
+  portalCustomerId?: string;
+}
+
+export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
   const { profile } = useAuth();
   const [shipments, setShipments] = useState<any[]>([]);
   const [selectedShipment, setSelectedShipment] = useState<any>(null);
@@ -344,20 +348,27 @@ export function DeliveryMap() {
   ];
 
   useEffect(() => {
-    const q = query(collection(db, "shipments"));
+    let q;
+    if (portalCustomerId) {
+      q = query(collection(db, "shipments"), where("customerId", "==", portalCustomerId));
+    } else {
+      q = query(collection(db, "shipments"));
+    }
     const unsub = onSnapshot(q, (snap) => {
       const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setShipments(data);
       setLoading(false);
-      if (data.length > 0 && !selectedShipment) {
+      if (data.length > 0) {
         setSelectedShipment(data[0]);
+      } else {
+        setSelectedShipment(null);
       }
     }, (err) => {
       console.error("Error fetching shipments:", err);
       setLoading(false);
     });
     return unsub;
-  }, []);
+  }, [portalCustomerId]);
 
   const handleCreateMockShipment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -512,7 +523,8 @@ export function DeliveryMap() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 min-h-[600px] bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-3 md:p-6">
       {/* Shipment sidebar */}
-      <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-6 flex flex-col h-full space-y-4">
+      {!portalCustomerId && (
+        <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-6 flex flex-col h-full space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Despachos En Ruta</h3>
@@ -905,9 +917,13 @@ export function DeliveryMap() {
           </div>
         )}
       </div>
+      )}
 
       {/* Interactive Map Layout */}
-      <div className="lg:col-span-3 flex flex-col h-full min-h-[500px]">
+      <div className={cn(
+        "flex flex-col h-full min-h-[500px]",
+        portalCustomerId ? "lg:col-span-4" : "lg:col-span-3"
+      )}>
         {/* Dynamic header details based on mode */}
         {isOptimizedMode ? (
           <div className="p-4 bg-slate-900 text-white rounded-t-3xl border-b border-white/5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -962,40 +978,64 @@ export function DeliveryMap() {
               </p>
             </div>
 
-            <div className="flex items-center space-x-2 shrink-0 font-sans">
-              <span className="text-xs font-black text-white/40 uppercase tracking-widest mr-2">Control Logístico:</span>
-              <button
-                onClick={() => handleUpdateStatus(selectedShipment.id, "prepared")}
-                className={cn(
+            {portalCustomerId ? (
+              <div className="flex items-center space-x-3 shrink-0 font-sans">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                  Estado despacho:
+                </span>
+                <span className={cn(
                   "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
-                  selectedShipment.status === "prepared" ? "bg-amber-500 text-white" : "bg-white/5 hover:bg-white/10"
-                )}
-              >
-                Preparado
-              </button>
-              <button
-                onClick={() => handleUpdateStatus(selectedShipment.id, "in_route")}
-                className={cn(
-                  "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
-                  selectedShipment.status === "in_route" ? "bg-indigo-600 text-white" : "bg-white/5 hover:bg-white/10"
-                )}
-              >
-                En Camino
-              </button>
-              <button
-                onClick={() => handleUpdateStatus(selectedShipment.id, "delivered")}
-                className={cn(
-                  "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
-                  selectedShipment.status === "delivered" ? "bg-emerald-500 text-white" : "bg-white/5 hover:bg-white/10"
-                )}
-              >
-                Entregado
-              </button>
-            </div>
+                  selectedShipment.status === "delivered"
+                    ? "bg-emerald-500 text-white"
+                    : selectedShipment.status === "in_route"
+                    ? "bg-indigo-600 text-white animate-pulse"
+                    : "bg-amber-500 text-white"
+                )}>
+                  {selectedShipment.status === "delivered"
+                    ? "✓ Entregado con éxito"
+                    : selectedShipment.status === "in_route"
+                    ? "🚚 Repartidor en ruta"
+                    : "📦 Preparado en bodega"}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 shrink-0 font-sans">
+                <span className="text-xs font-black text-white/40 uppercase tracking-widest mr-2">Control Logístico:</span>
+                <button
+                  onClick={() => handleUpdateStatus(selectedShipment.id, "prepared")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                    selectedShipment.status === "prepared" ? "bg-amber-500 text-white" : "bg-white/5 hover:bg-white/10"
+                  )}
+                >
+                  Preparado
+                </button>
+                <button
+                  onClick={() => handleUpdateStatus(selectedShipment.id, "in_route")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                    selectedShipment.status === "in_route" ? "bg-indigo-600 text-white" : "bg-white/5 hover:bg-white/10"
+                  )}
+                >
+                  En Camino
+                </button>
+                <button
+                  onClick={() => handleUpdateStatus(selectedShipment.id, "delivered")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                    selectedShipment.status === "delivered" ? "bg-emerald-500 text-white" : "bg-white/5 hover:bg-white/10"
+                  )}
+                >
+                  Entregado
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-4 bg-slate-900 text-slate-400 text-xs font-black uppercase tracking-wider rounded-t-3xl text-center font-sans">
-            Seleccione un despacho para ver estado georreferenciado
+            {portalCustomerId
+              ? "No posees despachos activos registrados el día de hoy"
+              : "Seleccione un despacho para ver estado georreferenciado"}
           </div>
         )}
 

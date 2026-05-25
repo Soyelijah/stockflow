@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { GoogleGenAI, Type } from "@google/genai";
+import { requireAuthBearer, AuthenticatedRequest } from "../services/security";
 
 export const aiRouter = Router();
 
@@ -18,7 +19,7 @@ let totalCalls = 0;
 let failedCalls = 0;
 let lastErrorMessage: string | null = null;
 
-aiRouter.post("/ai/insights", async (req, res) => {
+aiRouter.post("/ai/insights", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   const startTime = Date.now();
   totalCalls++;
   try {
@@ -101,7 +102,7 @@ aiRouter.post("/ai/insights", async (req, res) => {
     lastCallLatencyMs = Date.now() - startTime;
     lastErrorMessage = error.message || String(error);
     console.error("AI Insight Endpoint Error:", error);
-    res.status(500).json({ error: error.message || "Failed to generate AI insights" });
+    res.status(500).json({ error: "No se pudieron generar los análisis inteligentes con Inteligencia Artificial en este momento." });
   }
 });
 

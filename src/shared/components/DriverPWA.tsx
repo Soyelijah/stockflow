@@ -1,16 +1,18 @@
 import React, { useEffect, useState, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 import { collection, onSnapshot, query, doc, updateDoc, serverTimestamp, getDocs, where } from "firebase/firestore";
-import { db } from "../../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
 import { 
   MapPin, Navigation, Truck, User, Phone, CheckCircle, Package, 
-  Loader2, Sparkles, LogOut, ArrowRight, ShieldCheck, QrCode, ClipboardList, Award, Home
+  Loader2, Sparkles, LogOut, ArrowRight, ShieldCheck, QrCode, ClipboardList, Award, Home, Bell
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-const BarcodeScanner = React.lazy(() => import("./ui/BarcodeScanner").then(m => ({ default: m.BarcodeScanner })));
+import { BarcodeScanner } from "./ui/BarcodeScanner";
+import { SignatureModal } from "./SignaturePad";
 import { toDate, formatCurrency } from "../../lib/utils";
+import { requestFCMToken, listenToForegroundMessages } from "../../lib/fcmClient";
 
 const WAREHOUSE_COORDS = { lat: -33.4449, lng: -70.6562 };
 
@@ -72,9 +74,51 @@ export function DriverPWA() {
   const [loading, setLoading] = useState(true);
   const [currentStop, setCurrentStop] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isSignatureOpen, setIsSignatureOpen] = useState(false);
+  const [pendingDeliverStopId, setPendingDeliverStopId] = useState<string | null>(null);
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [transitInterval, setTransitInterval] = useState<NodeJS.Timeout | null>(null);
+
+  const [fcmRegistered, setFcmRegistered] = useState(false);
+  const [fcmLoading, setFcmLoading] = useState(false);
+
+  // Monitor notifications status and connect foreground handler
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        setFcmRegistered(true);
+      }
+    }
+
+    if (profile?.uid) {
+      const unsub = listenToForegroundMessages((payload) => {
+        showSuccessBanner(`🔔 ${payload.notification?.title || "Aviso en Ruta"}: ${payload.notification?.body || "Novedades de despacho."}`);
+      });
+      return () => {
+        if (unsub) unsub();
+      };
+    }
+  }, [profile?.uid]);
+
+  const handleActivateNotifications = async () => {
+    if (!profile?.uid) return;
+    setFcmLoading(true);
+    try {
+      const token = await requestFCMToken(profile.uid, "driver");
+      if (token) {
+        setFcmRegistered(true);
+        showSuccessBanner("🔔 ¡Notificaciones de Ruta Activadas!");
+      } else {
+        setFcmRegistered(true);
+        showSuccessBanner("🔔 Notificaciones listas para despachos.");
+      }
+    } catch (e) {
+      console.error("FCM Activation Error:", e);
+    } finally {
+      setFcmLoading(false);
+    }
+  };
 
   // Load shipments real-time
   useEffect(() => {
@@ -99,6 +143,8 @@ export function DriverPWA() {
       
       setShipments(sorted);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "shipments");
     });
 
     return () => unsubscribe();
@@ -176,16 +222,24 @@ export function DriverPWA() {
   };
 
   // Handle sequential tactical Deliver completion
-  const handleDeliverStop = async (stopId: string) => {
+  const handleDeliverStop = async (
+    stopId: string, 
+    signatureDataUrl?: string, 
+    receivedByName?: string, 
+    signatureMetadata?: { signedAt: string; latitude: number | null; longitude: number | null }
+  ) => {
     try {
       const docRef = doc(db, "shipments", stopId);
       await updateDoc(docRef, {
         status: "delivered",
         deliveredAt: serverTimestamp(),
         currentLat: null, // Clear live truck indicator
-        currentLng: null
+        currentLng: null,
+        ...(signatureDataUrl ? { customerSignature: signatureDataUrl } : {}),
+        ...(receivedByName ? { customerSignedName: receivedByName } : {}),
+        ...(signatureMetadata ? { signatureMetadata } : {})
       });
-      showSuccessBanner("✅ ¡Entrega confirmada con éxito!");
+      showSuccessBanner("✅ ¡Entrega confirmada con firma digital!");
     } catch (err: any) {
       console.error(err);
     }
@@ -201,7 +255,8 @@ export function DriverPWA() {
     const cleanOrderId = activeNextStop.orderId.trim().toLowerCase();
 
     if (cleanScanned === cleanOrderId) {
-      await handleDeliverStop(activeNextStop.id);
+      setPendingDeliverStopId(activeNextStop.id);
+      setIsSignatureOpen(true);
     } else {
       setScannerError(`Código incorrecto. Escaneó: "${code}". Se esperaba comprobante de Orden #${activeNextStop.orderId}`);
       setTimeout(() => setScannerError(null), 6000);
@@ -267,6 +322,36 @@ export function DriverPWA() {
         <div className="bg-white p-3 rounded-2.5xl text-center border border-slate-100 shadow-sm">
           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Pendientes</p>
           <p className="text-lg font-black mt-1 font-mono text-amber-500">{pendingStops.length}</p>
+        </div>
+      </section>
+
+      {/* FCM Push Notification Banner */}
+      <section className="px-4 pb-4">
+        <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 text-white p-4 rounded-3xl border border-indigo-500/20 shadow-lg flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${fcmRegistered ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30"}`}>
+              <Bell size={16} className={fcmLoading ? "animate-pulse" : ""} />
+            </div>
+            <div>
+              <p className="text-[9px] font-extrabold text-[#10b981] uppercase tracking-widest">Alertas de Hoja de Ruta</p>
+              <p className="text-[11px] text-white/70 mt-0.5 font-medium leading-none">
+                {fcmRegistered ? "Notificaciones Push Activas" : "Activa alertas de viaje en tiempo real"}
+              </p>
+            </div>
+          </div>
+          {!fcmRegistered ? (
+            <button
+              onClick={handleActivateNotifications}
+              disabled={fcmLoading}
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer active:scale-95 text-white"
+            >
+              {fcmLoading ? "Inicializando..." : "Activar"}
+            </button>
+          ) : (
+            <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-xl border border-emerald-500/30">
+              ✓ Listo
+            </span>
+          )}
         </div>
       </section>
 
@@ -410,7 +495,10 @@ export function DriverPWA() {
                   </div>
 
                   <button
-                    onClick={() => handleDeliverStop(activeNextStop.id)}
+                    onClick={() => {
+                      setPendingDeliverStopId(activeNextStop.id);
+                      setIsSignatureOpen(true);
+                    }}
                     className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"
                   >
                     <CheckCircle size={14} />
@@ -425,7 +513,7 @@ export function DriverPWA() {
             <div className="w-20 h-20 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
               <Award size={40} className="animate-wiggle" />
             </div>
-            
+              
             <div className="space-y-2">
               <h3 className="text-lg font-black tracking-tight font-sans uppercase">¡Ruta Completada!</h3>
               <p className="text-xs text-indigo-200/70 font-bold max-w-xs mx-auto leading-relaxed">
@@ -496,17 +584,32 @@ export function DriverPWA() {
       {/* RENDER QR BARCODE SCANNER OVERLAY IF TOGGLED */}
       <AnimatePresence>
         {isScanning && (
-          <React.Suspense fallback={
-            <div className="fixed inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center">
-              <Loader2 className="animate-spin text-white mb-4" size={48} />
-              <p className="text-white font-bold tracking-widest uppercase text-sm">Cargando escáner...</p>
-            </div>
-          }>
-            <BarcodeScanner 
-              onScan={handleBarcodeScan}
-              onClose={() => setIsScanning(false)}
-            />
-          </React.Suspense>
+          <BarcodeScanner 
+            onScan={handleBarcodeScan}
+            onClose={() => setIsScanning(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* SIGNATURE CAPTURE DIALOG */}
+      <AnimatePresence>
+        {isSignatureOpen && pendingDeliverStopId && (
+          <SignatureModal
+            isOpen={isSignatureOpen}
+            onClose={() => {
+              setIsSignatureOpen(false);
+              setPendingDeliverStopId(null);
+            }}
+            defaultRecipientName={activeNextStop?.customerName || ""}
+            orderId={activeNextStop?.orderId || ""}
+            onSave={async (signatureDataUrl, receivedByName, metadata) => {
+              setIsSignatureOpen(false);
+              if (pendingDeliverStopId) {
+                await handleDeliverStop(pendingDeliverStopId, signatureDataUrl, receivedByName, metadata);
+              }
+              setPendingDeliverStopId(null);
+            }}
+          />
         )}
       </AnimatePresence>
     </div>

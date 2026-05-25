@@ -49,13 +49,12 @@ import {
   ArrowDownCircle,
   ShoppingBag,
   Mail,
-  Navigation,
-  Loader2
+  Navigation
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
-const BarcodeScanner = React.lazy(() => import("./ui/BarcodeScanner").then(m => ({ default: m.BarcodeScanner })));
+import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { ModernAlert } from "./ui/ModernAlert";
 import { DeliveryMap } from "./DeliveryMap";
 import { 
@@ -121,6 +120,8 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [selectedProductForOC, setSelectedProductForOC] = useState<any | null>(null);
   const [ocQuantity, setOcQuantity] = useState(50);
+  const [auditSearchQuery, setAuditSearchQuery] = useState("");
+  const [onlyDiscrepancies, setOnlyDiscrepancies] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState<{
     isOpen: boolean;
@@ -417,11 +418,14 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
     p.sku?.toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 5);
 
-  const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    c.rut?.includes(customerSearch) ||
-    c.email?.toLowerCase().includes(customerSearch.toLowerCase())
-  ).slice(0, 5);
+  const filteredCustomers = customers.filter(c => {
+    const customerRUT = c.rut || c.taxId || "";
+    return (
+      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      customerRUT.includes(customerSearch) ||
+      c.email?.toLowerCase().includes(customerSearch.toLowerCase())
+    );
+  }).slice(0, 5);
 
   const handleQuickCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -955,122 +959,271 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <span>Escanear Cámara</span>
                     </button>
                     {isAuditScanning && (
-                      <React.Suspense fallback={
-                        <div className="fixed inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center">
-                          <Loader2 className="animate-spin text-white mb-4" size={48} />
-                          <p className="text-white font-bold tracking-widest uppercase text-sm">Cargando escáner...</p>
-                        </div>
-                      }>
-                        <BarcodeScanner
-                          onScan={(code) => {
-                            if (code) {
-                              const prod = products.find(p => p.barcode === code || p.sku === code || (p.barcodes && p.barcodes.includes(code)));
-                              if (prod) {
-                                setAuditScans(prev => ({
-                                  ...prev,
-                                  [prod.id]: (prev[prod.id] || 0) + 1
-                                }));
-                                setAlertConfig({
-                                  isOpen: true,
-                                  type: "success",
-                                  title: "Pistoleado con Cámara",
-                                  message: `Adicionado +1 a "${prod.name}"`
-                                });
-                              } else {
-                                setAlertConfig({
-                                  isOpen: true,
-                                  type: "error",
-                                  title: "Desconocido",
-                                  message: `No se reconoce el código [${code}]`
-                                });
-                              }
+                      <BarcodeScanner
+                        onScan={(code) => {
+                          if (code) {
+                            const prod = products.find(p => p.barcode === code || p.sku === code || (p.barcodes && p.barcodes.includes(code)));
+                            if (prod) {
+                              setAuditScans(prev => ({
+                                ...prev,
+                                [prod.id]: (prev[prod.id] || 0) + 1
+                              }));
+                              setAlertConfig({
+                                isOpen: true,
+                                type: "success",
+                                title: "Pistoleado con Cámara",
+                                message: `Adicionado +1 a "${prod.name}"`
+                              });
+                            } else {
+                              setAlertConfig({
+                                isOpen: true,
+                                type: "error",
+                                title: "Desconocido",
+                                message: `No se reconoce el código [${code}]`
+                              });
                             }
-                            setIsAuditScanning(false);
-                          }}
-                          onClose={() => setIsAuditScanning(false)}
-                        />
-                      </React.Suspense>
+                          }
+                          setIsAuditScanning(false);
+                        }}
+                        onClose={() => setIsAuditScanning(false)}
+                      />
                     )}
                   </div>
                 </div>
               </div>
 
+              {/* Discrepancy Statistics Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-50 border border-slate-150 p-4 rounded-2xl">
+                  <span className="text-[9px] uppercase font-black text-slate-400 block tracking-widest">PRODUCTOS AUDITADOS</span>
+                  <p className="text-xl font-black text-slate-700">
+                    {Object.keys(auditScans).filter(k => auditScans[k] > 0).length} <span className="text-xs text-slate-400">/ {products.length} SKU</span>
+                  </p>
+                </div>
+                <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl">
+                  <span className="text-[9px] uppercase font-black text-rose-500 block tracking-widest">LÍNEAS CON MERMAS</span>
+                  <p className="text-xl font-black text-rose-600">
+                    {products.filter(p => (auditScans[p.id] !== undefined) && (auditScans[p.id] < (p.stock || 0))).length} <span className="text-xs text-rose-400 font-bold uppercase">SKU</span>
+                  </p>
+                </div>
+                <div className="bg-amber-50/50 border border-amber-100 p-4 rounded-2xl">
+                  <span className="text-[9px] uppercase font-black text-amber-600 block tracking-widest">LÍNEAS SOBRANTES</span>
+                  <p className="text-xl font-black text-amber-700">
+                    {products.filter(p => (auditScans[p.id] !== undefined) && (auditScans[p.id] > (p.stock || 0))).length} <span className="text-xs text-amber-400 font-bold uppercase">SKU</span>
+                  </p>
+                </div>
+                <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col justify-between">
+                  <span className="text-[9px] uppercase font-black text-indigo-600 block tracking-widest">ESTADO GENERAL</span>
+                  <span className="text-xs font-extrabold uppercase text-indigo-700">
+                    {products.every(p => (auditScans[p.id] ?? p.stock ?? 0) === (p.stock ?? 0)) ? "✓ Todo Cuadrado" : "⚠ Con Diferencias"}
+                  </span>
+                </div>
+              </div>
+
               {/* Product Listing adjustments table */}
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 bg-slate-50 border-b border-slate-150 flex items-center justify-between text-[10px] font-black uppercase text-slate-500 tracking-wider">
-                  <span>Listado de Conciliación Teórico vs Real</span>
-                  <span className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">{products.length} SKU Auditoría</span>
+                <div className="p-4 md:p-6 bg-slate-50 border-b border-slate-150 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider">Listado de Conciliación Teórico vs Real</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Configure o filtre para depurar discrepancias críticas</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const items: any[] = [];
+                          products.forEach(p => {
+                            const physical = auditScans[p.id] || 0;
+                            const system = p.stock || 0;
+                            const diff = physical - system;
+                            if (diff !== 0) {
+                              items.push({
+                                name: p.name,
+                                systemStock: system,
+                                physicalStock: physical,
+                                motive: diff < 0 ? "Merma / Pérdida en Auditoría" : "Excedente / Sobrante"
+                              });
+                            }
+                          });
+
+                          if (items.length === 0) {
+                            setAlertConfig({
+                              isOpen: true,
+                              type: "info",
+                              title: "Sin Discrepancias",
+                              message: "No se registran descuadres entre el stock teórico y el conteo físico actual. No hay reporte que emitir."
+                            });
+                            return;
+                          }
+
+                          await downloadAuditPDF(items, profile?.name || "Pierre Solier");
+                        }}
+                        className="py-1.5 px-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 border border-red-100 cursor-pointer"
+                      >
+                        <FileText size={12} />
+                        <span>Generar PDF de Discrepancias</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fresh: Record<string, number> = {};
+                          products.forEach(p => { fresh[p.id] = 0; });
+                          setAuditScans(fresh);
+                        }}
+                        className="py-1.5 px-3 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                      >
+                        Poner Todo en Cero
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fresh: Record<string, number> = {};
+                          products.forEach(p => { fresh[p.id] = p.stock || 0; });
+                          setAuditScans(fresh);
+                        }}
+                        className="py-1.5 px-3 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                      >
+                        Reestablecer Teórico
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Search and Filters panel */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center pt-2 border-t border-slate-200/50">
+                    <div className="sm:col-span-8 relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nombre, SKU, barra..."
+                        value={auditSearchQuery}
+                        onChange={(e) => setAuditSearchQuery(e.target.value)}
+                        className="w-full h-9 pl-9 pr-4 bg-white border border-slate-250 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 outline-none transition-all placeholder:text-slate-400"
+                      />
+                      {auditSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setAuditSearchQuery("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="sm:col-span-4 flex items-center justify-end">
+                      <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                        <input
+                          type="checkbox"
+                          checked={onlyDiscrepancies}
+                          onChange={(e) => setOnlyDiscrepancies(e.target.checked)}
+                          className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 bg-slate-100 border-slate-250 cursor-pointer"
+                        />
+                        <span>Ver solo discrepancias ({products.filter(p => (auditScans[p.id] ?? p.stock ?? 0) !== (p.stock ?? 0)).length})</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="divide-y divide-slate-100 max-h-[450px] overflow-y-auto">
-                  {products.map((p) => {
-                    const physicalValue = auditScans[p.id] || 0;
-                    const systemValue = p.stock || 0;
-                    const diff = physicalValue - systemValue;
+                  {(() => {
+                    const filtered = products.filter(p => {
+                      const physicalValue = auditScans[p.id] ?? 0;
+                      const systemValue = p.stock ?? 0;
+                      const hasDiff = physicalValue !== systemValue;
 
-                    return (
-                      <div key={p.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 text-slate-400">
-                            <Package size={18} />
-                          </div>
-                          <div>
-                            <p className="font-extrabold text-sm text-slate-800 leading-snug">{p.name}</p>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                              SKU / Barra: {p.barcode || p.sku || "S/Barra"}
-                            </span>
-                          </div>
+                      const text = auditSearchQuery.toLowerCase().trim();
+                      const matchesSearch = !text || 
+                        p.name.toLowerCase().includes(text) ||
+                        (p.sku && p.sku.toLowerCase().includes(text)) ||
+                        (p.barcode && p.barcode.toLowerCase().includes(text));
+
+                      if (onlyDiscrepancies) {
+                        return hasDiff && matchesSearch;
+                      }
+                      return matchesSearch;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="p-12 text-center space-y-2">
+                          <Package className="mx-auto text-slate-350" size={32} />
+                          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">No se encontraron productos</p>
+                          <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-md mx-auto">
+                            Modifica o remueve los filtros (ej. búsqueda de texto, filtro de discrepancia activa) para ver otros ítems en la bodega.
+                          </p>
                         </div>
+                      );
+                    }
 
-                        <div className="flex items-center gap-6 justify-between sm:justify-end">
-                          <div className="text-right">
-                            <span className="text-[8px] font-black uppercase text-slate-400 block">Sistémico (Teórico)</span>
-                            <span className="font-black text-sm text-slate-600">{systemValue} un.</span>
-                          </div>
+                    return filtered.map((p) => {
+                      const physicalValue = auditScans[p.id] ?? 0;
+                      const systemValue = p.stock ?? 0;
+                      const diff = physicalValue - systemValue;
 
-                          <div className="space-y-1">
-                            <span className="text-[8px] font-black uppercase text-slate-400 ml-1 block text-center">Contado Físico</span>
-                            <div className="flex items-center space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => setAuditScans(prev => ({ ...prev, [p.id]: Math.max(0, physicalValue - 1) }))}
-                                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
-                              >
-                                <Minus size={14} />
-                              </button>
-                              <input
-                                type="number"
-                                value={physicalValue}
-                                onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  setAuditScans(prev => ({ ...prev, [p.id]: isNaN(val) || val < 0 ? 0 : val }));
-                                }}
-                                className="w-12 h-8 text-center bg-slate-50 border border-slate-100 rounded-lg text-xs font-black text-slate-800"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setAuditScans(prev => ({ ...prev, [p.id]: physicalValue + 1 }))}
-                                className="w-8 h-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center"
-                              >
-                                <Plus size={14} />
-                              </button>
+                      return (
+                        <div key={p.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 text-slate-400">
+                              <Package size={18} />
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-sm text-slate-800 leading-snug">{p.name}</p>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                SKU / Barra: {p.barcode || p.sku || "S/Barra"}
+                              </span>
                             </div>
                           </div>
 
-                          <div className="text-right w-20">
-                            <span className="text-[8px] font-black uppercase text-slate-400 block">Diferencia</span>
-                            {diff === 0 ? (
-                              <span className="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Cuadrado</span>
-                            ) : diff > 0 ? (
-                              <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">+{diff} Sobra</span>
-                            ) : (
-                              <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">{diff} Merma</span>
-                            )}
+                          <div className="flex items-center gap-6 justify-between sm:justify-end">
+                            <div className="text-right">
+                              <span className="text-[8px] font-black uppercase text-slate-400 block">Sistémico (Teórico)</span>
+                              <span className="font-black text-sm text-slate-600">{systemValue} un.</span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-[8px] font-black uppercase text-slate-400 ml-1 block text-center">Contado Físico</span>
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setAuditScans(prev => ({ ...prev, [p.id]: Math.max(0, physicalValue - 1) }))}
+                                  className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <input
+                                  type="number"
+                                  value={physicalValue}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    setAuditScans(prev => ({ ...prev, [p.id]: isNaN(val) || val < 0 ? 0 : val }));
+                                  }}
+                                  className="w-12 h-8 text-center bg-slate-50 border border-slate-105 rounded-lg text-xs font-black text-slate-800"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setAuditScans(prev => ({ ...prev, [p.id]: physicalValue + 1 }))}
+                                  className="w-8 h-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center cursor-pointer"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="text-right w-20">
+                              <span className="text-[8px] font-black uppercase text-slate-400 block">Diferencia</span>
+                              {diff === 0 ? (
+                                <span className="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Cuadrado</span>
+                              ) : diff > 0 ? (
+                                <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">+{diff} Sobra</span>
+                              ) : (
+                                <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">{diff} Merma</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
 
                 <div className="p-6 bg-slate-50 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -1632,14 +1785,49 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           <span className="text-sm font-black text-slate-800">{s.total ? `$${Number(s.total).toLocaleString('es-CL')}` : "$0"}</span>
                         </td>
                         <td className="px-8 py-4 whitespace-nowrap">
-                          <span className={cn(
-                            "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-block text-center",
-                            s.status === 'delivered' ? "bg-emerald-50 text-emerald-700" :
-                            s.status === 'in_route' ? "bg-indigo-50 text-indigo-700" : "bg-amber-50 text-amber-700"
-                          )}>
-                            {s.status === 'delivered' ? "Entregado" :
-                             s.status === 'in_route' ? "En Ruta" : "Preparado"}
-                          </span>
+                          <div className="flex items-center space-x-2">
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-block text-center",
+                              s.status === 'delivered' ? "bg-emerald-50 text-emerald-700" :
+                              s.status === 'in_route' ? "bg-indigo-50 text-indigo-700" : "bg-amber-50 text-amber-700"
+                            )}>
+                              {s.status === 'delivered' ? "Entregado" :
+                               s.status === 'in_route' ? "En Ruta" : "Preparado"}
+                            </span>
+                            {s.status === 'delivered' && s.customerSignature && (
+                              <div className="relative group">
+                                <button
+                                  type="button"
+                                  className="p-1 text-slate-500 hover:text-[#10b981] bg-slate-50 hover:bg-emerald-50 rounded-lg transition-colors border border-slate-200/60 cursor-pointer text-[10px] font-extrabold flex items-center gap-1"
+                                >
+                                  📝 Firma
+                                </button>
+                                {/* Micro hover popup window */}
+                                <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block z-[100] bg-white p-4 border border-slate-200/80 rounded-2xl shadow-2xl w-60 text-center text-slate-700 font-sans">
+                                  <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 mb-1">Recibido por:</p>
+                                  <p className="text-xs font-black text-slate-800 truncate mb-1">{s.customerSignedName || "Cliente Final"}</p>
+                                  <div className="border border-slate-100 rounded-xl bg-slate-50/50 p-2 flex items-center justify-center mb-2">
+                                    <img
+                                      src={s.customerSignature}
+                                      alt="Firma del cliente"
+                                      className="max-h-20 max-w-full object-contain"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </div>
+                                  {s.signatureMetadata && (
+                                    <div className="text-[8.5px] text-slate-550 font-bold text-left space-y-0.5 border-t border-slate-100 pt-2 font-mono leading-normal">
+                                      <p className="truncate text-slate-500">⏱️ {new Date(s.signatureMetadata.signedAt).toLocaleString('es-CL')}</p>
+                                      {s.signatureMetadata.latitude !== null && s.signatureMetadata.longitude !== null ? (
+                                        <p className="text-indigo-600 truncate">📍 GPS: {s.signatureMetadata.latitude.toFixed(5)}, {s.signatureMetadata.longitude.toFixed(5)}</p>
+                                      ) : (
+                                        <p className="text-amber-500">📍 GPS: No disponible</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1934,30 +2122,23 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                 <AnimatePresence>
                   {isScanning && (
-                    <React.Suspense fallback={
-                      <div className="fixed inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center">
-                        <Loader2 className="animate-spin text-white mb-4" size={48} />
-                        <p className="text-white font-bold tracking-widest uppercase text-sm">Cargando escáner...</p>
-                      </div>
-                    }>
-                      <BarcodeScanner 
-                        onScan={(code) => {
-                          if (code) {
-                            const product = products.find(p => p.barcode === code || (p.barcodes && p.barcodes.includes(code)));
-                            if (product) {
-                              setSelectedProduct(product);
-                              setUnrecognizedBarcode(null);
-                            } else {
-                              setUnrecognizedBarcode(code);
-                              setSelectedProduct(null);
-                              setSearchTerm("");
-                            }
+                    <BarcodeScanner 
+                      onScan={(code) => {
+                        if (code) {
+                          const product = products.find(p => p.barcode === code || (p.barcodes && p.barcodes.includes(code)));
+                          if (product) {
+                            setSelectedProduct(product);
+                            setUnrecognizedBarcode(null);
+                          } else {
+                            setUnrecognizedBarcode(code);
+                            setSelectedProduct(null);
+                            setSearchTerm("");
                           }
-                          setIsScanning(false);
-                        }}
-                        onClose={() => setIsScanning(false)}
-                      />
-                    </React.Suspense>
+                        }
+                        setIsScanning(false);
+                      }}
+                      onClose={() => setIsScanning(false)}
+                    />
                   )}
                 </AnimatePresence>
 
@@ -2237,7 +2418,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           >
                             <div>
                                 <p className="text-[11px] font-bold text-slate-700">{c.name}</p>
-                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{c.rut}</p>
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{c.rut || c.taxId || "Sin RUT"}</p>
                             </div>
                             {formData.customerId === c.id && <PackageCheck size={14} className="text-indigo-600" />}
                           </button>

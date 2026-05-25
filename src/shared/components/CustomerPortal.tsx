@@ -13,6 +13,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
+import { requestFCMToken, listenToForegroundMessages } from "../../lib/fcmClient";
 import { 
   User, 
   Star, 
@@ -163,6 +164,63 @@ export function CustomerPortal() {
       return null;
     }
   });
+
+  const [fcmRegistered, setFcmRegistered] = useState(false);
+  const [fcmLoading, setFcmLoading] = useState(false);
+  const [fcmToast, setFcmToast] = useState<{ title: string; body: string } | null>(null);
+
+  // Load push status and initialize foreground messaging
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        setFcmRegistered(true);
+      }
+    }
+
+    if (customer?.id) {
+      const unsub = listenToForegroundMessages((payload) => {
+        setFcmToast({
+          title: payload.notification?.title || "Notificación de Pedido",
+          body: payload.notification?.body || "Tu despacho se actualizó."
+        });
+      });
+      return () => {
+        if (unsub) unsub();
+      };
+    }
+  }, [customer?.id]);
+
+  useEffect(() => {
+    if (fcmToast) {
+      const timer = setTimeout(() => setFcmToast(null), 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [fcmToast]);
+
+  const handleActivateNotifications = async () => {
+    if (!customer?.id) return;
+    setFcmLoading(true);
+    try {
+      const token = await requestFCMToken(customer.id, "customer");
+      if (token) {
+        setFcmRegistered(true);
+        setFcmToast({
+          title: "¡Notificaciones Activadas! 🔔",
+          body: "Recibirás actualizaciones de tus pedidos en tiempo real."
+        });
+      } else {
+        setFcmRegistered(true);
+        setFcmToast({
+          title: "Registro de Canales OK 🔔",
+          body: "Configuración registrada en la base de datos."
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFcmLoading(false);
+    }
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -177,6 +235,29 @@ export function CustomerPortal() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loadingCoupons, setLoadingCoupons] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+  const [selectedReceiptShipment, setSelectedReceiptShipment] = useState<any>(null);
+
+  useEffect(() => {
+    if (!selectedReceipt?.orderId) {
+      setSelectedReceiptShipment(null);
+      return;
+    }
+    const q = query(
+      collection(db, "shipments"),
+      where("orderId", "==", selectedReceipt.orderId)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        setSelectedReceiptShipment(snapshot.docs[0].data());
+      } else {
+        setSelectedReceiptShipment(null);
+      }
+    }, (err) => {
+      console.error("Error loading shipment for receipt", err);
+    });
+    return () => unsub();
+  }, [selectedReceipt]);
+
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [couponInput, setCouponInput] = useState("");
   const [couponError, setCouponError] = useState("");
@@ -184,6 +265,7 @@ export function CustomerPortal() {
   const [securePin, setSecurePin] = useState("000000");
   const [timeLeft, setTimeLeft] = useState(30);
   const [availableCustomers, setAvailableCustomers] = useState<any[]>([]);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   // States for Claims Support (Paso 3.1)
   const [claimsList, setClaimsList] = useState<any[]>([]);
@@ -962,46 +1044,32 @@ export function CustomerPortal() {
       const normalizedInput = identifier.replace(/[^0-9kK]/g, "").toUpperCase();
 
       if (!foundCustomer) {
-        // Try precise match (as entered by user)
-        const q2 = query(
-          collection(db, "customers"),
-          where("taxId", "==", identifier.trim().toUpperCase())
-        );
-        const snapshot2 = await getDocs(q2);
-        
-        if (!snapshot2.empty) {
-          foundCustomer = { id: snapshot2.docs[0].id, ...snapshot2.docs[0].data() };
-        } else {
-          // Try formatted format (dots and hyphen)
-          const formattedRUTInput = formatRUT(identifier.trim());
-          const q3 = query(
-            collection(db, "customers"),
-            where("taxId", "==", formattedRUTInput)
-          );
-          const snapshot3 = await getDocs(q3);
-          if (!snapshot3.empty) {
-            foundCustomer = { id: snapshot3.docs[0].id, ...snapshot3.docs[0].data() };
-          } else if (normalizedInput.length > 0) {
-            // Try query by normalized variation 1 (clean RUT without punctuation)
-            const q4 = query(
-              collection(db, "customers"),
-              where("taxId", "==", normalizedInput)
-            );
-            const snapshot4 = await getDocs(q4);
-            if (!snapshot4.empty) {
-              foundCustomer = { id: snapshot4.docs[0].id, ...snapshot4.docs[0].data() };
-            } else {
-              // Try query by normalized variation 2 (hyphen only, e.g. 25551228-5)
-              const hyphenOnly = normalizedInput.slice(0, -1) + "-" + normalizedInput.slice(-1);
-              const q5 = query(
-                collection(db, "customers"),
-                where("taxId", "==", hyphenOnly)
-              );
-              const snapshot5 = await getDocs(q5);
-              if (!snapshot5.empty) {
-                foundCustomer = { id: snapshot5.docs[0].id, ...snapshot5.docs[0].data() };
-              }
-            }
+        const possibleTaxIds = [
+          identifier.trim().toUpperCase(),
+          formatRUT(identifier.trim()),
+          normalizedInput
+        ];
+        if (normalizedInput.length > 0) {
+          const hyphenOnly = normalizedInput.slice(0, -1) + "-" + normalizedInput.slice(-1);
+          possibleTaxIds.push(hyphenOnly);
+        }
+
+        // Search both taxId and rut fields for all possible formats
+        for (const taxIdVal of Array.from(new Set(possibleTaxIds))) {
+          if (!taxIdVal) continue;
+          
+          const qTax = query(collection(db, "customers"), where("taxId", "==", taxIdVal));
+          const snapTax = await getDocs(qTax);
+          if (!snapTax.empty) {
+            foundCustomer = { id: snapTax.docs[0].id, ...snapTax.docs[0].data() };
+            break;
+          }
+
+          const qRut = query(collection(db, "customers"), where("rut", "==", taxIdVal));
+          const snapRut = await getDocs(qRut);
+          if (!snapRut.empty) {
+            foundCustomer = { id: snapRut.docs[0].id, ...snapRut.docs[0].data() };
+            break;
           }
         }
       }
@@ -1021,8 +1089,9 @@ export function CustomerPortal() {
           }
           
           // Match by normalized taxId/RUT (ignoring dots, dashes, spaces, casing)
-          if (data.taxId) {
-            const normalizedDbTaxId = data.taxId.toString().replace(/[^0-9kK]/g, "").toUpperCase();
+          const dbTaxId = data.taxId || data.rut;
+          if (dbTaxId) {
+            const normalizedDbTaxId = dbTaxId.toString().replace(/[^0-9kK]/g, "").toUpperCase();
             if (normalizedDbTaxId === normalizedInput && normalizedInput.length > 0) {
               foundCustomer = { id: doc.id, ...data };
               break;
@@ -1222,7 +1291,10 @@ export function CustomerPortal() {
                     placeholder="ej: cliente@email.com o 12.345.678-9"
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
                     value={identifier}
-                    onChange={e => setIdentifier(e.target.value)}
+                    onChange={e => {
+                      setIdentifier(e.target.value);
+                      setError("");
+                    }}
                   />
                 </div>
                 
@@ -1235,37 +1307,6 @@ export function CustomerPortal() {
                 >
                   {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Siguiente"}
                 </button>
-
-                {availableCustomers.length > 0 && (
-                  <div className="pt-4 border-t border-slate-100 mt-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 text-center select-none">
-                      O accede rápidamente con un cliente registrado:
-                    </p>
-                    <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                      {availableCustomers.slice(0, 5).map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            setIdentifier(c.taxId || c.email || "");
-                            setError("");
-                          }}
-                          className="w-full flex items-center justify-between p-3 bg-white hover:bg-slate-50 border border-slate-150 hover:border-indigo-400 rounded-2xl transition-all text-left group cursor-pointer shadow-sm hover:shadow"
-                        >
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-extrabold text-slate-800 text-[11px] truncate">{c.name}</span>
-                            <span className="text-[9px] text-slate-400 font-semibold font-mono">
-                              {c.taxId || "Sin RUT"} {c.email ? `• ${c.email}` : ""}
-                            </span>
-                          </div>
-                          <span className="text-[9px] font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
-                            Prellenar
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </motion.form>
             )}
 
@@ -1414,6 +1455,53 @@ export function CustomerPortal() {
             )}
           </AnimatePresence>
 
+          {/* Access Diagnostics Section */}
+          <div className="mt-8 border-t border-slate-200/60 pt-6">
+            <button
+              type="button"
+              onClick={() => setShowDiagnostics(!showDiagnostics)}
+              className="w-full flex items-center justify-between text-[11px] font-black text-indigo-600/70 hover:text-indigo-600 uppercase tracking-widest cursor-pointer transition-all"
+            >
+              <span>⚙️ Diagnóstico de Clientes Registrados</span>
+              <span className="text-sm font-black">{showDiagnostics ? "−" : "+"}</span>
+            </button>
+            
+            {showDiagnostics && (
+              <div className="mt-4 bg-slate-100/80 rounded-2xl p-4 border border-slate-200/40 text-left space-y-3">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-relaxed">
+                  Usa esta lista para ver los clientes en la base de datos activa. Haz clic en cualquiera para copiar su RUT o Correo al campo de entrada e iniciar sesión:
+                </p>
+                {availableCustomers.length === 0 ? (
+                  <p className="text-[10px] text-slate-400 font-bold uppercase italic text-center py-2">No hay clientes registrados en la base de datos de este ambiente.</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                    {availableCustomers.map((c, idx) => (
+                      <button
+                        key={c.id || idx}
+                        type="button"
+                        onClick={() => {
+                          const val = c.taxId || c.rut || c.email || "";
+                          setIdentifier(val);
+                          setError("");
+                        }}
+                        className="w-full text-left bg-white hover:bg-indigo-50 border border-slate-250 hover:border-indigo-300 p-2.5 rounded-xl transition-all cursor-pointer flex flex-col space-y-1 block"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-extrabold text-slate-800 truncate">{c.name}</span>
+                          <span className="text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md self-start">{c.segment || 'Regular'}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] font-semibold text-slate-400">
+                          <span>RUT: <strong className="text-slate-600 font-bold font-sans">{c.taxId || c.rut || "Sin RUT"}</strong></span>
+                          {c.email && <span className="truncate">{c.email}</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-12">
             StockFlow Pro • {new Date().getFullYear()}
           </p>
@@ -1426,6 +1514,33 @@ export function CustomerPortal() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-24 relative overflow-x-hidden">
+      {/* Dynamic FCM Toast Notification */}
+      <AnimatePresence>
+        {fcmToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            className="fixed top-6 left-4 right-4 z-[200] max-w-sm mx-auto bg-slate-900/90 backdrop-blur-md border border-slate-800 text-white rounded-3xl p-4.5 shadow-2xl flex items-start space-x-3.5"
+          >
+            <div className="w-9.5 h-9.5 bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 rounded-xl flex items-center justify-center shrink-0">
+              <Bell size={18} className="animate-bounce" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-[9px] font-black text-[#10b981] uppercase tracking-widest">{fcmToast.title}</p>
+              <p className="text-xs text-slate-200 mt-1 font-semibold leading-normal">{fcmToast.body}</p>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setFcmToast(null)}
+              className="text-slate-400 hover:text-white font-heavy transition-colors text-xs p-1"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Profile Sidebar Drawer */}
       <AnimatePresence>
         {isProfileSidebarOpen && (
@@ -1856,6 +1971,38 @@ export function CustomerPortal() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* FCM Push Notifications Control Card */}
+              <div className="bg-gradient-to-r from-slate-900 to-[#1e1b4b] text-white p-6 rounded-[2.5rem] border border-indigo-500/10 shadow-xl flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${fcmRegistered ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse"}`}>
+                    <Bell size={20} className={fcmLoading ? "animate-spin" : ""} />
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-[#10b981]">Notificaciones Push</h4>
+                    <p className="text-xs text-slate-300 mt-1 font-bold">
+                      {fcmRegistered ? "Suscripción Activa v2.0" : "Recibe avisos de despacho en vivo"}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {fcmRegistered ? "Notificaremos inmediatamente los cambios de tu pedido." : "Se te avisará al preparar y despachar."}
+                    </p>
+                  </div>
+                </div>
+
+                {!fcmRegistered ? (
+                  <button
+                    onClick={handleActivateNotifications}
+                    disabled={fcmLoading}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-[10px] font-black uppercase tracking-wider rounded-2xl transition-all cursor-pointer active:scale-95 text-white shadow-lg shadow-indigo-600/30"
+                  >
+                    {fcmLoading ? "Conectando..." : "Activar"}
+                  </button>
+                ) : (
+                  <span className="px-3.5 py-1.5 bg-emerald-500/15 text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-2xl border border-emerald-500/30 shadow-xs">
+                    ✓ Activo
+                  </span>
+                )}
               </div>
 
               {/* Quick Actions */}
@@ -3421,7 +3568,7 @@ export function CustomerPortal() {
               </div>
 
               <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 md:p-6 overflow-hidden">
-                <DeliveryMap />
+                <DeliveryMap portalCustomerId={customer?.id} />
               </div>
             </motion.div>
           )}
@@ -3778,8 +3925,6 @@ export function CustomerPortal() {
                     <p className="text-slate-800">
                       {selectedReceipt.documentType === "Factura" || selectedReceipt.documentType === "Factura Electrónica" 
                         ? "Factura Electrónica" 
-                        : selectedReceipt.documentType === "Comprobante Interno"
-                        ? "Comprobante Interno"
                         : "Boleta Electrónica"}
                     </p>
                   </div>
@@ -3889,6 +4034,32 @@ export function CustomerPortal() {
                   </p>
                 </div>
 
+                {/* Proof of delivery Signature */}
+                {selectedReceiptShipment && selectedReceiptShipment.status === "delivered" && selectedReceiptShipment.customerSignature && (
+                  <div className="p-4 rounded-[1.8rem] bg-indigo-50/45 border border-indigo-100/60 flex flex-col space-y-2 text-xs text-slate-800 text-left">
+                    <p className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">📦 Comprobante de Entrega Digital</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Recibido por:</p>
+                        <p className="font-extrabold text-slate-800 mt-0.5">{selectedReceiptShipment.customerSignedName || "Cliente"}</p>
+                      </div>
+                      <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase tracking-wider rounded-full text-center">
+                        Entregado ✓
+                      </div>
+                    </div>
+                    <div className="h-px bg-indigo-150 my-1" />
+                    <div className="flex flex-col items-center justify-center p-2 bg-white rounded-xl border border-slate-150">
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 pointer-events-none self-start">Firma digital registrada:</p>
+                      <img 
+                        src={selectedReceiptShipment.customerSignature} 
+                        alt="Firma del Cliente" 
+                        className="max-h-20 max-w-full object-contain filter contrast-125 select-none" 
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Real-time details if digital wallet or specific notes */}
                 {selectedReceipt.note && (
                   <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-[11px] font-semibold text-indigo-700 leading-relaxed text-center">
@@ -3897,23 +4068,19 @@ export function CustomerPortal() {
                 )}
 
                 {/* Chilean SII DTE Timbre Electrónico or basic Receipt QR */}
-                {selectedReceipt.documentType === "Comprobante Interno" ? (
-                  <div className="p-4 bg-amber-50 text-amber-800 rounded-2.5xl border-2 border-amber-200 border-dashed text-center font-mono space-y-1.5 shadow-inner">
-                    <p className="text-[9px] font-black tracking-wider text-amber-700">COMPROBANTE INTERNO DE COMPRA</p>
-                    <p className="text-[8px] font-black uppercase tracking-widest leading-normal text-amber-600">
-                      NO VÁLIDO COMO BOLETA ELECTRÓNICA
+                {selectedReceipt.isMock ? (
+                  <div className="p-4 bg-amber-50/50 text-amber-800 rounded-2.5xl border-2 border-amber-300 border-dashed text-center font-mono space-y-1.5 shadow-inner">
+                    <p className="text-[10px] font-black tracking-widest text-amber-900 leading-normal">
+                      COMPROBANTE INTERNO DE COMPRA — NO VÁLIDO COMO BOLETA ELECTRÓNICA
                     </p>
                     <div className="py-2 flex justify-center">
                       <QRCodeCanvas 
-                        value={selectedReceipt.orderId} 
+                        value={selectedReceipt.orderId || "MOCK_ORDER"} 
                         size={100}
                         level="M"
-                        className="opacity-90 shrink-0 border-4 border-white rounded-lg p-0.5"
+                        className="opacity-75 grayscale shrink-0 border-4 border-white rounded-lg p-0.5"
                       />
                     </div>
-                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                      Folio Borrador: {selectedReceipt.folio}
-                    </p>
                   </div>
                 ) : selectedReceipt.documentType?.includes("Boleta") || selectedReceipt.folio ? (
                   <div className="p-4 bg-red-50/50 text-red-700 rounded-2.5xl border-2 border-red-200 border-dashed text-center font-mono space-y-1.5 shadow-inner">
@@ -3978,8 +4145,6 @@ export function CustomerPortal() {
                       
                       const docTypeLabel = selectedReceipt.documentType === "Factura" || selectedReceipt.documentType === "Factura Electrónica" 
                         ? "FACTURA ELECTRÓNICA" 
-                        : selectedReceipt.documentType === "Comprobante Interno"
-                        ? "COMPROBANTE INTERNO (NO VÁLIDO COMO BOLETA)"
                         : "BOLETA ELECTRÓNICA";
                       
                       const deliveryMethodText = selectedReceipt.type === "app_purchase" 

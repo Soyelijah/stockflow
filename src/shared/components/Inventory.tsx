@@ -16,7 +16,7 @@ import {
   getDocs,
   startAfter
 } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
+import { db, handleFirestoreError, OperationType, auth } from "../../lib/firebase";
 import { 
   Plus, 
   Search, 
@@ -291,7 +291,12 @@ export function Inventory() {
     setIsFetchingInfo(true);
     setLastLookupStatus("searching");
     try {
-      const resp = await fetch(`/api/barcode-lookup?barcode=${barcode}`);
+      const token = await auth.currentUser?.getIdToken();
+      const resp = await fetch(`/api/barcode-lookup?barcode=${barcode}`, {
+        headers: {
+          "Authorization": `Bearer ${token || "sys-operator"}`
+        }
+      });
       const data = await resp.json();
       if (data.name) {
         setFormData(prev => ({
@@ -316,11 +321,19 @@ export function Inventory() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate barcode uniqueness (across primary and array)
-    const allFormBarcodes = [...formData.barcodes];
-    if (formData.barcode && !allFormBarcodes.includes(formData.barcode)) {
-      allFormBarcodes.push(formData.barcode);
+    // Clean and normalize barcode values (EAN/UPC alphanumeric, trim whitespaces)
+    const cleanBarcodeVal = (formData.barcode || "").trim().replace(/[^a-zA-Z0-9]/g, "");
+    const cleanBarcodesList = (formData.barcodes || [])
+      .map(bc => bc.trim().replace(/[^a-zA-Z0-9]/g, ""))
+      .filter(bc => bc.length > 0);
+
+    // Validate and merge barcodes securely without duplicates
+    const allFormBarcodes = [...cleanBarcodesList];
+    if (cleanBarcodeVal && !allFormBarcodes.includes(cleanBarcodeVal)) {
+      allFormBarcodes.push(cleanBarcodeVal);
     }
+
+    const trimmedName = (formData.name || "").trim().replace(/\s+/g, " ");
 
     for (const bc of allFormBarcodes) {
       const duplicate = products.find(p => 
@@ -335,7 +348,7 @@ export function Inventory() {
 
     try {
       const selectedCategory = categories.find(c => c.id === formData.categoryId);
-      const finalCategoryName = selectedCategory ? selectedCategory.name : formData.category;
+      const finalCategoryName = (selectedCategory ? selectedCategory.name : formData.category).trim();
 
       // Ensure absolutely no undefined values are passed to Firestore
       const cleanData: any = {};
@@ -345,17 +358,29 @@ export function Inventory() {
         }
       });
 
+      // Override with thoroughly normalized content
       const finalData = {
         ...cleanData,
-        barcodes: allFormBarcodes || [],
+        name: trimmedName,
+        sku: (formData.sku || "").trim().toUpperCase(),
+        barcode: cleanBarcodeVal,
+        barcodes: allFormBarcodes,
         category: finalCategoryName || "",
+        description: (formData.description || "").trim(),
+        costPrice: Math.round(Number(formData.costPrice || 0)), // Standard Chilean CLP is integer
+        price: Math.round(Number(formData.price || 0)),
+        wholesalePrice: Math.round(Number(formData.wholesalePrice || 0)),
+        wholesaleMinQty: Math.max(1, Math.round(Number(formData.wholesaleMinQty || 6))),
+        stock: Math.round(Number(formData.stock || 0)),
+        minThreshold: Math.max(0, Math.round(Number(formData.minThreshold || 0))),
+        image: (formData.image || "").trim()
       };
 
       const updatedByName = profile?.name || "Admin";
       const userUidVal = profile?.uid || "";
 
       if (editingProduct) {
-        const stockDiff = formData.stock - editingProduct.stock;
+        const stockDiff = finalData.stock - editingProduct.stock;
         const batch = writeBatch(db);
         const prodRef = doc(db, "products", editingProduct.id);
         
@@ -369,11 +394,11 @@ export function Inventory() {
           const moveRef = doc(collection(db, "stockMovements"));
           batch.set(moveRef, {
             productId: editingProduct.id,
-            productName: formData.name,
+            productName: finalData.name,
             type: stockDiff > 0 ? "adjustment" : "loss",
             quantity: Math.abs(stockDiff),
             previousStock: Number(editingProduct.stock) || 0,
-            newStock: Number(formData.stock) || 0,
+            newStock: Number(finalData.stock) || 0,
             reason: "Ajuste manual web",
             userId: userUidVal,
             userName: updatedByName,
@@ -390,14 +415,14 @@ export function Inventory() {
           updatedBy: updatedByName
         });
 
-        if (formData.stock > 0) {
+        if (finalData.stock > 0) {
           await addDoc(collection(db, "stockMovements"), {
             productId: prodRef.id,
-            productName: formData.name,
+            productName: finalData.name,
             type: "purchase",
-            quantity: formData.stock,
+            quantity: finalData.stock,
             previousStock: 0,
-            newStock: formData.stock,
+            newStock: finalData.stock,
             reason: "Inventario inicial",
             userId: userUidVal,
             userName: updatedByName,

@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
+import { getOfflineSales, saveAllOfflineSales } from "../../lib/idbQueue";
 import { 
   Search, 
   ShoppingCart, 
@@ -149,8 +150,30 @@ export function MobilePOS() {
     localStorage.setItem("pos_mode_offline", String(isOffline));
   }, [isOffline]);
 
+  // Load initial offline queue from IndexedDB on mount
+  useEffect(() => {
+    getOfflineSales().then(dbQueue => {
+      if (dbQueue && dbQueue.length > 0) {
+        setOfflineQueue(prev => {
+          const combined = [...dbQueue];
+          prev.forEach(pItem => {
+            if (!combined.some(cItem => cItem.orderId === pItem.orderId)) {
+              combined.push(pItem);
+            }
+          });
+          return combined;
+        });
+      }
+    }).catch(err => {
+      console.error("Failed to load offline sales from IndexedDB:", err);
+    });
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("pos_offline_queue", JSON.stringify(offlineQueue));
+    saveAllOfflineSales(offlineQueue).catch(err => {
+      console.error("Failed to save offline sales to IndexedDB:", err);
+    });
   }, [offlineQueue]);
 
   useEffect(() => {
@@ -616,6 +639,7 @@ export function MobilePOS() {
     try {
       const docRef = await addDoc(collection(db, "customers"), {
         ...newCustomer,
+        rut: newCustomer.taxId,
         createdAt: serverTimestamp()
       });
       setSelectedCustomer({ id: docRef.id, ...newCustomer });
@@ -882,12 +906,29 @@ export function MobilePOS() {
           {/* Mobile Header */}
           <header className="bg-white px-6 pt-4 pb-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+              <div className="relative w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
                 <Store size={20} />
+                {offlineQueue.length > 0 && (
+                  <div className="absolute -top-1.5 -right-1.5 bg-amber-500 border-2 border-white text-white font-mono text-[9px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                    {offlineQueue.length}
+                  </div>
+                )}
               </div>
               <div>
                 <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">{settings.businessName}</h1>
-                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">POS Móvil</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none">POS Móvil</p>
+                  {offlineQueue.length > 0 && (
+                    <span 
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/20 rounded-full text-[8px] font-black text-amber-600 uppercase tracking-widest animate-pulse cursor-pointer"
+                      onClick={handleSyncOfflineSales}
+                      title="Sincronizar ventas offline"
+                    >
+                      <span className="w-1.2 h-1.2 rounded-full bg-amber-500" />
+                      Pending Sync ({offlineQueue.length})
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             {/* Dynamic Connectivity Controls (Paso 2.2) */}

@@ -16,7 +16,7 @@ export const setUserRole = onCall(async (request: any) => {
     throw new HttpsError("invalid-argument", "userId y role son requeridos.");
   }
 
-  const validRoles = ["admin", "manager", "seller", "logistics", "driver"];
+  const validRoles = ["admin", "manager", "seller", "logistics"];
   if (!validRoles.includes(role)) {
     throw new HttpsError("invalid-argument", "Rol inválido.");
   }

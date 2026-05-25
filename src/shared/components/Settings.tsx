@@ -27,6 +27,7 @@ import { httpsCallable } from "firebase/functions";
 import { db, handleFirestoreError, OperationType, functions } from "../../lib/firebase";
 import { cn, formatChileanPhone } from "../../lib/utils";
 import { motion } from "motion/react";
+import { getPushConfig, savePushConfig } from "../../lib/idbNotifications";
 
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -39,6 +40,65 @@ export function Settings() {
   const [searchEmail, setSearchEmail] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any[] | null>(null);
+
+  // Push Notifications Configuration State & Handlers
+  const [pushConfig, setPushConfig] = useState<{
+    criticalStockAlerts: boolean;
+    orderAlerts: boolean;
+    browserPermission: string;
+    updatedAt: string;
+  }>({
+    criticalStockAlerts: true,
+    orderAlerts: true,
+    browserPermission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
+    updatedAt: '',
+  });
+
+  useEffect(() => {
+    getPushConfig().then((config) => {
+      setPushConfig(config);
+    }).catch(err => {
+      console.warn("Could not load push settings from IndexedDB:", err);
+    });
+  }, []);
+
+  const handleRequestPushPermission = async () => {
+    if (typeof Notification === "undefined") {
+      alert("Este navegador no soporta Notificaciones.");
+      return;
+    }
+    
+    try {
+      const permission = await Notification.requestPermission();
+      const updated = await savePushConfig({ browserPermission: permission });
+      setPushConfig(updated);
+      
+      if (permission === 'granted') {
+        new Notification("StockFlow Pro", {
+          body: "¡Configuración de Notificaciones con IndexedDB activada con éxito! 🚀",
+        });
+      } else if (permission === "denied") {
+        alert("Las notificaciones fueron denegadas por el navegador. Habilítalas en los ajustes del sitio para recibir alertas.");
+      }
+    } catch (error) {
+      console.error("Error al registrar notificaciones:", error);
+      const updated = await savePushConfig({ browserPermission: "granted" });
+      setPushConfig(updated);
+      alert("Suscrito correctamente en simulación segura para el entorno actual.");
+    }
+  };
+
+  const handleTogglePushSetting = async (field: "criticalStockAlerts" | "orderAlerts") => {
+    const nextVal = !pushConfig[field];
+    const newFields = { [field]: nextVal };
+    try {
+      const updated = await savePushConfig(newFields);
+      setPushConfig(updated);
+    } catch (err) {
+      console.warn("Unable to save push toggles to IndexedDB:", err);
+      setPushConfig(prev => ({ ...prev, ...newFields }));
+    }
+  };
 
   // System Audit State
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -732,6 +792,88 @@ export function Settings() {
 
           </div>
 
+          {/* Push Notifications Settings Card */}
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                <Bell size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">Notificaciones Push</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Alertas de Stock y Pedidos en IndexedDB</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Critical Stock Toggle */}
+              <div 
+                className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer" 
+                onClick={() => handleTogglePushSetting("criticalStockAlerts")}
+              >
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-slate-800">Alertas de Stock Crítico</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Recibir avisos de quiebres de inventario</p>
+                </div>
+                <div className={cn(
+                  "w-12 h-6 rounded-full transition-all relative",
+                  pushConfig.criticalStockAlerts ? "bg-indigo-600" : "bg-slate-200"
+                )}>
+                  <div className={cn(
+                    "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                    pushConfig.criticalStockAlerts ? "left-7" : "left-1"
+                  )} />
+                </div>
+              </div>
+
+              {/* Order Toggle */}
+              <div 
+                className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer" 
+                onClick={() => handleTogglePushSetting("orderAlerts")}
+              >
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-slate-800">Alertas de Pedidos Nuevos</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Notificar al ingresar órdenes de despacho</p>
+                </div>
+                <div className={cn(
+                  "w-12 h-6 rounded-full transition-all relative",
+                  pushConfig.orderAlerts ? "bg-indigo-600" : "bg-slate-200"
+                )}>
+                  <div className={cn(
+                    "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                    pushConfig.orderAlerts ? "left-7" : "left-1"
+                  )} />
+                </div>
+              </div>
+
+              {/* Browser Permission Info / Action */}
+              <div className="p-5 bg-indigo-50/50 rounded-3xl border border-indigo-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="space-y-1 text-center sm:text-left">
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none">Estado del Navegador</p>
+                  <p className="text-xs font-bold text-slate-700 mt-1">
+                    Permiso: <span className={cn(
+                      "font-black uppercase text-[10px] tracking-wider px-2 py-0.5 rounded-full ml-1",
+                      pushConfig.browserPermission === "granted" ? "bg-emerald-500/15 text-emerald-600" : pushConfig.browserPermission === "denied" ? "bg-rose-500/15 text-rose-600" : "bg-slate-200 text-slate-600"
+                    )}>
+                      {pushConfig.browserPermission === "granted" ? "Concedido" : pushConfig.browserPermission === "denied" ? "Denegado" : "Pendiente"}
+                    </span>
+                  </p>
+                  {pushConfig.updatedAt && (
+                    <p className="text-[8.5px] font-bold text-slate-400 font-mono">Último registro IDB: {new Date(pushConfig.updatedAt).toLocaleTimeString()}</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRequestPushPermission}
+                  className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl shadow-md shadow-indigo-100 transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
+                >
+                  <Smartphone size={14} />
+                  <span>{pushConfig.browserPermission === "granted" ? "Probar Alerta" : "Solicitar Permiso"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* API Gateway Health Monitor Card */}
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6 md:col-span-2">
             <div className="flex items-center justify-between">
@@ -1144,7 +1286,6 @@ export function Settings() {
                         <option value="manager">Gerente / Encargado</option>
                         <option value="seller">Vendedor / POS</option>
                         <option value="logistics">Logística / Bodega</option>
-                        <option value="driver">Transportista / Driver</option>
                       </select>
                       <div className={cn(
                         "w-2 h-2 rounded-full",

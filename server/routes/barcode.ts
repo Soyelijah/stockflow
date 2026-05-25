@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { GoogleGenAI, Type } from "@google/genai";
+import { requireAuthBearer, AuthenticatedRequest } from "../services/security";
 
 export const barcodeRouter = Router();
 
@@ -128,7 +129,7 @@ const LOCAL_BARCODE_DB: Record<string, { name: string; category: string; brand: 
 };
 
 // Barcode lookup with optional Google Search grounded Gemini intelligence
-barcodeRouter.get("/barcode-lookup", async (req, res) => {
+barcodeRouter.get("/barcode-lookup", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
     const { barcode } = req.query;
     if (!barcode || typeof barcode !== "string") {
@@ -136,6 +137,11 @@ barcodeRouter.get("/barcode-lookup", async (req, res) => {
     }
 
     const cleanBarcode = barcode.trim();
+    
+    // OWASP Top 10 A03:2021 Data validation defense. Barcodes are compact standard numbers or alphanumeric (max 50 chars)
+    if (cleanBarcode.length > 50 || !/^[a-zA-Z0-9]+$/.test(cleanBarcode)) {
+      return res.status(400).json({ error: "Código de barra inválido o sospechoso." });
+    }
 
     // 1. Instant local database check (highly efficient)
     if (LOCAL_BARCODE_DB[cleanBarcode]) {

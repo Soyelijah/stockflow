@@ -38,8 +38,39 @@ export async function generateNextFolio(): Promise<number> {
   }
 }
 
+function normalizeBackendRUT(value: string): string {
+  if (!value) return "Sin RUT";
+  const clean = value.replace(/[^0-9kK]/g, "");
+  if (clean.length < 2) return value.trim().toUpperCase();
+  const dv = clean.slice(-1).toUpperCase();
+  const body = clean.slice(0, -1);
+  
+  let formattedBody = body
+    .split("")
+    .reverse()
+    .join("")
+    .replace(/(?=\d*\.?)(\d{3})/g, "$1.")
+    .split("")
+    .reverse()
+    .join("");
+    
+  if (formattedBody.startsWith(".")) {
+    formattedBody = formattedBody.slice(1);
+  }
+  return `${formattedBody}-${dv}`;
+}
+
 export async function emitElectronicBoleta(input: BoletaInput) {
-  const { orderId, amount, buyerEmail, customerName = "Cliente Online", customerTaxId = "Sin RUT", gateway = "credit_card", paymentId = "direct", items = [] } = input;
+  const { 
+    orderId, 
+    amount, 
+    buyerEmail, 
+    customerName = "Cliente Online", 
+    customerTaxId = "Sin RUT", 
+    gateway = "credit_card", 
+    paymentId = "direct", 
+    items = [] 
+  } = input;
   const folio = await generateNextFolio();
   const dateStr = new Date().toISOString().split("T")[0] || "2026-05-23";
   const emittedAtStr = new Date().toISOString();
@@ -49,18 +80,29 @@ export async function emitElectronicBoleta(input: BoletaInput) {
   const netAmount = Math.round(total / 1.19);
   const ivaAmount = total - netAmount;
 
+  const cleanEmail = buyerEmail.trim().toLowerCase();
+  const cleanName = customerName.trim().replace(/\s+/g, " ");
+  const rawTaxId = customerTaxIdByEmail(cleanEmail, customerTaxId);
+  const finalTaxId = rawTaxId && rawTaxId !== "" ? normalizeBackendRUT(rawTaxId) : "Sin RUT";
+
+  const cleanItems = items.map(item => ({
+    name: item.name.trim().replace(/\s+/g, " "),
+    quantity: Math.max(1, Math.round(Number(item.quantity || 1))),
+    price: Math.round(Number(item.price || 0))
+  }));
+
   const boletaData = {
     id: `BOL-${folio}`,
     folio,
     orderId,
     fechaEmision: dateStr,
-    buyerEmail: buyerEmail.trim().toLowerCase(),
-    customerName,
-    customerTaxId: customerTaxIdByEmail(buyerEmail, customerTaxId),
+    buyerEmail: cleanEmail,
+    customerName: cleanName,
+    customerTaxId: finalTaxId,
     montoTotal: total,
     montoNeto: netAmount,
     montoIVA: ivaAmount,
-    items: items.length > 0 ? items : [{ name: "Compra Online StockFlow", quantity: 1, price: total }],
+    items: cleanItems.length > 0 ? cleanItems : [{ name: "Compra Online StockFlow", quantity: 1, price: total }],
     paymentGateway: gateway,
     paymentId,
     tedXml: null,
@@ -75,7 +117,7 @@ export async function emitElectronicBoleta(input: BoletaInput) {
     console.log(`🧾 [Boleta Electrónica] Emitida exitosamente como borrador local. Folio: ${folio}, Total: $${total} CLP`);
 
     // Use transaction to set transaction products cleanly
-    const finalItems = items.length > 0 ? items : [{ name: "Compra Online StockFlow", price: total, quantity: 1 }];
+    const finalItems = cleanItems.length > 0 ? cleanItems : [{ name: "Compra Online StockFlow", price: total, quantity: 1 }];
 
     await adminDb.runTransaction(async (transaction) => {
       for (let idx = 0; idx < finalItems.length; idx++) {
@@ -89,9 +131,9 @@ export async function emitElectronicBoleta(input: BoletaInput) {
           amount: finalItem.price * finalItem.quantity,
           userId: "system_gateway",
           userName: "Pasarela Online",
-          customerId: `cust_${buyerEmail.replace(/[^a-zA-Z0-9]/g, "")}`,
-          customerName: customerName,
-          customerTaxId: customerTaxIdByEmail(buyerEmail, customerTaxId),
+          customerId: `cust_${cleanEmail.replace(/[^a-zA-Z0-9]/g, "")}`,
+          customerName: cleanName,
+          customerTaxId: finalTaxId,
           paymentBreakdown: { method: gateway, amount: total },
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
           orderId: orderId,
@@ -104,7 +146,7 @@ export async function emitElectronicBoleta(input: BoletaInput) {
       }
     });
 
-    const emailHash = crypto.createHash('sha1').update(buyerEmail).digest('hex').substring(0, 8);
+    const emailHash = crypto.createHash('sha1').update(cleanEmail).digest('hex').substring(0, 8);
     console.log(`📧 [Boleta Service] Enviando boleta PDF Folio ${folio} a correo enmascarado: ${emailHash}`);
     return boletaData;
   } catch (err) {

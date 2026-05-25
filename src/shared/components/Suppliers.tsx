@@ -131,10 +131,20 @@ export function Suppliers() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      // Data Sanitization & Normalization
+      const normalizedData = {
+        name: formData.name.trim().replace(/\s+/g, " "), // Trim and remove double-spaces
+        contactName: formData.contactName.trim().replace(/\s+/g, " "),
+        email: formData.email.trim().toLowerCase(), // Case-insensitive emails
+        phone: formData.phone.trim(),
+        category: formData.category.trim().replace(/\s+/g, " "),
+        address: formData.address.trim().replace(/\s+/g, " ")
+      };
+
       if (editingSupplier) {
-        await updateDoc(doc(db, "suppliers", editingSupplier.id), formData);
+        await updateDoc(doc(db, "suppliers", editingSupplier.id), normalizedData);
       } else {
-        await addDoc(collection(db, "suppliers"), formData);
+        await addDoc(collection(db, "suppliers"), normalizedData);
       }
       setIsModalOpen(false);
       setEditingSupplier(null);

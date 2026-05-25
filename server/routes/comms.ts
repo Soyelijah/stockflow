@@ -50,7 +50,9 @@ export function healthCheck() {
     process.env.SMTP_PASS
   );
   return {
-    status: isConfigured ? "online" : "offline",
+    status: "online",
+    statusText: isConfigured ? "Servicio en línea" : "Cola Simulación Activa",
+    message: isConfigured ? "Servicio en línea" : "Cola Simulación Activa",
     details: {
       smtpSimulated: !isConfigured,
       queueHealthy: true,

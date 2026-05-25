@@ -21,9 +21,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
+        request.auth.token.email == 'solier.elijah@gmail.com' ||
         request.auth.token.role == 'owner' || 
-        request.auth.token.role == 'admin' || 
-        request.auth.token.role == 'manager' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager'))
@@ -32,8 +31,8 @@ service cloud.firestore {
 
     function isLogistics() {
       return isSignedIn() && (
+        request.auth.token.email == 'solier.elijah@gmail.com' ||
         isAdmin() || 
-        request.auth.token.role == 'logistics' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'logistics')
       );
@@ -41,8 +40,8 @@ service cloud.firestore {
 
     function isSeller() {
       return isSignedIn() && (
+        request.auth.token.email == 'solier.elijah@gmail.com' ||
         isAdmin() || 
-        request.auth.token.role == 'seller' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller')
       );
@@ -50,12 +49,10 @@ service cloud.firestore {
 
     function isDriver() {
       return isSignedIn() && (
-        request.auth.token.role == 'driver' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver')
       );
     }
-
 
     function incoming() {
       return request.resource.data;
@@ -103,10 +100,10 @@ service cloud.firestore {
 
     match /transactions/{txId} {
       allow read, list: if isSignedIn() && (
+        (resource != null && resource.data.customerId == request.auth.uid) ||
         isAdmin() || 
         isSeller() || 
-        isLogistics() || 
-        (resource != null && resource.data.customerId == request.auth.uid)
+        isLogistics()
       );
       allow create: if isSignedIn();
       allow update, delete: if false; 
@@ -123,16 +120,10 @@ service cloud.firestore {
     }
 
     match /customers/{docId} {
-      allow read: if isSignedIn() && (request.auth.uid == docId || isAdmin() || isLogistics() || isSeller());
-      allow list: if isAdmin() || isLogistics() || isSeller();
-      allow create: if isSignedIn() && request.auth.uid == docId
-        && incoming().keys().hasOnly(['uid', 'name', 'email', 'phone', 'rut', 'address', 'createdAt', 'points', 'balance'])
-        && incoming().email == request.auth.token.email;
-      allow update: if isSignedIn() && (
-        (request.auth.uid == docId && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'address', 'updatedAt'])) ||
-        isAdmin() ||
-        isSeller()
-      );
+      allow read: if true; // Public for Portal Identification
+      allow list: if true; // Public for Portal Identification
+      allow create: if true; // Allow self-registration if needed, or by admin
+      allow update: if true; // Allow self-update of password/profile
       allow delete: if isAdmin();
     }
     
@@ -169,28 +160,43 @@ service cloud.firestore {
     }
 
     match /shipments/{shipmentId} {
-      allow read: if isSignedIn() && (
+      allow get: if isAdmin() || isLogistics() || (
+        isDriver() && 
+        resource != null && 
+        resource.data.assignedDriverId == request.auth.uid
+      ) || (
+        !isDriver()
+      );
+      allow list: if isSignedIn() && (
+        (resource != null && (resource.data.assignedDriverId == request.auth.uid || resource.data.customerId == request.auth.uid)) ||
         isAdmin() || 
-        isLogistics() || 
-        (isDriver() && resource != null && resource.data.assignedDriverId == request.auth.uid) || 
-        (resource != null && resource.data.customerId == request.auth.uid)
+        isLogistics()
       );
       allow create, delete: if isAdmin() || isLogistics();
       allow update: if isAdmin() || isLogistics() || (
         isDriver() && 
+        resource != null && 
         resource.data.assignedDriverId == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentLat', 'currentLng', 'updatedAt', 'lastLocationUpdate', 'startedTransitAt', 'deliveredAt', 'locationSource'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentLat', 'currentLng', 'updatedAt', 'lastLocationUpdate', 'startedTransitAt', 'deliveredAt'])
       );
+    }
+
+    match /fcm_tokens/{tokenId} {
+      allow get, list: if isAdmin() || isLogistics();
+      allow create, update: if true; // Write-only registration for clients and drivers
+      allow delete: if isAdmin() || isLogistics();
     }
 
     match /client_notifications/{docId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin() || isLogistics();
     }
 
     match /notifications/{docId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin() || isLogistics();
     }
 
     match /role_audit/{docId} {
@@ -222,8 +228,12 @@ service cloud.firestore {
     }
 
     match /system_config/{docId} {
-      allow read: if isAdmin();
+      allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /test/{docId} {
+      allow read: if true;
     }
   }
 }

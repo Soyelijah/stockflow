@@ -1,9 +1,7 @@
-import admin from "firebase-admin";
+import * as admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import firebaseConfig from "../../firebase-applet-config.json";
-import fs from "fs";
-import path from "path";
 
 // Lazy-initialized Firebase Admin instance to ensure single instance
 function getFirebaseAdminInstance(): any {
@@ -13,22 +11,17 @@ function getFirebaseAdminInstance(): any {
   }
 
   try {
-    const keyPath = path.join(process.cwd(), "serviceAccountKey.json");
-    
-    if (fs.existsSync(keyPath)) {
-      const serviceAccount = JSON.parse(fs.readFileSync(keyPath, "utf-8"));
-      return initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-    } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      return initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-    } else {
-      // Fallback for local development or ADC
-      return initializeApp();
+    const adminConfig: admin.AppOptions = {};
+    if (firebaseConfig.projectId) {
+      adminConfig.projectId = firebaseConfig.projectId;
     }
+
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      adminConfig.credential = admin.credential.cert(serviceAccount);
+    }
+
+    return initializeApp(adminConfig);
   } catch (err) {
     console.error("❌ Failed to initialize Firebase Admin app:", err);
     return initializeApp();

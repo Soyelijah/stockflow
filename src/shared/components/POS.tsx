@@ -305,6 +305,7 @@ export function POS() {
     try {
       const docRef = await addDoc(collection(db, "customers"), {
         ...newCustomer,
+        rut: newCustomer.taxId, // Save rut field as well for layout searches and display consistency
         createdAt: serverTimestamp()
       });
       setSelectedCustomer({ id: docRef.id, ...newCustomer });
@@ -1201,7 +1202,7 @@ export function POS() {
             </div>
 
             {/* Change Calculator & Numpad */}
-            <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-6 shadow-xl relative overflow-hidden">
+            <div className="bg-slate-900 rounded-3xl p-4 sm:p-6 text-white space-y-6 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
               
               <div className="bg-slate-950/50 p-4 rounded-2xl border border-white/5 space-y-3 relative z-10">
@@ -1273,7 +1274,7 @@ export function POS() {
                       />
                       <button 
                         onClick={handleApplyCoupon}
-                        className="bg-white/10 hover:bg-white/25 text-white text-xs font-black px-4 py-2 rounded-xl transition-all"
+                        className="bg-white/10 hover:bg-white/25 text-white text-xs font-black px-3 sm:px-4 py-2 rounded-xl transition-all shrink-0 whitespace-nowrap"
                       >
                         Aplicar
                       </button>

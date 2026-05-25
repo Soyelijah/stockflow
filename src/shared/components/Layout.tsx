@@ -23,8 +23,7 @@ import {
   MinusCircle,
   Receipt,
   UserCircle,
-  Settings as SettingsIcon,
-  TrendingDown
+  Settings as SettingsIcon
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
@@ -300,18 +299,21 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             detail: `SKU: ${p.sku} | Stock: ${p.stock}`
           }));
 
-        const customerMatches = custSnap.docs
+         const customerMatches = custSnap.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as any))
-          .filter(c => 
-            c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            c.rut?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.email?.toLowerCase().includes(searchQuery.toLowerCase())
-          )
+          .filter(c => {
+            const customerRUT = c.rut || c.taxId || "";
+            return (
+              c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+              customerRUT.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              c.email?.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+          })
           .map(c => ({
             id: c.id,
             type: 'customer' as const,
             name: c.name,
-            detail: `RUT: ${c.rut} | ${c.email || ''}`
+            detail: `RUT: ${c.rut || c.taxId || 'Sin RUT'} | ${c.email || ''}`
           }));
 
         const transactionMatches = txSnap.docs
@@ -359,7 +361,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: "logistics", label: "Logística / Ent", icon: Truck, roles: ["admin", "manager", "logistics"] },
     { id: "suppliers", label: "Proveedores", icon: Building2, roles: ["admin", "manager", "logistics"] },
     { id: "expenses", label: "Control Gastos", icon: MinusCircle, roles: ["admin", "manager"] },
-    { id: "shrinkage", label: "Mermas / Rep.", icon: TrendingDown, roles: ["admin", "manager"] },
     { id: "kardex", label: "Kardex / Mov", icon: ArrowRightLeft, roles: ["admin", "manager", "logistics"] },
     { id: "transactions", label: "Historial Caja", icon: Receipt, roles: ["admin", "manager", "seller"] },
     { id: "profile", label: "Mi Perfil", icon: UserCircle, roles: ["admin", "manager", "seller", "logistics"] },
