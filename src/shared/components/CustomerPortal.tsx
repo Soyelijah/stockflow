@@ -175,11 +175,17 @@ export function CustomerPortal() {
   const [authLoading, setAuthLoading] = useState(true);
   const [customer, setCustomer] = useState<any>(null);
 
-  // Form state for the login/register/recover screens.
-  const [mode, setMode] = useState<"login" | "register" | "recover">("login");
+  // Form state for the login/register/recover/activate screens.
+  // - login: returning customer enters email + password.
+  // - register: brand-new e-commerce customer creates account from scratch.
+  // - recover: forgotten password — sends Firebase reset email.
+  // - activate: legacy customer (bought in physical store, RUT captured by cashier)
+  //   claims their existing /customers profile for the first time online.
+  const [mode, setMode] = useState<"login" | "register" | "recover" | "activate">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [rut, setRut] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState<string>("");
 
@@ -1211,6 +1217,37 @@ export function CustomerPortal() {
     }
   };
 
+  const handleActivateRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    if (!rut.trim()) {
+      setError("Ingresa tu RUT para activar tu cuenta.");
+      return;
+    }
+    setLoading(true);
+    try {
+      // POST /api/customer/activate-request — server-side uniform response.
+      // Network failure is the only thing we differentiate; the server NEVER
+      // tells us whether the RUT exists.
+      const resp = await fetch("/api/customer/activate-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rut: rut.trim() })
+      });
+      if (!resp.ok) {
+        throw new Error("server-error");
+      }
+      const body = await resp.json().catch(() => ({}));
+      setSuccess(body?.message || "Si tu RUT está registrado, te enviamos un correo con instrucciones.");
+      setTimeout(() => setMode("login"), 5000);
+    } catch (err) {
+      setError("No se pudo procesar la solicitud. Verifica tu conexión y vuelve a intentar.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -1339,6 +1376,7 @@ export function CustomerPortal() {
               {mode === "login" && "Accede a tus beneficios."}
               {mode === "register" && "Crea tu cuenta en segundos."}
               {mode === "recover" && "Recupera el acceso a tu cuenta."}
+              {mode === "activate" && "Activa tu cuenta de cliente existente."}
             </p>
           </div>
 
@@ -1419,6 +1457,14 @@ export function CustomerPortal() {
                 </button>
 
                 <div className="flex flex-col gap-y-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setMode("activate"); setError(""); setSuccess(""); setPassword(""); }}
+                    className="text-[10px] font-bold text-amber-600 hover:text-amber-700 uppercase tracking-widest"
+                    aria-label="Activar cuenta de cliente existente con RUT"
+                  >
+                    ¿Compraste en nuestra tienda? Activar mi cuenta
+                  </button>
                   <button
                     type="button"
                     onClick={() => { setMode("register"); setError(""); setSuccess(""); setPassword(""); }}
@@ -1538,6 +1584,74 @@ export function CustomerPortal() {
                   aria-label="Ya tengo cuenta, iniciar sesión"
                 >
                   Ya tengo cuenta — Iniciar sesión
+                </button>
+              </motion.form>
+            )}
+
+            {mode === "activate" && (
+              <motion.form
+                key="activate"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                onSubmit={handleActivateRequest}
+                className="space-y-4"
+                aria-label="Formulario de activación de cuenta"
+              >
+                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 mb-4">
+                  <p className="text-[11px] font-bold text-amber-900 leading-relaxed">
+                    Si ya compraste en nuestra tienda y el cajero registró tus datos con tu RUT, ingrésalo aquí y te enviaremos un correo para crear tu contraseña.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="activate-rut" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">RUT</label>
+                  <input
+                    id="activate-rut"
+                    autoFocus
+                    type="text"
+                    required
+                    inputMode="text"
+                    maxLength={20}
+                    placeholder="12.345.678-9"
+                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 transition-all shadow-sm"
+                    value={rut}
+                    onChange={(e) => { setRut(e.target.value); setError(""); }}
+                    aria-label="RUT del cliente"
+                  />
+                </div>
+
+                {error && (
+                  <p role="alert" className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">
+                    {error}
+                  </p>
+                )}
+                {success && (
+                  <p role="status" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center px-4 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
+                    {success}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || !rut.trim()}
+                  className="w-full h-14 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-500 transition-all shadow-lg shadow-amber-100 disabled:opacity-50"
+                  aria-label="Enviar solicitud de activación"
+                >
+                  {loading ? (
+                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
+                  ) : (
+                    "Enviar correo de activación"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setMode("login"); setError(""); setSuccess(""); setRut(""); }}
+                  className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
+                  aria-label="Volver al inicio de sesión"
+                >
+                  Volver al inicio de sesión
                 </button>
               </motion.form>
             )}
