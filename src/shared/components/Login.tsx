@@ -1,80 +1,28 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { 
-  Lock, 
-  Mail, 
-  ArrowRight, 
-  ShieldCheck, 
-  Shield, 
-  Layers, 
-  ShoppingCart, 
-  Truck, 
+import {
+  Lock,
+  Mail,
+  ArrowRight,
+  ShieldCheck,
   Laptop,
-  Info
+  UserCircle2
 } from "lucide-react";
-import { motion } from "motion/react";
-import { cn } from "../../lib/utils";
-
-type AppRole = "admin" | "manager" | "seller" | "logistics";
 
 export function Login() {
-  const { login, register, sendPasswordReset } = useAuth();
-  
+  const { login, sendPasswordReset } = useAuth();
+  const navigate = useNavigate();
+
   const [mode, setMode] = useState<"login" | "recover">("login");
-  const [selectedRole, setSelectedRole] = useState<AppRole>("admin");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
-
-  const roles = [
-    {
-      id: "admin" as AppRole,
-      title: "Administrador / CEO",
-      subtitle: "Panel de Jefatura y Configuración",
-      icon: Shield,
-      accentColor: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
-      accentHex: "#6366f1",
-      defaultEmail: "admin@stockflow.com",
-      defaultPass: "admin_stockflow_2026"
-    },
-    {
-      id: "manager" as AppRole,
-      title: "Jefe de Operaciones",
-      subtitle: "Gestión de Local, Gastos & Proveedores",
-      icon: Layers,
-      accentColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-      accentHex: "#10b981",
-      defaultEmail: "manager@stockflow.com",
-      defaultPass: "manager_stockflow_2026"
-    },
-    {
-      id: "seller" as AppRole,
-      title: "Vendedor / Cajero",
-      subtitle: "Terminal POS y Estación de Venta",
-      icon: ShoppingCart,
-      accentColor: "text-sky-400 bg-sky-500/10 border-sky-500/20",
-      accentHex: "#0ea5e9",
-      defaultEmail: "seller@stockflow.com",
-      defaultPass: "seller_stockflow_2026"
-    },
-    {
-      id: "logistics" as AppRole,
-      title: "Personal de Logística",
-      subtitle: "Control de Inventario, Bodega & Kardex",
-      icon: Truck,
-      accentColor: "text-amber-400 bg-amber-500/10 border-amber-500/10",
-      accentHex: "#f59e0b",
-      defaultEmail: "logistics@stockflow.com",
-      defaultPass: "logistics_stockflow_2026"
-    }
-  ];
-
-  const currentRoleInfo = roles.find(r => r.id === selectedRole) || roles[0];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,209 +30,89 @@ export function Login() {
     setError(null);
     setSuccess(null);
 
-    // H-SAN-1: lowercase for case-insensitive consistency with Customers.tsx, Suppliers.tsx, etc.
     const emailToUse = formData.email.trim().toLowerCase();
     const passwordToUse = formData.password;
 
     try {
       if (mode === "login") {
-        try {
-          // 1. Try real direct email/password login in Firebase Authentication
-          await login(emailToUse, passwordToUse);
-        } catch (authError: any) {
-          // 2. Clear real sandbox auto-provisioning check:
-          // If the official tester account doesn't exist yet in this firebase deployment, 
-          // we register it dynamically under-the-hood, turning it into a real live account instantly!
-          const matchedRole = roles.find(r => r.defaultEmail === emailToUse);
-          if (
-            (authError.code === "auth/user-not-found" || authError.code === "auth/invalid-credential") &&
-            matchedRole && 
-            passwordToUse === matchedRole.defaultPass
-          ) {
-            // C-SAN-1: PII-safe log — never plain email (anti-pattern §6.5)
-            const emailMaskedA = `${emailToUse.split("@")[0]?.slice(0,2) || "??"}***@${emailToUse.split("@")[1] || "domain"}`;
-            console.log(`Auto-provisioning real firebase auth account for ${emailMaskedA}`);
-            await register(emailToUse, passwordToUse, `Operador ${matchedRole.title}`, matchedRole.id);
-            // Real login retry
-            await login(emailToUse, passwordToUse);
-            setSuccess("Cuenta corporativa real provisionada con éxito en Firebase.");
-          } else {
-            throw authError;
-          }
-        }
+        await login(emailToUse, passwordToUse);
       } else {
         await sendPasswordReset(emailToUse);
-        setSuccess("Se ha enviado un correo real de restablecimiento de contraseña.");
+        setSuccess("Se ha enviado un correo de restablecimiento de contraseña.");
         setTimeout(() => setMode("login"), 4000);
       }
     } catch (err: any) {
-      console.error(err);
-      if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
-        setError("Las credenciales ingresadas son incorrectas o la cuenta no está registrada.");
-      } else if (err.code === "auth/wrong-password") {
-        setError("Contraseña incorrecta.");
+      if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+        setError("Las credenciales son incorrectas o la cuenta no está registrada.");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Demasiados intentos. Por favor espera unos minutos y vuelve a intentar.");
+      } else if (err.code === "auth/network-request-failed") {
+        setError("Sin conexión a internet. Verifica tu red e intenta nuevamente.");
       } else {
-        setError(err.message || "Error al autenticar. Por favor verifica tu conexión externa.");
+        setError("Error al autenticar. Verifica tu conexión e intenta nuevamente.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickSandboxAccess = async (roleId: AppRole) => {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    
-    const matched = roles.find(r => r.id === roleId);
-    if (!matched) return;
-
-    const email = matched.defaultEmail;
-    // Attempt multiple candidate passwords that might have been configured previously in this Firebase instance
-    const candidatePasswords = [
-      matched.defaultPass,          // Primary (e.g., admin_stockflow_2026, logistics_stockflow_2026)
-      "stockflow123",               // Fallback common passwords
-      "admin123",
-      "manager123",
-      "seller123",
-      "logistics123",
-      "123456",
-      "password"
-    ];
-
-    let loggedIn = false;
-    let lastError: any = null;
-
-    // Fill inputs visually for user clarity
-    setFormData({
-      email: email,
-      password: matched.defaultPass
-    });
-    setSelectedRole(roleId);
-
-    // Try normal logins first with candidate passwords
-    for (const pass of candidatePasswords) {
-      try {
-        await login(email, pass);
-        setFormData({ email, password: pass });
-        loggedIn = true;
-        break;
-      } catch (err: any) {
-        lastError = err;
-        // Continue loop if it is credentials-related
-      }
-    }
-
-    if (loggedIn) {
-      setLoading(false);
-      return;
-    }
-
-    // Since standard login with all common candidates failed, let's try to register it
-    try {
-      // C-SAN-1: PII-safe log — never plain email (anti-pattern §6.5)
-      const emailMaskedB = `${email.split("@")[0]?.slice(0,2) || "??"}***@${email.split("@")[1] || "domain"}`;
-      console.log(`Sandbox: Trying primary registration for ${emailMaskedB}`);
-      await register(email, matched.defaultPass, `${matched.title} (Oficial)`, matched.id);
-      await login(email, matched.defaultPass);
-      setFormData({ email, password: matched.defaultPass });
-    } catch (regErr: any) {
-      console.log(`Sandbox: Primary registration yielded ${regErr.code || regErr.message}`);
-      
-      // If the primary email already exists under a password we don't know,
-      // we fall back to a dynamic suffix email (e.g. logistics-demo@stockflow.com) which will be created cleanly.
-      if (regErr.code === "auth/email-already-in-use" || regErr.code === "auth/invalid-credential") {
-        const fallbackEmail = `${roleId}-demo@stockflow.com`;
-        console.log(`Sandbox: Falling back to secure demo account: ${fallbackEmail}`);
-        
-        try {
-          // Attempt login on the fallback account
-          await login(fallbackEmail, matched.defaultPass);
-          setFormData({ email: fallbackEmail, password: matched.defaultPass });
-        } catch (fallLoginErr: any) {
-          try {
-            // Register clean fallback account
-            await register(fallbackEmail, matched.defaultPass, `${matched.title} Sandbox`, matched.id);
-            await login(fallbackEmail, matched.defaultPass);
-            setFormData({ email: fallbackEmail, password: matched.defaultPass });
-          } catch (fallRegErr: any) {
-            console.error("Sandbox: Fallback registration also in use. Generating unique timestamped suffix.");
-            // If even fallback is in use with another password, use a timestamped unique sandbox email
-            const uniqueEmail = `${roleId}-sandbox-${Date.now().toString().slice(-4)}@stockflow.com`;
-            try {
-              await register(uniqueEmail, matched.defaultPass, `${matched.title} Sandbox`, matched.id);
-              await login(uniqueEmail, matched.defaultPass);
-              setFormData({ email: uniqueEmail, password: matched.defaultPass });
-            } catch (finalErr: any) {
-              setError(`Error en autoprovisionamiento sandbox: ${finalErr.message || finalErr.code}`);
-            }
-          }
-        }
-      } else {
-        setError(`Error al configurar cuenta corporativa: ${regErr.message || regErr.code}`);
-      }
-    }
-
-    setLoading(false);
-  };
-
   return (
     <div className="min-h-screen bg-[#060608] flex items-center justify-center p-4 sm:p-6 lg:p-8 selection:bg-indigo-500/30 overflow-x-hidden font-sans relative">
-      
-      {/* Dynamic ambient color glow */}
+
+      {/* Ambient color glow (static indigo) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div 
-          className="absolute top-[35%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] blur-[140px] rounded-full transition-all duration-700 opacity-20"
-          style={{ backgroundColor: currentRoleInfo.accentHex }}
-        />
+        <div className="absolute top-[35%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] blur-[140px] rounded-full opacity-20 bg-indigo-500" />
       </div>
 
       <div className="max-w-[460px] w-full relative z-10 space-y-6">
-        
+
         {/* Central Logo Header */}
         <div className="flex flex-col items-center text-center space-y-3">
           <div className="p-3 bg-slate-900 border border-white/5 rounded-2xl shadow-xl flex items-center justify-center">
-            <Laptop className="text-indigo-400" size={26} />
+            <Laptop className="text-indigo-400" size={26} aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">StockFlow <span className="text-indigo-500 font-medium text-xs font-mono">v2.1</span></h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              StockFlow <span className="text-indigo-500 font-medium text-xs font-mono">v2.1</span>
+            </h1>
             <p className="text-[10px] text-zinc-500 tracking-widest uppercase font-extrabold mt-1">
               Plataforma Corporativa de Inventario y Bodega
             </p>
           </div>
         </div>
 
-        {/* Corporate login portal panel */}
+        {/* Login panel */}
         <div className="bg-[#0b0b0e]/95 border border-white/5 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
-          
-          <div 
-            className="absolute top-0 inset-x-0 h-[2px] transition-all duration-500 rounded-t-3xl" 
-            style={{ backgroundColor: currentRoleInfo.accentHex }}
-          />
+
+          <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-3xl bg-indigo-500" />
 
           <div className="mb-6 text-center">
             <h2 className="text-base font-black text-white">Acceso de Trabajadores</h2>
-            <p className="text-[10px] text-zinc-500 font-medium mt-0.5">El registro de empleados se realiza a través de Gestión Humana.</p>
+            <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+              El registro de empleados lo realiza el administrador desde Configuración.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            
-            {/* Email Address */}
+          <form onSubmit={handleSubmit} className="space-y-4" aria-label="Formulario de inicio de sesión">
+
+            {/* Email */}
             <div className="space-y-1.5">
               <label htmlFor="email" className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">
                 Correo Electrónico
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" size={15} />
-                <input 
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" size={15} aria-hidden="true" />
+                <input
                   id="email"
                   required
-                  type="email" 
-                  placeholder="ej. admin@stockflow.com"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="tu@correo.cl"
                   className="w-full bg-black/40 border border-white/5 hover:border-white/10 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-zinc-700 focus:outline-none transition-all text-xs"
                   value={formData.email}
                   disabled={loading}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  aria-label="Correo electrónico"
                 />
               </div>
             </div>
@@ -296,67 +124,72 @@ export function Login() {
                   <label htmlFor="password" className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
                     Contraseña
                   </label>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setMode("recover")}
                     className="text-[9px] font-extrabold text-zinc-500 hover:text-indigo-400 transition-colors"
+                    aria-label="Recuperar contraseña olvidada"
                   >
                     ¿Olvidaste tu clave?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" size={15} />
-                  <input 
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" size={15} aria-hidden="true" />
+                  <input
                     id="password"
                     required
-                    type="password" 
+                    type="password"
+                    autoComplete="current-password"
                     placeholder="••••••••"
                     className="w-full bg-black/40 border border-white/5 hover:border-white/10 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-zinc-700 focus:outline-none transition-all text-xs"
                     value={formData.password}
                     disabled={loading}
-                    onChange={e => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    aria-label="Contraseña"
                   />
                 </div>
               </div>
             )}
 
-            {/* Feedback Messages */}
+            {/* Feedback */}
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] rounded-xl font-medium text-left">
+              <div role="alert" className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] rounded-xl font-medium text-left">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] rounded-xl font-medium text-left">
+              <div role="status" className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] rounded-xl font-medium text-left">
                 {success}
               </div>
             )}
 
-            {/* Submit Action Button */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/15 text-white font-black py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-x-2 text-xs uppercase tracking-widest"
+              aria-label={mode === "login" ? "Ingresar al workspace" : "Enviar correo de recuperación"}
             >
               {loading ? (
-                <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true"></div>
               ) : (
                 <>
                   <span>{mode === "login" ? "Ingresar al Workspace" : "Recuperar Acceso"}</span>
-                  <ArrowRight size={15} />
+                  <ArrowRight size={15} aria-hidden="true" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Cancel recovery link */}
+          {/* Cancel recovery */}
           {mode === "recover" && (
             <div className="mt-4 text-center">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setMode("login")}
                 className="text-xs text-zinc-500 hover:text-white transition-colors"
+                aria-label="Volver al formulario de inicio de sesión"
               >
                 Volver al login
               </button>
@@ -365,76 +198,26 @@ export function Login() {
 
         </div>
 
-        {/* SANDBOX EXPLICIT ACCOUNTS PROVISION MODULE (Chief Requested / Real accounts) */}
-        <div className="bg-[#0b0b0e]/50 border border-white/5 rounded-3xl p-5 space-y-4">
-          <div className="flex items-start gap-2.5">
-            <div className="p-1 rounded-lg bg-indigo-500/10 text-indigo-400 mt-0.5">
-              <Info size={13} />
-            </div>
-            <div className="text-left">
-              <h3 className="text-[11px] font-black text-slate-300 uppercase tracking-wider">Acceso Rápido Sandbox de Prueba</h3>
-              <p className="text-[10px] text-zinc-500 font-medium">Cuentas reales autoprovisionadas al instante en Firebase.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {roles.map((r) => {
-              const Icon = r.icon;
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => handleQuickSandboxAccess(r.id)}
-                  className="p-3 text-left rounded-xl bg-black/40 border border-white/5 hover:border-white/10 hover:bg-black/60 transition-all flex flex-col justify-between group active:scale-[0.97]"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none">
-                      {r.id}
-                    </span>
-                    <div className={cn("p-1 rounded-md border text-xs", r.accentColor)}>
-                      <Icon size={12} />
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <p className="text-[10px] font-black text-white group-hover:text-indigo-400 transition-colors leading-tight">
-                      {r.title.split(" / ")[0]}
-                    </p>
-                    <p className="text-[8px] text-zinc-600 font-medium tracking-tight mt-0.5 truncate max-w-[150px]">
-                      {r.defaultEmail}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Portal de Cliente Link */}
-        <div className="text-center pt-2">
-          <p className="text-[11px] text-zinc-600 font-medium">
-            ¿Eres cliente? Haz tus consultas en el{" "}
-            <a 
-              href="/cliente" 
-              className="text-indigo-400 font-bold hover:underline"
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, '', '/cliente');
-                window.location.reload();
-              }}
-            >
-              Portal Auto-servicio (/cliente)
-            </a>.
-          </p>
-        </div>
+        {/* Customer Portal entrypoint — prominent button, React Router navigation */}
+        <button
+          type="button"
+          onClick={() => navigate("/cliente")}
+          className="w-full bg-[#0b0b0e]/50 hover:bg-[#0b0b0e]/80 border border-white/5 hover:border-indigo-500/30 rounded-2xl p-4 transition-all flex items-center justify-center gap-x-2 group active:scale-[0.99]"
+          aria-label="Ir al portal de auto-servicio para clientes"
+        >
+          <UserCircle2 size={16} className="text-zinc-500 group-hover:text-indigo-400 transition-colors" aria-hidden="true" />
+          <span className="text-xs font-bold text-zinc-400 group-hover:text-white transition-colors">
+            ¿Eres cliente? Ingresa al portal
+          </span>
+        </button>
 
       </div>
 
-      {/* Embedded footer status badge */}
+      {/* Footer status */}
       <div className="absolute bottom-4 left-0 right-0 text-center pointer-events-none z-0 hidden sm:block">
         <div className="max-w-4xl mx-auto flex items-center justify-center gap-x-8 text-zinc-800 font-bold tracking-widest text-[8px] uppercase">
           <div className="flex items-center gap-x-1.5">
-            <ShieldCheck size={13} className="text-emerald-500" />
+            <ShieldCheck size={13} className="text-emerald-500" aria-hidden="true" />
             <span>Servidor Central Activo</span>
           </div>
         </div>

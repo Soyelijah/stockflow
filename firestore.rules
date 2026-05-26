@@ -13,7 +13,6 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'solier.elijah@gmail.com' ||
         request.auth.token.role == 'owner' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
@@ -23,7 +22,6 @@ service cloud.firestore {
 
     function isLogistics() {
       return isSignedIn() && (
-        request.auth.token.email == 'solier.elijah@gmail.com' ||
         isAdmin() ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'logistics')
@@ -32,7 +30,6 @@ service cloud.firestore {
 
     function isSeller() {
       return isSignedIn() && (
-        request.auth.token.email == 'solier.elijah@gmail.com' ||
         isAdmin() ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller')
@@ -102,7 +99,19 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == userId
         && incoming().role in ['customer', 'seller']
         && incoming().keys().hasOnly(['uid', 'email', 'role', 'branchId', 'name', 'createdAt']);
-      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // CRITICAL: role + branchId are server-managed via Cloud Function setUserRole
+      // (which is the only path that writes the authoritative custom claim).
+      // Allowing them from the client lets a signed-in user self-escalate the mirror
+      // and bypass isAdmin()/isLogistics()/isSeller() checks that read from this doc.
+      // Self can only touch cosmetic fields (name). Admin can also fix email typos.
+      // Cloud Functions use firebase-admin SDK which bypasses rules — they keep full access.
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name']))
+        ||
+        (isAdmin()
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email']))
+      );
     }
 
     // Multi-branch (Tier 1.0): /branches metadata.
