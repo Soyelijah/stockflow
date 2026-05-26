@@ -8,7 +8,7 @@
 // Idempotent: safe to re-run; will skip if already present.
 
 import { adminDb } from "../server/services/firebaseAdmin";
-import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 async function seedDefaultBranch() {
   console.log("🏪 [Seed Default Branch] Checking /branches/default ...");
@@ -28,8 +28,8 @@ async function seedDefaultBranch() {
     geolocation: null,
     active: true,
     managerUserId: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   console.log("✅ Created /branches/default (Sucursal Principal).");

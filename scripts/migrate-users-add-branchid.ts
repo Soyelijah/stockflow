@@ -13,7 +13,8 @@
 // Side-effect: users will need to log out and back in to refresh their token claims.
 
 import { adminDb } from "../server/services/firebaseAdmin";
-import * as admin from "firebase-admin";
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue } from "firebase-admin/firestore";
 
 const CROSS_BRANCH_SENTINEL = "*";
 const DEFAULT_BRANCH_ID = "default";
@@ -33,7 +34,7 @@ async function migrate() {
     process.exit(1);
   }
 
-  const auth = admin.auth();
+  const auth = getAuth();
   const snap = await adminDb.collection("users").get();
   console.log(`📋 Found ${snap.size} user profiles.`);
 
@@ -81,7 +82,7 @@ async function migrate() {
       await adminDb.collection("users").doc(uid).set(
         {
           branchId,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
