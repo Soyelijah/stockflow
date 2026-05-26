@@ -174,7 +174,7 @@ export function FlowResult() {
           <div className="flex flex-col items-center">
             <Loader2 size={48} className="text-indigo-500 animate-spin mb-6" />
             <h2 className="text-2xl font-black mb-2">Verificando Pago</h2>
-            <p className="text-slate-500">Estamos confirmando tu transacción con Flow...</p>
+            <p className="text-slate-500">Estamos confirmando tu transacción con Flow…</p>
           </div>
         )}
 
@@ -190,7 +190,7 @@ export function FlowResult() {
             
             <button type="button" 
               onClick={goBack}
-              className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2"
+              className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-x-2"
             >
               <span>Volver al Sistema</span>
               <ArrowRight size={16} />

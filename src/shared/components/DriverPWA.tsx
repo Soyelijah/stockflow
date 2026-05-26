@@ -272,7 +272,7 @@ export function DriverPWA() {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-50 font-sans gap-4">
         <Loader2 className="animate-spin text-indigo-600" size={40} />
-        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Cargando Hoja de Ruta...</p>
+        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Cargando Hoja de Ruta…</p>
       </div>
     );
   }
@@ -281,7 +281,7 @@ export function DriverPWA() {
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans max-w-md mx-auto relative overflow-x-hidden pb-12">
       {/* Mobile Top App Bar */}
       <header className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-x-3">
           <div className="size-10 bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center">
             <Truck size={20} />
           </div>
@@ -328,7 +328,7 @@ export function DriverPWA() {
       {/* FCM Push Notification Banner */}
       <section className="px-4 pb-4">
         <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 text-white p-4 rounded-3xl border border-indigo-500/20 shadow-lg flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-x-3">
             <div className={`size-9 rounded-xl flex items-center justify-center border transition-colors ${fcmRegistered ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30"}`}>
               <Bell size={16} className={fcmLoading ? "animate-pulse" : ""} />
             </div>
@@ -407,7 +407,7 @@ export function DriverPWA() {
         {activeNextStop ? (
           <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-xl space-y-5 text-left">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center space-x-2.5">
+              <div className="flex items-center gap-x-2.5">
                 <div className="size-9 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 font-bold font-mono text-sm shadow-sm">
                   {completedStopsCount + 1}
                 </div>
@@ -454,7 +454,7 @@ export function DriverPWA() {
                 <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Productos del Despacho</span>
                 <div className="max-h-[80px] overflow-y-auto space-y-1">
                   {activeNextStop.items?.map((item: string, idx: number) => (
-                    <div key={idx} className="flex items-center space-x-1.5 text-[10.5px] font-bold text-slate-600">
+                    <div key={`${idx}-${item}`} className="flex items-center gap-x-1.5 text-[10.5px] font-bold text-slate-600">
                       <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full shrink-0" />
                       <p className="truncate">{item}</p>
                     </div>
@@ -548,7 +548,7 @@ export function DriverPWA() {
                       : "bg-white border-slate-100 text-slate-700"
                   )}
                 >
-                  <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="flex items-center gap-x-2.5 min-w-0">
                     <span className={cn(
                       "size-6 rounded-full flex items-center justify-center font-bold text-[10px] font-mono shrink-0",
                       isCurrent 

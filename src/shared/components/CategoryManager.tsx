@@ -151,7 +151,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
         className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
       >
         <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-x-4">
             <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
               <Tag size={24} />
             </div>
@@ -207,7 +207,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold uppercase tracking-wider text-[13px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center space-x-2 min-h-[3.25rem] md:min-h-[3.5rem] cursor-pointer"
+                  className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold uppercase tracking-wider text-[13px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-x-2 min-h-[3.25rem] md:min-h-[3.5rem] cursor-pointer"
                 >
                   <Save size={18} />
                   <span>{editingId ? "Actualizar" : "Guardar Categoría"}</span>
@@ -231,7 +231,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {categories.map(cat => (
               <div key={cat.id} className="bg-white border border-slate-100 p-5 rounded-3xl flex items-center justify-between group hover:shadow-lg transition-all hover:-translate-y-1">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-x-4">
                   <div className={cn("size-12 rounded-2xl flex items-center justify-center text-white shadow-inner", cat.color || "bg-slate-500")}>
                     <Tag size={20} />
                   </div>
@@ -240,7 +240,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Catálogo Activo</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button type="button" onClick={() => handleEdit(cat)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
                     <Edit2 size={16} />
                   </button>

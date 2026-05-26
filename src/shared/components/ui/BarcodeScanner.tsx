@@ -85,7 +85,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
       <div className="w-full max-w-lg relative flex flex-col items-center">
         {/* Header UI */}
         <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-10">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-x-3">
             <div className="size-10 bg-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
               <Zap size={20} />
             </div>
@@ -171,7 +171,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
           transition={{ delay: 0.3 }}
           className="mt-8 text-center px-8"
         >
-          <div className="inline-flex items-center space-x-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-full mb-4">
+          <div className="inline-flex items-center gap-x-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-full mb-4">
              <Camera size={14} className="text-indigo-400" />
              <span className="text-indigo-400 font-black uppercase tracking-[0.2em] text-[9px]">Lector de Alta Precisión</span>
           </div>

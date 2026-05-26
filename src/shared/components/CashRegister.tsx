@@ -369,7 +369,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                 <button type="button" 
                   onClick={handleOpenRegister}
                   disabled={!initialAmount || loading}
-                  className="w-full h-12 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-xs sm:text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-2 disabled:opacity-30"
+                  className="w-full h-12 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-xs sm:text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-x-2 disabled:opacity-30"
                 >
                   <Unlock size={16} />
                   <span>Abrir Caja y Comenzar</span>
@@ -396,7 +396,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
           >
             <button type="button" 
               onClick={() => setIsMinimized(false)}
-              className="bg-rose-600 text-white px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-full font-black uppercase tracking-widest text-[9px] sm:text-[10px] shadow-2xl shadow-rose-200 flex items-center space-x-2 sm:space-x-3 group justify-center text-center"
+              className="bg-rose-600 text-white px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-full font-black uppercase tracking-widest text-[9px] sm:text-[10px] shadow-2xl shadow-rose-200 flex items-center gap-x-2 sm:gap-x-3 group justify-center text-center"
             >
               <div className="size-6 sm:w-8 sm:h-8 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform shrink-0">
                 <Lock size={12} className="sm:w-[14px] sm:h-[14px]" />
@@ -416,7 +416,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
               fetchSessionStats(session);
               setIsClosing(true);
             }}
-            className="flex items-center space-x-1.5 sm:space-x-2 bg-rose-600 text-white px-4 py-3 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[10px] shadow-2xl shadow-rose-200 hover:scale-105 active:scale-95 transition-all"
+            className="flex items-center gap-x-1.5 sm:gap-x-2 bg-rose-600 text-white px-4 py-3 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[10px] shadow-2xl shadow-rose-200 hover:scale-105 active:scale-95 transition-all"
           >
             <Lock size={14} className="sm:w-[16px] sm:h-[16px]" />
             <span>Cerrar Turno</span>
@@ -435,7 +435,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
               className="bg-white max-w-2xl w-full rounded-[2.5rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]"
             >
               <div className="p-6 md:p-8 bg-rose-600 text-white flex items-center justify-between shrink-0">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-x-4">
                   <div className="p-2 bg-white/10 rounded-xl">
                     <Calculator size={20} md:size={24} />
                   </div>
@@ -482,21 +482,21 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-                  <div className="p-3 md:p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center space-x-3">
+                  <div className="p-3 md:p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-x-3">
                     <CreditCard size={18} className="text-indigo-500" />
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase">Tarjeta</p>
                       <p className="text-xs font-black">{formatCurrency(sessionStats.card)}</p>
                     </div>
                   </div>
-                  <div className="p-3 md:p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center space-x-3">
+                  <div className="p-3 md:p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-x-3">
                     <Smartphone size={18} className="text-purple-500" />
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase">Digital</p>
                       <p className="text-xs font-black">{formatCurrency(sessionStats.digital)}</p>
                     </div>
                   </div>
-                  <div className="p-3 md:p-4 bg-indigo-600 rounded-2xl text-white flex items-center space-x-3">
+                  <div className="p-3 md:p-4 bg-indigo-600 rounded-2xl text-white flex items-center gap-x-3">
                     <TrendingUp size={18} />
                     <div>
                       <p className="text-[9px] font-black text-indigo-200 uppercase">Total Turno</p>

@@ -601,7 +601,7 @@ export function Inventory() {
   });
 
   return (
-    <div className="flex flex-col gap-y-8 max-w-[1600px] mx-auto p-4 md:p-8">
+    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto p-4 md:p-8">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Inventario Global</h1>
@@ -629,7 +629,7 @@ export function Inventory() {
 
       {/* Smart Actions Panel */}
       {smartActions.length > 0 && (
-        <div className="flex flex-col gap-y-4">
+        <div className="flex flex-col space-y-4">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Sugerencias de la IA</h3>
             <span className="bg-indigo-100 text-indigo-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Beta</span>
@@ -869,7 +869,7 @@ export function Inventory() {
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-slate-100">
           {filteredProducts.map(product => (
-            <div key={product.id} className="p-6 flex flex-col gap-y-4">
+            <div key={product.id} className="p-6 flex flex-col space-y-4">
                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-x-4">
                     <div className="size-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 overflow-hidden border border-slate-100">
@@ -996,7 +996,7 @@ export function Inventory() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-y-6 text-slate-700">
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col space-y-6 text-slate-700">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="sm:col-span-2">
                     <label htmlFor={inputId("name")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre del Producto</label>
@@ -1018,7 +1018,7 @@ export function Inventory() {
                       )}
                     </div>
                   </div>
-                  <div className="sm:col-span-2 flex flex-col gap-y-4">
+                  <div className="sm:col-span-2 flex flex-col space-y-4">
                     <label htmlFor={inputId("barcode-input")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Códigos de Barra (Escriba y presione Enter para múltiples)</label>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {formData.barcodes.map((bc) => (

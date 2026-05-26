@@ -62,7 +62,7 @@ export function VerifyEmail() {
             <button type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="w-full bg-white text-slate-900 font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="w-full bg-white text-slate-900 font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-x-2 disabled:opacity-50"
             >
               {refreshing ? (
                 <RefreshCw size={20} className="animate-spin text-slate-500" />
@@ -77,7 +77,7 @@ export function VerifyEmail() {
             <button type="button"
               onClick={handleResend}
               disabled={sending}
-              className="w-full bg-white/5 border border-white/10 text-white font-bold py-4 rounded-2xl transition-all hover:bg-white/10 flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="w-full bg-white/5 border border-white/10 text-white font-bold py-4 rounded-2xl transition-all hover:bg-white/10 flex items-center justify-center gap-x-2 disabled:opacity-50"
             >
               {sending ? (
                 <div className="size-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
@@ -104,7 +104,7 @@ export function VerifyEmail() {
           <div className="mt-10 pt-8 border-t border-white/5">
             <button type="button" 
               onClick={() => logout()}
-              className="inline-flex items-center space-x-2 text-gray-500 hover:text-white transition-colors uppercase tracking-widest text-[10px] font-black"
+              className="inline-flex items-center gap-x-2 text-gray-500 hover:text-white transition-colors uppercase tracking-widest text-[10px] font-black"
             >
               <LogOut size={14} />
               <span>Cerrar Sesión</span>

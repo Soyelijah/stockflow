@@ -335,7 +335,7 @@ export function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/15 text-white font-black py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center space-x-2 text-xs uppercase tracking-widest"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/15 text-white font-black py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-x-2 text-xs uppercase tracking-widest"
             >
               {loading ? (
                 <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
@@ -430,8 +430,8 @@ export function Login() {
 
       {/* Embedded footer status badge */}
       <div className="absolute bottom-4 left-0 right-0 text-center pointer-events-none z-0 hidden sm:block">
-        <div className="max-w-4xl mx-auto flex items-center justify-center space-x-8 text-zinc-800 font-bold tracking-widest text-[8px] uppercase">
-          <div className="flex items-center space-x-1.5">
+        <div className="max-w-4xl mx-auto flex items-center justify-center gap-x-8 text-zinc-800 font-bold tracking-widest text-[8px] uppercase">
+          <div className="flex items-center gap-x-1.5">
             <ShieldCheck size={13} className="text-emerald-500" />
             <span>Servidor Central Activo</span>
           </div>

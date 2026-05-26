@@ -198,9 +198,13 @@ export function SignatureModal({
   return (
     <div className="fixed inset-0 z-[150] overflow-y-auto flex items-end sm:items-center justify-center p-4">
       {/* Dark backdrop overlay */}
-      <div 
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" 
+      <div
+        className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity"
+        role="button"
+        tabIndex={-1}
+        aria-label="Cerrar firma"
         onClick={onClose}
+        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
       />
 
       <motion.div
@@ -215,7 +219,7 @@ export function SignatureModal({
 
         {/* Modal Header */}
         <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center gap-x-2.5">
             <div className="w-8.5 h-8.5 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 border border-emerald-100/40">
               <CheckCircle size={16} />
             </div>

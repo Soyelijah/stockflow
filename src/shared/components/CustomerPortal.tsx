@@ -1285,7 +1285,7 @@ export function CustomerPortal() {
                 <button 
                   type="submit"
                   disabled={loading || !identifier}
-                  className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                  className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all flex items-center justify-center gap-x-2 cursor-pointer"
                 >
                   {loading ? <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Siguiente"}
                 </button>
@@ -1301,7 +1301,7 @@ export function CustomerPortal() {
                 onSubmit={verifyPassword} 
                 className="space-y-4"
               >
-                <div className="flex items-center space-x-3 mb-6 bg-indigo-50 p-3 rounded-2xl border border-indigo-100">
+                <div className="flex items-center gap-x-3 mb-6 bg-indigo-50 p-3 rounded-2xl border border-indigo-100">
                   <div className="size-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-black">
                     {tempCustomer.name.charAt(0)}
                   </div>
@@ -1377,7 +1377,7 @@ export function CustomerPortal() {
                 className="space-y-4"
               >
                 <div className="bg-amber-50 p-6 rounded-[2rem] border border-amber-100 mb-6">
-                  <div className="flex items-center space-x-2 text-amber-600 mb-2">
+                  <div className="flex items-center gap-x-2 text-amber-600 mb-2">
                     <Lock size={16} />
                     <span className="text-[10px] font-black uppercase tracking-widest">Primera vez aquí</span>
                   </div>
@@ -1503,7 +1503,7 @@ export function CustomerPortal() {
             initial={{ opacity: 0, y: -50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-6 left-4 right-4 z-[200] max-w-sm mx-auto bg-slate-900/90 backdrop-blur-md border border-slate-800 text-white rounded-3xl p-4.5 shadow-2xl flex items-start space-x-3.5"
+            className="fixed top-6 left-4 right-4 z-[200] max-w-sm mx-auto bg-slate-900/90 backdrop-blur-md border border-slate-800 text-white rounded-3xl p-4.5 shadow-2xl flex items-start gap-x-3.5"
           >
             <div className="w-9.5 h-9.5 bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 rounded-xl flex items-center justify-center shrink-0">
               <Bell size={18} className="animate-bounce" />
@@ -1562,7 +1562,7 @@ export function CustomerPortal() {
               <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
                 {/* Profile Brief Card */}
                 <div className="bg-white rounded-[2rem] border border-slate-150 p-5 shadow-sm space-y-4">
-                  <div className="flex items-center space-x-3.5 pb-3 border-b border-slate-50">
+                  <div className="flex items-center gap-x-3.5 pb-3 border-b border-slate-50">
                     <div className="relative group shrink-0">
                       <div className="size-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg overflow-hidden relative border border-slate-100">
                         {isUploadingPhoto ? (
@@ -1704,7 +1704,7 @@ export function CustomerPortal() {
                       }}
                       disabled={isSavingProfile || (profileEmail === customer.email && profileType === customer.type)}
                       className={cn(
-                        "w-full py-3 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center space-x-1.5 border shadow-sm mt-3",
+                        "w-full py-3 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-x-1.5 border shadow-sm mt-3",
                         (profileEmail === customer.email && profileType === customer.type)
                           ? "bg-slate-150 text-slate-350 border-slate-200 cursor-not-allowed shadow-none"
                           : "bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700 active:scale-95"
@@ -1733,7 +1733,7 @@ export function CustomerPortal() {
                     }}
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
                   >
-                    <div className="flex items-center space-x-3 text-slate-700 font-bold text-xs">
+                    <div className="flex items-center gap-x-3 text-slate-700 font-bold text-xs">
                       <div className="size-8 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100 shadow-inner shrink-0">
                         <Gift size={15} />
                       </div>
@@ -1749,7 +1749,7 @@ export function CustomerPortal() {
                     }}
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
                   >
-                    <div className="flex items-center space-x-3 text-slate-700 font-bold text-xs">
+                    <div className="flex items-center gap-x-3 text-slate-700 font-bold text-xs">
                       <div className="size-8 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100 shadow-inner shrink-0">
                         <Tag size={15} />
                       </div>
@@ -1765,7 +1765,7 @@ export function CustomerPortal() {
                     }}
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
                   >
-                    <div className="flex items-center space-x-3 text-slate-700 font-bold text-xs">
+                    <div className="flex items-center gap-x-3 text-slate-700 font-bold text-xs">
                       <div className="size-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100 shadow-inner shrink-0">
                         <History size={15} />
                       </div>
@@ -1795,7 +1795,7 @@ export function CustomerPortal() {
                     logout();
                     setIsProfileSidebarOpen(false);
                   }}
-                  className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl text-[9px] font-black uppercase tracking-widest border border-rose-100 transition-all flex items-center justify-center space-x-2 active:scale-95 shadow-sm shadow-rose-50"
+                  className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl text-[9px] font-black uppercase tracking-widest border border-rose-100 transition-all flex items-center justify-center gap-x-2 active:scale-95 shadow-sm shadow-rose-50"
                 >
                   <LogOut size={13} />
                   <span>Cerrar Sesión Móvil</span>
@@ -1816,7 +1816,7 @@ export function CustomerPortal() {
       <header className="bg-white p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 z-50">
         <button type="button" 
           onClick={() => setIsProfileSidebarOpen(true)}
-          className="flex items-center space-x-3 text-left hover:bg-slate-50/80 p-2 -m-2 rounded-2xl transition-all duration-200 active:scale-95 group focus:outline-hidden"
+          className="flex items-center gap-x-3 text-left hover:bg-slate-50/80 p-2 -m-2 rounded-2xl transition-all duration-200 active:scale-95 group focus:outline-hidden"
         >
           <div className="size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg overflow-hidden relative shadow-sm ring-2 ring-slate-100 group-hover:ring-indigo-100 transition-all shrink-0">
             {customer.photoURL ? (
@@ -1837,7 +1837,7 @@ export function CustomerPortal() {
           </div>
         </button>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-x-2">
           <button type="button"
             onClick={() => setLang(prev => prev === "es" ? "en" : "es")}
             className="px-3.5 py-2 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 rounded-2xl transition-all active:scale-95 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-indigo-100/50 shadow-inner"
@@ -1881,7 +1881,7 @@ export function CustomerPortal() {
                     <X size={14} />
                   </button>
                   
-                  <div className="flex items-start space-x-3 pr-6">
+                  <div className="flex items-start gap-x-3 pr-6">
                     <div className="size-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-white">
                       <CheckCircle size={18} />
                     </div>
@@ -1934,7 +1934,7 @@ export function CustomerPortal() {
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Status {tier.name}</span>
                   </div>
                   <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">Puntos Acumulados</p>
-                  <div className="flex items-baseline space-x-2">
+                  <div className="flex items-baseline gap-x-2">
                     <h3 className="text-5xl font-black">{customer.points || 0}</h3>
                     <span className="text-sm font-black opacity-60">PTS</span>
                   </div>
@@ -1957,7 +1957,7 @@ export function CustomerPortal() {
 
               {/* FCM Push Notifications Control Card */}
               <div className="bg-gradient-to-r from-slate-900 to-[#1e1b4b] text-white p-6 rounded-[2.5rem] border border-indigo-500/10 shadow-xl flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-x-4">
                   <div className={`size-12 rounded-2xl flex items-center justify-center border transition-all ${fcmRegistered ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse"}`}>
                     <Bell size={20} className={fcmLoading ? "animate-spin" : ""} />
                   </div>
@@ -2052,7 +2052,7 @@ export function CustomerPortal() {
                             }}
                             className="w-full p-5 rounded-[2rem] text-left text-white flex items-center justify-between shadow-lg bg-emerald-600 shadow-emerald-100 transition-all active:scale-95 duration-200"
                           >
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center gap-x-4">
                               <div className="text-2xl">{auto.img}</div>
                               <div>
                                 <h4 className="font-bold text-sm">{auto.title}</h4>
@@ -2081,7 +2081,7 @@ export function CustomerPortal() {
                             }}
                             className="w-full p-5 rounded-[2rem] text-left text-indigo-900 border border-indigo-100 bg-indigo-50 flex items-center justify-between transition-all active:scale-95 duration-200"
                           >
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center gap-x-4">
                               <div className="text-2xl">{coupon.img || "🎟️"}</div>
                               <div>
                                 <h4 className="font-bold text-sm text-indigo-950">{coupon.title}</h4>
@@ -2102,7 +2102,7 @@ export function CustomerPortal() {
                         {/* Always show next locked loyalty coupon progress goal if exists */}
                         {nextLockedAutoCoupon && (
                           <div className="p-5 rounded-[2rem] border border-dashed border-slate-200 bg-white shadow-sm flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center gap-x-4">
                               <div className="text-3xl opacity-60">{nextLockedAutoCoupon.img}</div>
                               <div>
                                 <h4 className="font-bold text-xs text-slate-700">{nextLockedAutoCoupon.title}</h4>
@@ -2126,7 +2126,7 @@ export function CustomerPortal() {
                           const minPointsNeeded = (LOYALTY_TIERS as any)[lockedC.minTier]?.min || 0;
                           return (
                             <div key={lockedC.id} className="p-5 rounded-[2rem] border border-slate-100 bg-slate-50 flex items-center justify-between opacity-60">
-                              <div className="flex items-center space-x-4">
+                              <div className="flex items-center gap-x-4">
                                 <div className="text-2xl">{lockedC.img || "🎟️"}</div>
                                 <div>
                                   <h4 className="font-bold text-xs text-slate-800">{lockedC.title}</h4>
@@ -2164,7 +2164,7 @@ export function CustomerPortal() {
               className="space-y-6"
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-x-3">
                   <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Tienda Online</h3>
                 </div>
@@ -2182,7 +2182,7 @@ export function CustomerPortal() {
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-center space-x-3 text-rose-600"
+                  className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-center gap-x-3 text-rose-600"
                 >
                   <AlertCircle size={18} />
                   <p className="text-xs font-bold">{error}</p>
@@ -2242,7 +2242,7 @@ export function CustomerPortal() {
               </div>
 
               {/* 2. Horizontal Scrolling Carousel of Dynamic Categories */}
-              <div className="flex space-x-2 overflow-x-auto pb-1 scrollbar-none antialiased">
+              <div className="flex gap-x-2 overflow-x-auto pb-1 scrollbar-none antialiased">
                 {productCategories.map((cat) => {
                   const count = cat === "Todos" 
                     ? products.filter(p => p.stock > 0).length 
@@ -2273,7 +2273,7 @@ export function CustomerPortal() {
               {/* 3. Result Metadata and Sort selectors */}
               <div className="flex items-center justify-between text-[9px] font-black tracking-wider text-slate-400 px-1 uppercase">
                 <span>Viendo {Math.min(filteredAndSortedProducts.length, visibleCount)} de {filteredAndSortedProducts.length} productos</span>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-x-1">
                   <span>Ordenar:</span>
                   <select
                     value={sortBy}
@@ -2350,7 +2350,14 @@ export function CustomerPortal() {
                                 const val = parseInt(e.target.value);
                                 if (!isNaN(val)) {
                                   const safeVal = Math.min(product.stock, Math.max(0, val));
-                                  setCart(prev => prev.map(i => i.id === product.id ? { ...i, quantity: safeVal } : i).filter(i => i.quantity > 0));
+                                  setCart(prev => {
+                                    const out: any[] = [];
+                                    for (const i of prev) {
+                                      const next = i.id === product.id ? { ...i, quantity: safeVal } : i;
+                                      if (next.quantity > 0) out.push(next);
+                                    }
+                                    return out;
+                                  });
                                 }
                               }}
                             />
@@ -2392,7 +2399,7 @@ export function CustomerPortal() {
                     const cartItem = cart.find(i => i.id === product.id);
                     return (
                       <div key={product.id} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between gap-3 hover:border-indigo-100 hover:shadow-sm transition-all">
-                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <div className="flex items-center gap-x-3 flex-1 min-w-0">
                           <div className="size-10 rounded-lg bg-slate-50 flex items-center justify-center text-xl shrink-0 overflow-hidden border border-slate-50">
                             {product.image ? (
                               <img src={product.image} alt={product.name || "Producto"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -2402,7 +2409,7 @@ export function CustomerPortal() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <h4 className="text-xs font-bold text-slate-800 truncate leading-snug">{product.name}</h4>
-                            <div className="flex items-center space-x-2 mt-0.5">
+                            <div className="flex items-center gap-x-2 mt-0.5">
                               <span className="text-[11px] font-black text-slate-950">
                                 {formatCurrency(product.price)}
                               </span>
@@ -2432,7 +2439,14 @@ export function CustomerPortal() {
                                 const val = parseInt(e.target.value);
                                 if (!isNaN(val)) {
                                   const safeVal = Math.min(product.stock, Math.max(0, val));
-                                  setCart(prev => prev.map(i => i.id === product.id ? { ...i, quantity: safeVal } : i).filter(i => i.quantity > 0));
+                                  setCart(prev => {
+                                    const out: any[] = [];
+                                    for (const i of prev) {
+                                      const next = i.id === product.id ? { ...i, quantity: safeVal } : i;
+                                      if (next.quantity > 0) out.push(next);
+                                    }
+                                    return out;
+                                  });
                                 }
                               }}
                             />
@@ -2503,7 +2517,7 @@ export function CustomerPortal() {
                   >
                     <div className="absolute inset-0 bg-indigo-500/10 animate-pulse" />
                     
-                    <div className="flex items-center space-x-3 relative z-10">
+                    <div className="flex items-center gap-x-3 relative z-10">
                       <div className="size-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
                         {loading ? (
                           <div className="size-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -2680,7 +2694,7 @@ export function CustomerPortal() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6 text-left"
             >
-              <div className="flex items-center space-x-3 mb-4">
+              <div className="flex items-center gap-x-3 mb-4">
                 <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">{t[lang].history}</h3>
               </div>
@@ -2729,7 +2743,7 @@ export function CustomerPortal() {
                         onClick={() => setSelectedReceipt(receipt)}
                         className="w-full text-left bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-100 hover:shadow-md transition-all active:scale-[0.99] duration-200"
                       >
-                        <div className="flex items-center space-x-4 min-w-0 flex-1">
+                        <div className="flex items-center gap-x-4 min-w-0 flex-1">
                           <div className="size-12 bg-indigo-50/50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
                             <Receipt size={20} />
                           </div>
@@ -2744,7 +2758,7 @@ export function CustomerPortal() {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right shrink-0 flex items-center space-x-3 ml-2">
+                        <div className="text-right shrink-0 flex items-center gap-x-3 ml-2">
                           <div>
                             <p className="text-xs font-black text-slate-800">
                               {formatCurrency(receipt.finalOrderTotal)}
@@ -2787,7 +2801,7 @@ export function CustomerPortal() {
 
                   {/* Informational intro card */}
                   <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-950 shadow-md">
-                    <div className="flex items-start space-x-3.5">
+                    <div className="flex items-start gap-x-3.5">
                       <div className="size-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-amber-400">
                         <AlertCircle size={20} />
                       </div>
@@ -2900,7 +2914,7 @@ export function CustomerPortal() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <div className="flex items-center space-x-3 mb-4">
+              <div className="flex items-center gap-x-3 mb-4">
                 <button type="button" 
                   onClick={() => setActiveTab("home")} 
                   className="p-2.5 bg-white rounded-2xl border border-slate-150 shadow-sm active:scale-95 transition-all text-slate-600 hover:text-slate-900"
@@ -2921,7 +2935,7 @@ export function CustomerPortal() {
                 <div className="relative z-10 flex items-center justify-between">
                   <div className="text-left">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tus Puntos Disponibles</h4>
-                    <div className="flex items-baseline space-x-1.5 mt-2">
+                    <div className="flex items-baseline gap-x-1.5 mt-2">
                       <span className="text-5xl font-black text-amber-400 tracking-tight">{customer.points || 0}</span>
                       <span className="text-xs font-black text-slate-350">PTS</span>
                     </div>
@@ -2939,7 +2953,7 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => setRewardViewTab("available")}
                   className={cn(
-                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-all whitespace-nowrap",
+                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all whitespace-nowrap",
                     rewardViewTab === "available"
                       ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-500 hover:text-slate-800"
@@ -2952,7 +2966,7 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => setRewardViewTab("vouchers")}
                   className={cn(
-                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-all relative whitespace-nowrap",
+                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all relative whitespace-nowrap",
                     rewardViewTab === "vouchers"
                       ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-500 hover:text-slate-800"
@@ -2970,7 +2984,7 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => setRewardViewTab("desafios")}
                   className={cn(
-                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-all whitespace-nowrap",
+                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all whitespace-nowrap",
                     rewardViewTab === "desafios"
                       ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-500 hover:text-slate-800"
@@ -3017,7 +3031,7 @@ export function CustomerPortal() {
                             key={item.id} 
                             className="bg-white p-5 rounded-[2.5rem] border border-slate-150 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-md"
                           >
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center gap-x-4">
                               <div className="size-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-4xl shadow-inner shrink-0 border border-slate-100">
                                 {item.emoji}
                               </div>
@@ -3031,7 +3045,7 @@ export function CustomerPortal() {
                             </div>
 
                             <div className="flex md:flex-col items-center justify-between gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0">
-                              <div className="flex items-baseline space-x-1">
+                              <div className="flex items-baseline gap-x-1">
                                 <span className="text-2xl font-black text-slate-800 tracking-tight">{item.pointsCost}</span>
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PTS</span>
                               </div>
@@ -3085,7 +3099,7 @@ export function CustomerPortal() {
                             <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-150 z-20" />
                             
                             <div className="flex items-start justify-between">
-                              <div className="flex items-center space-x-3">
+                              <div className="flex items-center gap-x-3">
                                 <div className="size-12 bg-slate-50 rounded-[1.2rem] flex items-center justify-center text-2xl shadow-inner border border-slate-100 shrink-0">
                                   {PHYSICAL_REWARDS_CATALOGUE.find(r => r.id === item.productId)?.emoji || "🎁"}
                                 </div>
@@ -3099,7 +3113,7 @@ export function CustomerPortal() {
 
                               <div className="shrink-0">
                                 {item.status === "pending" ? (
-                                  <span className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest inline-flex items-center space-x-1 animate-pulse">
+                                  <span className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-x-1 animate-pulse">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1" />
                                     Por Retirar
                                   </span>
@@ -3143,7 +3157,7 @@ export function CustomerPortal() {
                 <div className="space-y-4 text-left">
                   <div className="bg-gradient-to-br from-indigo-900 to-slate-900 p-6 rounded-[2.5rem] text-white space-y-2 shadow-lg relative overflow-hidden">
                     <div className="absolute top-0 right-0 size-32 bg-amber-450/15 blur-3xl rounded-full -mr-12 -mt-12 animate-pulse" />
-                    <div className="flex items-center space-x-3 relative z-10">
+                    <div className="flex items-center gap-x-3 relative z-10">
                       <div className="size-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-400 border border-white/10 shrink-0">
                         <Trophy size={18} />
                       </div>
@@ -3207,7 +3221,7 @@ export function CustomerPortal() {
                         className="bg-white rounded-[2.5rem] border border-slate-150 p-6 shadow-sm flex flex-col space-y-4"
                       >
                         <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3.5">
+                          <div className="flex items-center gap-x-3.5">
                             <div className={cn(
                               "size-12 rounded-[1.2rem] flex items-center justify-center shrink-0 border border-slate-100",
                               ch.style === "indigo" ? "bg-indigo-50 text-indigo-600" :
@@ -3311,7 +3325,7 @@ export function CustomerPortal() {
                         </button>
                       </div>
 
-                      <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center space-x-4">
+                      <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-x-4">
                         <div className="size-16 bg-white rounded-2xl flex items-center justify-center border border-slate-200 shadow-sm text-4xl shrink-0">
                           {confirmReward.emoji}
                         </div>
@@ -3344,7 +3358,7 @@ export function CustomerPortal() {
                         </button>
                         <button type="button" 
                           onClick={() => handleRedeemReward(confirmReward)}
-                          className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2"
+                          className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100 flex items-center justify-center gap-x-2"
                         >
                           <Gift size={14} />
                           <span>Confirmar Canje</span>
@@ -3365,7 +3379,7 @@ export function CustomerPortal() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-8"
             >
-              <div className="flex items-center space-x-3 mb-6">
+              <div className="flex items-center gap-x-3 mb-6">
                 <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Mis Beneficios y Cupones</h3>
               </div>
@@ -3411,7 +3425,7 @@ export function CustomerPortal() {
                             }
                           }}
                           className={cn(
-                            "p-6 rounded-[2.5rem] border flex items-center space-x-6 relative overflow-hidden text-left w-full group transition-all active:scale-[0.98]", 
+                            "p-6 rounded-[2.5rem] border flex items-center gap-x-6 relative overflow-hidden text-left w-full group transition-all active:scale-[0.98]", 
                             offer.color || "bg-indigo-50 border-indigo-100 text-indigo-600",
                             activatedOffers.includes(offer.id) && "ring-4 ring-indigo-500/20 opacity-80",
                             (!isEligible || isUsed) && "grayscale opacity-40 bg-slate-100 border-slate-200 text-slate-400"
@@ -3422,7 +3436,7 @@ export function CustomerPortal() {
                             <h4 className="font-black text-sm">{offer.title}</h4>
                             <p className="text-xs font-bold opacity-80 mt-1">{offer.desc}</p>
                             {!isEligible ? (
-                              <div className="mt-2 flex items-center space-x-1 text-[8px] font-black uppercase tracking-widest text-slate-500">
+                              <div className="mt-2 flex items-center gap-x-1 text-[8px] font-black uppercase tracking-widest text-slate-500">
                                 <Lock size={10} />
                                 <span>Disponible en nivel {offer.minTier}</span>
                               </div>
@@ -3434,7 +3448,7 @@ export function CustomerPortal() {
                               </div>
                             ) : activatedOffers.includes(offer.id) ? (
                               <div className="mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-indigo-600 flex-wrap">
-                                <span className="flex items-center space-x-1">
+                                <span className="flex items-center gap-x-1">
                                   <Star size={10} className="fill-current" />
                                   <span>Cupón Activo: {offer.code}</span>
                                 </span>
@@ -3442,7 +3456,7 @@ export function CustomerPortal() {
                               </div>
                             ) : (
                               <div className="mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-emerald-600 flex-wrap">
-                                <span className="flex items-center space-x-1">
+                                <span className="flex items-center gap-x-1">
                                   <Star size={10} />
                                   <span>¡Disponible para canje! Código: {offer.code}</span>
                                 </span>
@@ -3496,7 +3510,7 @@ export function CustomerPortal() {
                           });
                         }}
                         className={cn(
-                          "p-6 rounded-[2.5rem] border flex items-center space-x-6 relative overflow-hidden text-left w-full group transition-all active:scale-[0.98]", 
+                          "p-6 rounded-[2.5rem] border flex items-center gap-x-6 relative overflow-hidden text-left w-full group transition-all active:scale-[0.98]", 
                           offer.color,
                           isEligible && !isUsed ? "ring-2 ring-emerald-500/20 shadow-sm" : "grayscale opacity-40 bg-slate-100 border-slate-200 text-slate-400"
                         )}
@@ -3506,7 +3520,7 @@ export function CustomerPortal() {
                           <h4 className="font-black text-sm">{offer.title}</h4>
                           <p className="text-xs font-bold opacity-80 mt-1">{offer.desc}</p>
                           {!isEligible ? (
-                            <div className="mt-2 flex items-center space-x-1.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
+                            <div className="mt-2 flex items-center gap-x-1.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
                               <Lock size={10} />
                               <span>Requiere {offer.requiredPoints} pts (te faltan {offer.requiredPoints - (customer.points || 0)} pts)</span>
                             </div>
@@ -3515,7 +3529,7 @@ export function CustomerPortal() {
                               <span className="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-black tracking-normal">✓ YA UTILIZADO EN SU HISTORIAL</span>
                             </div>
                           ) : (
-                            <div className="mt-2 flex items-center space-x-1.5 text-[8.5px] font-black uppercase tracking-widest text-emerald-600">
+                            <div className="mt-2 flex items-center gap-x-1.5 text-[8.5px] font-black uppercase tracking-widest text-emerald-600">
                               <Star size={10} className="fill-current" />
                               <span>¡Activo por Puntos! Código: {offer.code}</span>
                             </div>
@@ -3652,7 +3666,7 @@ export function CustomerPortal() {
               className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 flex flex-col max-h-[90vh]"
             >
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-x-3">
                   <div className="size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
                     <ShoppingCart size={20} />
                   </div>
@@ -3676,7 +3690,7 @@ export function CustomerPortal() {
                     const itemPrice = isWholesale ? product.wholesalePrice : item.price;
                     
                     return (
-                      <div key={item.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center space-x-4">
+                      <div key={item.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-x-4">
                         <div className="size-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm overflow-hidden">
                           {product?.image ? (
                             <img src={product.image} alt={product.name || "Producto"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -3806,7 +3820,7 @@ export function CustomerPortal() {
                         onConfirm: handleCheckout
                       });
                     }}
-                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-2"
+                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-x-2"
                   >
                     <span>Finalizar Compra</span>
                     <ChevronRight size={16} />
@@ -3842,7 +3856,7 @@ export function CustomerPortal() {
               <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
                 {clientNotifications.map((notif: any) => (
                   <div key={notif.id} className={cn("p-4 rounded-2xl border transition-all hover:scale-[1.01] bg-white", notif.accent.split(" ")[2], notif.accent.split(" ")[1])}>
-                    <div className={cn("flex items-center space-x-2 mb-1", notif.accent.split(" ")[0])}>
+                    <div className={cn("flex items-center gap-x-2 mb-1", notif.accent.split(" ")[0])}>
                       {notif.icon === "puntos" && <Star size={12} className="fill-current" />}
                       {notif.icon === "meta" && <Gift size={12} />}
                       {notif.icon === "oferta" && <Tag size={12} />}
@@ -4002,7 +4016,7 @@ export function CustomerPortal() {
 
                 {/* Fidelidad / Puntos rewarded section */}
                 <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-between text-xs text-emerald-800">
-                  <div className="flex items-center space-x-2.5">
+                  <div className="flex items-center gap-x-2.5">
                     <div className="size-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600">
                       <Star size={16} className="fill-current text-emerald-600" />
                     </div>
@@ -4117,7 +4131,7 @@ export function CustomerPortal() {
                   <AlertCircle size={14} />
                   Iniciar Reclamo / Soporte
                 </button>
-                <div className="flex space-x-3 w-full">
+                <div className="flex gap-x-3 w-full">
                   <button type="button"
                     onClick={() => {
                       // Create a style-trimmed receipt plain print format
@@ -4303,7 +4317,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                     {lang === "es" ? "Foto de Evidencia (Físico/Empaque)" : "Evidence Photo (Physical Receipt/Package)"}
                   </label>
                   
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center gap-x-4">
                     <input 
                       type="file" 
                       id="claim-photo-input"
@@ -4358,7 +4372,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
               </div>
 
               {/* Action Buttons */}
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex space-x-3 shrink-0">
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-x-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowClaimModal(false)}

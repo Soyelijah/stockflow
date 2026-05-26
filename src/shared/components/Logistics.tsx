@@ -684,7 +684,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             type="button"
             onClick={() => setMode("reception")}
             className={cn(
-              "flex-1 md:flex-none px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center whitespace-nowrap space-x-2",
+              "flex-1 md:flex-none px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center whitespace-nowrap gap-x-2",
               (mode === "reception" || mode === "dispatch")
                 ? "bg-white text-slate-900 shadow-sm border border-slate-200/50"
                 : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
@@ -697,7 +697,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             type="button"
             onClick={() => setMode("shipments")}
             className={cn(
-              "flex-1 md:flex-none px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center whitespace-nowrap space-x-2 relative",
+              "flex-1 md:flex-none px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center whitespace-nowrap gap-x-2 relative",
               (mode !== "reception" && mode !== "dispatch")
                 ? "bg-white text-slate-900 shadow-sm border border-slate-200/50"
                 : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
@@ -723,7 +723,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 type="button"
                 onClick={() => setMode("reception")}
                 className={cn(
-                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all gap-x-1.5 flex items-center justify-center whitespace-nowrap",
                   mode === "reception" ? "bg-emerald-600 text-white shadow-md shadow-emerald-100" : "text-slate-400 hover:bg-slate-50"
                 )}
               >
@@ -734,7 +734,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 type="button"
                 onClick={() => setMode("dispatch")}
                 className={cn(
-                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all gap-x-1.5 flex items-center justify-center whitespace-nowrap",
                   mode === "dispatch" ? "bg-rose-600 text-white shadow-md shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
                 )}
               >
@@ -748,7 +748,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 type="button"
                 onClick={() => setMode("shipments")}
                 className={cn(
-                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all gap-x-1.5 flex items-center justify-center whitespace-nowrap",
                   mode === "shipments" ? "bg-slate-900 text-white shadow-md shadow-slate-100" : "text-slate-400 hover:bg-slate-50"
                 )}
                 title="Monitoreo de Despachos"
@@ -760,7 +760,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 type="button"
                 onClick={() => setMode("audit")}
                 className={cn(
-                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all gap-x-1.5 flex items-center justify-center whitespace-nowrap",
                   mode === "audit" ? "bg-purple-600 text-white shadow-md shadow-purple-100" : "text-slate-400 hover:bg-slate-50"
                 )}
                 title="Tomas de Inventario Físico"
@@ -772,7 +772,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 type="button"
                 onClick={() => setMode("alerts")}
                 className={cn(
-                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap",
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all gap-x-1.5 flex items-center justify-center whitespace-nowrap",
                   mode === "alerts" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-400 hover:bg-slate-50"
                 )}
                 title="Stock Crítico y Analíticas"
@@ -784,7 +784,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 type="button"
                 onClick={() => setMode("claims")}
                 className={cn(
-                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all space-x-1.5 flex items-center justify-center whitespace-nowrap relative",
+                  "px-4 py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all gap-x-1.5 flex items-center justify-center whitespace-nowrap relative",
                   mode === "claims" ? "bg-rose-600 text-white shadow-md shadow-rose-100" : "text-slate-400 hover:bg-slate-50"
                 )}
                 title="Reclamos de Soporte"
@@ -956,7 +956,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <button
                       type="button"
                       onClick={() => setIsAuditScanning(true)}
-                      className="flex-1 h-12 bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-100 px-3 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center space-x-2"
+                      className="flex-1 h-12 bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-100 px-3 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-x-2"
                     >
                       <Camera size={16} />
                       <span>Escanear Cámara</span>
@@ -1165,7 +1165,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                       return (
                         <div key={p.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center gap-x-3">
                             <div className="size-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 text-slate-400">
                               <Package size={18} />
                             </div>
@@ -1185,7 +1185,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                             <div className="space-y-1">
                               <span className="text-[8px] font-black uppercase text-slate-400 ml-1 block text-center">Contado Físico</span>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center gap-x-2">
                                 <button
                                   type="button"
                                   onClick={() => setAuditScans(prev => ({ ...prev, [p.id]: Math.max(0, physicalValue - 1) }))}
@@ -1571,7 +1571,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   </button>
 
                   <div className="space-y-6">
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-x-3">
                       <div className="size-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center hover:rotate-12 transition-all">
                         <ShoppingBag size={24} />
                       </div>
@@ -1598,7 +1598,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       </div>
                       <div className="flex items-center justify-between border-t border-slate-200/50 pt-3">
                         <span className="text-xs font-bold text-slate-700">Cantidad a Solicitar:</span>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-x-2">
                           <button
                             type="button"
                             onClick={() => setOcQuantity(prev => Math.max(10, prev - 10))}
@@ -1686,7 +1686,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           }
                         }}
                         disabled={isProcessing}
-                        className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-100 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                        className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-x-2 cursor-pointer"
                       >
                         {isProcessing ? (
                           <RefreshCw className="animate-spin" size={16} />
@@ -1744,7 +1744,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             {shipmentsLoading ? (
               <div className="p-20 text-center flex flex-col items-center justify-center space-y-4">
                 <div className="size-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando rutas...</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando rutas…</p>
               </div>
             ) : paginatedShipments.length === 0 ? (
               <div className="p-20 text-center">
@@ -1788,7 +1788,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           <span className="text-sm font-black text-slate-800">{s.total ? `$${Number(s.total).toLocaleString('es-CL')}` : "$0"}</span>
                         </td>
                         <td className="px-8 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center gap-x-2">
                             <span className={cn(
                               "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-block text-center",
                               s.status === 'delivered' ? "bg-emerald-50 text-emerald-700" :
@@ -1845,7 +1845,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 <span className="text-xs font-bold text-slate-500">
                   Página <span className="font-extrabold text-slate-800">{shipmentPage}</span>
                 </span>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-x-2">
                   <button
                     type="button"
                     onClick={() => fetchPaginatedShipments("prev")}
@@ -1895,7 +1895,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 {claimsLoading ? (
                   <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
                     <div className="size-6 animate-spin rounded-full border-2 border-rose-100 border-t-rose-600" />
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cargando reclamos...</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cargando reclamos…</p>
                   </div>
                 ) : claims.length === 0 ? (
                   <div className="p-12 text-center text-slate-400">
@@ -1939,7 +1939,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     {/* Pagination control */}
                     <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                       <span className="text-[10px] font-bold text-slate-400">Pág {claimsPage}</span>
-                      <div className="flex space-x-1">
+                      <div className="flex gap-x-1">
                         <button
                           type="button"
                           onClick={() => fetchPaginatedClaims("prev")}
@@ -2149,7 +2149,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="mt-6 p-6 bg-amber-50 border border-amber-200 rounded-[2rem] text-left flex items-start space-x-4"
+                    className="mt-6 p-6 bg-amber-50 border border-amber-200 rounded-[2rem] text-left flex items-start gap-x-4"
                   >
                     <div className="p-3 bg-white rounded-2xl text-amber-600 shadow-sm">
                       <Tag size={24} />
@@ -2207,7 +2207,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         onClick={() => setSelectedProduct(p)}
                         className="w-full p-4 bg-slate-50 hover:bg-indigo-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-all flex items-center justify-between group"
                       >
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center gap-x-4">
                           <div className="size-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
                             <Package size={24} />
                           </div>
@@ -2236,7 +2236,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 "p-4 md:p-8 flex items-center justify-between",
                 mode === "reception" ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"
               )}>
-                <div className="flex items-center space-x-3 md:space-x-4">
+                <div className="flex items-center gap-x-3 md:gap-x-4">
                   <div className="p-2 md:p-3 bg-white rounded-xl md:rounded-2xl shadow-sm">
                     <Package size={20} md:size={24} className="text-slate-400" />
                   </div>
@@ -2279,7 +2279,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           type="button"
                           onClick={() => setFormData({...formData, movementType: type.id})}
                           className={cn(
-                            "flex items-center space-x-2 px-2 md:px-3 py-2 md:py-3 rounded-lg md:rounded-xl border text-[9px] md:text-[10px] font-black uppercase tracking-tighter transition-all text-left",
+                            "flex items-center gap-x-2 px-2 md:px-3 py-2 md:py-3 rounded-lg md:rounded-xl border text-[9px] md:text-[10px] font-black uppercase tracking-tighter transition-all text-left",
                             formData.movementType === type.id 
                               ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100" 
                               : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
@@ -2296,7 +2296,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Cantidad
                     </label>
-                    <div className="flex items-center space-x-3 md:space-x-4">
+                    <div className="flex items-center gap-x-3 md:gap-x-4">
                       <button 
                         type="button"
                         onClick={() => setFormData({...formData, quantity: Math.max(1, formData.quantity - 1)})}
@@ -2336,7 +2336,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         value={formData.reference}
                         onChange={(e) => setFormData({...formData, reference: e.target.value})}
                       />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-x-1">
                         {mode === "dispatch" && formData.movementType === "sale" ? (
                           <>
                             <button 
@@ -2448,7 +2448,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                   {mode === "dispatch" && (
                     <div className={cn(
-                      "p-4 rounded-2xl flex items-center space-x-3 transition-colors",
+                      "p-4 rounded-2xl flex items-center gap-x-3 transition-colors",
                       (formData.reason === "Venta No Presencial" || formData.reference.trim() !== "")
                         ? "bg-emerald-50 text-emerald-700"
                         : "bg-amber-50 text-amber-700"
@@ -2484,7 +2484,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         value={formData.supplierId}
                         onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
                       >
-                        <option value="">Seleccionar proveedor...</option>
+                        <option value="">Seleccionar proveedor…</option>
                         {suppliers.map(s => (
                           <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
@@ -2509,7 +2509,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="md:col-span-2 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center space-x-3 text-rose-800"
+                      className="md:col-span-2 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-x-3 text-rose-800"
                     >
                       <AlertTriangle className="shrink-0" size={20} />
                       <p className="text-xs font-bold">{formError}</p>
@@ -2518,7 +2518,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 </AnimatePresence>
 
                 <div className="md:col-span-2 pt-4 md:pt-6 border-t border-slate-50 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
-                  <div className="flex items-center space-x-3 md:space-x-4 text-slate-400 w-full md:w-auto">
+                  <div className="flex items-center gap-x-3 md:gap-x-4 text-slate-400 w-full md:w-auto">
                     <AlertCircle size={18} md:size={20} className="shrink-0" />
                     <div className="text-left leading-tight">
                       <p className="text-[10px] md:text-xs font-bold">
@@ -2530,7 +2530,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   <button type="button" 
                     disabled={isProcessing}
                     className={cn(
-                      "w-full md:w-auto px-10 py-4 md:px-12 md:py-5 rounded-2xl md:rounded-[2rem] font-black uppercase tracking-widest text-[10px] md:text-xs flex items-center justify-center space-x-3 shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50",
+                      "w-full md:w-auto px-10 py-4 md:px-12 md:py-5 rounded-2xl md:rounded-[2rem] font-black uppercase tracking-widest text-[10px] md:text-xs flex items-center justify-center gap-x-3 shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50",
                       mode === "reception" ? "bg-emerald-600 text-white shadow-emerald-100" : "bg-rose-600 text-white shadow-rose-100"
                     )}
                   >
@@ -2560,7 +2560,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   className="bg-white rounded-3xl md:rounded-[2.5rem] w-full max-w-xl shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh]"
                 >
                   <div className="p-6 md:p-8 border-b border-slate-100 bg-amber-50/50 flex items-center justify-between shrink-0">
-                    <div className="flex items-center space-x-3 text-amber-600">
+                    <div className="flex items-center gap-x-3 text-amber-600">
                       <Plus className="bg-white p-2 rounded-xl shadow-sm border border-amber-100/50" size={24} />
                       <div>
                         <h3 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight leading-none">Alta de Producto</h3>
@@ -2675,7 +2675,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                               value={quickCreateData.categoryId}
                               onChange={e => setQuickCreateData({...quickCreateData, categoryId: e.target.value})}
                             >
-                              <option value="">Seleccionar...</option>
+                              <option value="">Seleccionar…</option>
                               {categories.map(c => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
@@ -2686,7 +2686,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                                 setIsCreatingCategory(true);
                                 setNewCategoryName("");
                               }}
-                              className="px-3 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all cursor-pointer shrink-0 flex items-center justify-center space-x-1"
+                              className="px-3 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all cursor-pointer shrink-0 flex items-center justify-center gap-x-1"
                             >
                               <Plus size={16} />
                               <span>Nueva</span>
@@ -2736,7 +2736,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           value={quickCreateData.supplierId}
                           onChange={e => setQuickCreateData({...quickCreateData, supplierId: e.target.value})}
                         >
-                          <option value="">Ninguno / Seleccionar...</option>
+                          <option value="">Ninguno / Seleccionar…</option>
                           {suppliers.map(s => (
                             <option key={s.id} value={s.id}>{s.name}</option>
                           ))}

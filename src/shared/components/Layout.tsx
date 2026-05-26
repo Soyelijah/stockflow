@@ -381,7 +381,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       >
         <div className="p-6 flex items-center justify-between">
           {!isSidebarCollapsed && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-x-2">
               <div className="size-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
                 <Zap size={18} className="text-white fill-white" />
               </div>
@@ -425,7 +425,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
         <div className="p-4 border-t border-slate-100">
           {!isSidebarCollapsed && (
-            <div className="bg-slate-50 rounded-2xl p-3 mb-4 flex items-center space-x-3">
+            <div className="bg-slate-50 rounded-2xl p-3 mb-4 flex items-center gap-x-3">
               <div className="size-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold overflow-hidden shrink-0">
                 {profile?.avatarUrl || profile?.photoURL ? (
                   <img src={profile.avatarUrl || profile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
@@ -448,7 +448,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             onClick={logout}
             className={cn(
               "w-full flex items-center p-3 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all",
-              isSidebarCollapsed ? "justify-center" : "space-x-3"
+              isSidebarCollapsed ? "justify-center" : "gap-x-3"
             )}
           >
             <LogOut size={20} />
@@ -459,7 +459,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             onClick={() => window.open("/mobile", "_blank")}
             className={cn(
               "w-full flex items-center p-3 mt-2 rounded-xl text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all",
-              isSidebarCollapsed ? "justify-center" : "space-x-3"
+              isSidebarCollapsed ? "justify-center" : "gap-x-3"
             )}
           >
             <Smartphone size={20} />
@@ -470,7 +470,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             onClick={() => window.open("/cliente", "_blank")}
             className={cn(
               "w-full flex items-center p-3 mt-1 rounded-xl text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all",
-              isSidebarCollapsed ? "justify-center" : "space-x-3"
+              isSidebarCollapsed ? "justify-center" : "gap-x-3"
             )}
           >
             <Users size={20} />
@@ -489,7 +489,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
       {/* Mobile Nav */}
       <header className="md:hidden bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-[100]">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-x-2">
           <div className="size-8 bg-indigo-600 rounded-lg flex items-center justify-center">
             <Zap size={18} className="text-white fill-white" />
           </div>
@@ -497,7 +497,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             {settings.businessName}
           </span>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-x-2">
           <button type="button" 
             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
             className="p-2 bg-slate-50 rounded-xl text-slate-600 relative"
@@ -524,9 +524,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         <AnimatePresence>
           {isNotificationsOpen && (
             <>
-              <div 
-                className="fixed inset-0 z-[100]" 
+              <div
+                className="fixed inset-0 z-[100]"
+                role="button"
+                tabIndex={-1}
+                aria-label="Cerrar notificaciones"
                 onClick={() => setIsNotificationsOpen(false)}
+                onKeyDown={(e) => { if (e.key === "Escape") setIsNotificationsOpen(false); }}
               />
               <motion.div
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -565,7 +569,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                           setIsNotificationsOpen(false);
                         }}
                         className={cn(
-                          "w-full p-4 flex items-start space-x-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0 relative",
+                          "w-full p-4 flex items-start gap-x-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0 relative",
                           !notif.read ? "bg-indigo-50/10" : ""
                         )}
                       >
@@ -614,7 +618,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
         {/* Top Header Controls (Desktop) */}
         <header className="hidden md:flex bg-white h-16 items-center justify-end px-8 border-b border-slate-100">
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center gap-x-6">
             <div className="relative group">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input 
@@ -628,9 +632,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <AnimatePresence>
                 {isSearchOpen && searchResults.length > 0 && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-40" 
+                    <div
+                      className="fixed inset-0 z-40"
+                      role="button"
+                      tabIndex={-1}
+                      aria-label="Cerrar búsqueda"
                       onClick={() => setIsSearchOpen(false)}
+                      onKeyDown={(e) => { if (e.key === "Escape") setIsSearchOpen(false); }}
                     />
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
@@ -646,7 +654,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                           <button type="button"
                             key={`${result.type}-${result.id}`}
                             onClick={() => handleResultClick(result)}
-                            className="w-full p-4 flex items-center space-x-3 hover:bg-indigo-50 transition-colors text-left border-b border-slate-50 last:border-b-0 group"
+                            className="w-full p-4 flex items-center gap-x-3 hover:bg-indigo-50 transition-colors text-left border-b border-slate-50 last:border-b-0 group"
                           >
                             <div className={cn(
                               "size-8 rounded-lg flex items-center justify-center shrink-0",
@@ -696,9 +704,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
         <>
-          <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] md:hidden" 
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] md:hidden"
+            role="button"
+            tabIndex={-1}
+            aria-label="Cerrar menú lateral"
             onClick={() => setIsMobileMenuOpen(false)}
+            onKeyDown={(e) => { if (e.key === "Escape") setIsMobileMenuOpen(false); }}
           />
           <div className="fixed inset-y-0 left-0 w-72 bg-white z-[70] shadow-2xl p-6 flex flex-col md:hidden animate-in slide-in-from-left duration-300">
             <div className="flex items-center justify-between mb-8">

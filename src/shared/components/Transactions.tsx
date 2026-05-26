@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
   collection, 
   query, 
@@ -47,7 +47,7 @@ export function Transactions() {
 
   const PAGE_SIZE = 25;
   const [currentPage, setCurrentPage] = useState(1);
-  const [cursors, setCursors] = useState<any[]>([]); // Historial de los últimos documentos de cada página visible
+  const cursorsRef = useRef<any[]>([]); // Historial de los últimos documentos de cada página visible
   const [hasMore, setHasMore] = useState(true);
 
   const fetchTransactions = async (direction: "init" | "next" | "prev" = "init") => {
@@ -70,7 +70,7 @@ export function Transactions() {
       let targetPage = currentPage;
       if (direction === "next") {
         targetPage = currentPage + 1;
-        const lastVisible = cursors[currentPage - 1];
+        const lastVisible = cursorsRef.current[currentPage - 1];
         if (lastVisible) {
           q = query(q, startAfter(lastVisible), limit(PAGE_SIZE));
         } else {
@@ -79,7 +79,7 @@ export function Transactions() {
       } else if (direction === "prev") {
         targetPage = Math.max(1, currentPage - 1);
         const prevIndex = targetPage - 1;
-        const prevVisible = prevIndex > 0 ? cursors[prevIndex - 1] : null;
+        const prevVisible = prevIndex > 0 ? cursorsRef.current[prevIndex - 1] : null;
         if (prevVisible) {
           q = query(q, startAfter(prevVisible), limit(PAGE_SIZE));
         } else {
@@ -99,14 +99,14 @@ export function Transactions() {
       const lastVisibleDoc = snap.docs[snap.docs.length - 1];
       
       if (direction === "init") {
-        setCursors([lastVisibleDoc]);
+        cursorsRef.current = [lastVisibleDoc];
         setCurrentPage(1);
       } else if (direction === "next") {
-        setCursors(prev => {
-          const nextCursors = [...prev];
+        {
+          const nextCursors = [...cursorsRef.current];
           nextCursors[targetPage - 1] = lastVisibleDoc;
-          return nextCursors;
-        });
+          cursorsRef.current = nextCursors;
+        }
         setCurrentPage(targetPage);
       } else if (direction === "prev") {
         setCurrentPage(targetPage);
@@ -123,6 +123,8 @@ export function Transactions() {
 
   useEffect(() => {
     fetchTransactions("init");
+    // Mount-only fetch; fetchTransactions closes over pagination state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stats = useMemo(() => {
@@ -235,17 +237,17 @@ export function Transactions() {
           </p>
         </div>
         {isAdmin && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-x-2">
             {isOnlyAdmin && (
               <button type="button" 
                 onClick={exportToCSV}
-                className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2 text-sm"
+                className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-x-2 text-sm"
               >
                 <Download size={18} />
                 <span>Exportar CSV</span>
               </button>
             )}
-            <button className="bg-white text-slate-700 font-bold px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center space-x-2 text-sm" type="button">
+            <button className="bg-white text-slate-700 font-bold px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center gap-x-2 text-sm" type="button">
               <Filter size={18} />
               <span>Filtros Avanzados</span>
             </button>
@@ -346,7 +348,7 @@ export function Transactions() {
                     </td>
                     <td className="px-8 py-5">
                       <div className={cn(
-                        "inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
+                        "inline-flex items-center gap-x-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
                         tx.type === 'in' 
                           ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
                           : tx.type === 'sale'
@@ -358,7 +360,7 @@ export function Transactions() {
                       </div>
                     </td>
                     <td className="px-8 py-5">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center gap-x-3">
                         <div className="size-8 skeleton-bg bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
                           <Tag size={16} />
                         </div>
@@ -374,7 +376,7 @@ export function Transactions() {
                     </td>
                     <td className="px-8 py-5">
                       {tx.type === 'sale' ? (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-x-2">
                           {tx.paymentBreakdown?.efectivo > 0 && (
                             <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-100" title="Efectivo">
                               <Banknote size={14} />
@@ -405,7 +407,7 @@ export function Transactions() {
                     </td>
                     {isAdmin && (
                       <td className="px-8 py-5">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-x-2">
                           <div className="size-6 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
                             <UserIcon size={12} />
                           </div>
@@ -414,7 +416,7 @@ export function Transactions() {
                       </td>
                     )}
                     <td className="px-8 py-5 text-right">
-                      <div className="flex items-center justify-end space-x-3">
+                      <div className="flex items-center justify-end gap-x-3">
                         <div className="flex flex-col items-end">
                           <span className={cn(
                             "font-black text-sm",
@@ -444,7 +446,7 @@ export function Transactions() {
           {loading && (
             <div className="py-20 flex flex-col items-center justify-center">
               <div className="size-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Sincronizando Historial...</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Sincronizando Historial…</p>
             </div>
           )}
 
@@ -463,7 +465,7 @@ export function Transactions() {
               <span className="text-xs font-semibold text-slate-500">
                 Página <span className="font-bold text-slate-700">{currentPage}</span>
               </span>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-x-2">
                 <button type="button"
                   onClick={() => fetchTransactions("prev")}
                   disabled={currentPage === 1 || loading}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   collection, 
   query, 
@@ -36,7 +36,7 @@ export function StockLedger() {
 
   const PAGE_SIZE = 25;
   const [currentPage, setCurrentPage] = useState(1);
-  const [cursors, setCursors] = useState<any[]>([]);
+  const cursorsRef = useRef<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
 
   const fetchMovements = async (direction: "init" | "next" | "prev" = "init") => {
@@ -61,7 +61,7 @@ export function StockLedger() {
       let targetPage = currentPage;
       if (direction === "next") {
         targetPage = currentPage + 1;
-        const lastVisible = cursors[currentPage - 1];
+        const lastVisible = cursorsRef.current[currentPage - 1];
         if (lastVisible) {
           q = query(q, startAfter(lastVisible), limit(PAGE_SIZE));
         } else {
@@ -70,7 +70,7 @@ export function StockLedger() {
       } else if (direction === "prev") {
         targetPage = Math.max(1, currentPage - 1);
         const prevIndex = targetPage - 1;
-        const prevVisible = prevIndex > 0 ? cursors[prevIndex - 1] : null;
+        const prevVisible = prevIndex > 0 ? cursorsRef.current[prevIndex - 1] : null;
         if (prevVisible) {
           q = query(q, startAfter(prevVisible), limit(PAGE_SIZE));
         } else {
@@ -87,14 +87,15 @@ export function StockLedger() {
 
       const lastVisibleDoc = snap.docs[snap.docs.length - 1];
       if (direction === "init") {
-        setCursors([lastVisibleDoc]);
+        cursorsRef.current = [lastVisibleDoc];
         setCurrentPage(1);
       } else if (direction === "next") {
-        setCursors((prev) => {
-          const nextCursors = [...prev];
+        {
+        
+          const nextCursors = [...cursorsRef.current];
           nextCursors[targetPage - 1] = lastVisibleDoc;
-          return nextCursors;
-        });
+        cursorsRef.current = nextCursors;
+      }
         setCurrentPage(targetPage);
       } else if (direction === "prev") {
         setCurrentPage(targetPage);
@@ -110,6 +111,8 @@ export function StockLedger() {
 
   useEffect(() => {
     fetchMovements("init");
+    // Filter-driven refetch; fetchMovements closes over pagination state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType, startDate, endDate]);
 
   const getMovementConfig = (type: string) => {
@@ -158,7 +161,7 @@ export function StockLedger() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150">
+            <div className="flex items-center gap-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Desde:</span>
               <input 
                 type="date" 
@@ -168,7 +171,7 @@ export function StockLedger() {
               />
             </div>
             
-            <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150">
+            <div className="flex items-center gap-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hasta:</span>
               <input 
                 type="date" 
@@ -195,7 +198,7 @@ export function StockLedger() {
           {loading ? (
             <div className="p-20 text-center flex flex-col items-center justify-center space-y-4">
               <div className="size-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando movimientos...</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando movimientos…</p>
             </div>
           ) : (
             <table className="w-full min-w-[850px] text-left border-collapse">
@@ -232,7 +235,7 @@ export function StockLedger() {
                         <p className="text-[10px] text-slate-400 font-bold uppercase truncate">{move.reason || "Sin observación"}</p>
                       </td>
                       <td className="px-8 py-5">
-                        <div className={cn("inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl font-black uppercase text-[10px] tracking-widest", config.bg, config.color)}>
+                        <div className={cn("inline-flex items-center gap-x-2 px-3 py-1.5 rounded-xl font-black uppercase text-[10px] tracking-widest", config.bg, config.color)}>
                           <config.icon size={14} />
                           <span>{config.label}</span>
                         </div>
@@ -246,14 +249,14 @@ export function StockLedger() {
                         </span>
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap">
-                         <div className="flex items-center space-x-2">
+                         <div className="flex items-center gap-x-2">
                            <span className="text-xs text-slate-400 font-bold">{move.previousStock}</span>
                            <ArrowUpRight size={12} className="text-slate-300" />
                            <span className="text-sm font-black text-slate-800">{move.newStock}</span>
                          </div>
                       </td>
                       <td className="px-8 py-5">
-                        <div className="flex items-center space-x-2 text-slate-400">
+                        <div className="flex items-center gap-x-2 text-slate-400">
                           {move.source === 'mobile' ? <Smartphone size={16} /> : <Monitor size={16} />}
                           <span className="text-[10px] font-black uppercase tracking-widest">{move.userName?.split(' ')[0]}</span>
                         </div>
@@ -281,7 +284,7 @@ export function StockLedger() {
           <span className="text-xs font-semibold text-slate-500">
             Página <span className="font-bold text-slate-700">{currentPage}</span>
           </span>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-x-2">
             <button
               type="button"
               onClick={() => fetchMovements("prev")}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useId } from "react";
 import {
   collection,
   onSnapshot,
@@ -56,6 +56,8 @@ import { motion, AnimatePresence } from "motion/react";
 
 export function Customers() {
   const { profile } = useAuth();
+  const fid = useId();
+  const fId = (s: string) => `${fid}-${s}`;
   const [customers, setCustomers] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -96,7 +98,7 @@ export function Customers() {
 
   const PAGE_SIZE = 25;
   const [currentPage, setCurrentPage] = useState(1);
-  const [cursors, setCursors] = useState<any[]>([]);
+  const cursorsRef = useRef<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
 
@@ -110,7 +112,7 @@ export function Customers() {
       let targetPage = currentPage;
       if (direction === "next") {
         targetPage = currentPage + 1;
-        const lastVisible = cursors[currentPage - 1];
+        const lastVisible = cursorsRef.current[currentPage - 1];
         if (lastVisible) {
           q = query(q, startAfter(lastVisible), limit(PAGE_SIZE));
         } else {
@@ -119,7 +121,7 @@ export function Customers() {
       } else if (direction === "prev") {
         targetPage = Math.max(1, currentPage - 1);
         const prevIndex = targetPage - 1;
-        const prevVisible = prevIndex > 0 ? cursors[prevIndex - 1] : null;
+        const prevVisible = prevIndex > 0 ? cursorsRef.current[prevIndex - 1] : null;
         if (prevVisible) {
           q = query(q, startAfter(prevVisible), limit(PAGE_SIZE));
         } else {
@@ -136,14 +138,15 @@ export function Customers() {
 
       const lastVisibleDoc = snap.docs[snap.docs.length - 1];
       if (direction === "init") {
-        setCursors([lastVisibleDoc]);
+        cursorsRef.current = [lastVisibleDoc];
         setCurrentPage(1);
       } else if (direction === "next") {
-        setCursors((prev) => {
-          const nextCursors = [...prev];
+        {
+        
+          const nextCursors = [...cursorsRef.current];
           nextCursors[targetPage - 1] = lastVisibleDoc;
-          return nextCursors;
-        });
+        cursorsRef.current = nextCursors;
+      }
         setCurrentPage(targetPage);
       } else if (direction === "prev") {
         setCurrentPage(targetPage);
@@ -159,6 +162,8 @@ export function Customers() {
 
   useEffect(() => {
     fetchCustomers("init");
+    // Mount-only fetch; fetchCustomers closes over state used by next/prev buttons.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -411,7 +416,7 @@ export function Customers() {
         </div>
         <button type="button"
           onClick={() => openModal()}
-          className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all flex items-center space-x-2"
+          className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all flex items-center gap-x-2"
         >
           <Plus size={20} />
           <span>Nuevo Cliente</span>
@@ -496,7 +501,7 @@ export function Customers() {
                       : "hover:bg-slate-50 text-slate-800",
                   )}
                 >
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center gap-x-4">
                     <div
                       className={cn(
                         "size-12 rounded-2xl flex items-center justify-center font-black text-base shadow-sm",
@@ -523,7 +528,7 @@ export function Customers() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center gap-x-4">
                     {c.segment === "vip" && (
                       <div
                         className={cn(
@@ -567,7 +572,7 @@ export function Customers() {
                 <span className="text-xs font-semibold text-slate-500">
                   Página <span className="font-bold text-slate-700">{currentPage}</span>
                 </span>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-x-2">
                   <button type="button"
                     onClick={() => fetchCustomers("prev")}
                     disabled={currentPage === 1 || loading}
@@ -608,7 +613,7 @@ export function Customers() {
                 {/* Header Profile */}
                 <div className="bg-slate-900 p-8 text-white">
                   <div className="flex items-start justify-between mb-8">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center gap-x-4">
                       <div className="size-16 bg-white/10 rounded-[1.5rem] flex items-center justify-center text-white border border-white/10 shadow-inner">
                         <Users size={32} />
                       </div>
@@ -628,7 +633,7 @@ export function Customers() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex gap-x-2">
                       <button type="button"
                         onClick={() =>
                           openModal(
@@ -661,7 +666,7 @@ export function Customers() {
                       <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1 text-center">
                         Nivel de Lealtad
                       </p>
-                      <div className="flex items-center justify-center space-x-2">
+                      <div className="flex items-center justify-center gap-x-2">
                         <span
                           className={cn(
                             "text-xl font-black uppercase text-xs tracking-widest",
@@ -684,7 +689,7 @@ export function Customers() {
                       <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1 text-center">
                         Salud del Cliente
                       </p>
-                      <div className="flex items-center justify-center space-x-2">
+                      <div className="flex items-center justify-center gap-x-2">
                         <span
                           className={cn(
                             "text-xl font-black uppercase text-xs tracking-widest",
@@ -709,7 +714,7 @@ export function Customers() {
                       <p className="text-[9px] font-black text-emerald-300 uppercase tracking-widest mb-1 text-center">
                         Lifetime Value (LTV)
                       </p>
-                      <div className="flex items-center justify-center space-x-2">
+                      <div className="flex items-center justify-center gap-x-2">
                         <span className="text-xl font-black text-emerald-400">
                           {formatCurrency(formData.totalSpent)}
                         </span>
@@ -719,7 +724,7 @@ export function Customers() {
                       <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1 text-center">
                         Puntos
                       </p>
-                      <div className="flex items-center justify-center space-x-2">
+                      <div className="flex items-center justify-center gap-x-2">
                         <Target size={14} className="text-amber-400" />
                         <span className="text-xl font-black">
                           {formatNumber(
@@ -740,7 +745,7 @@ export function Customers() {
                       animate={{ opacity: 1, y: 0 }}
                       className="mt-6 p-5 bg-rose-500/20 border border-rose-500/30 rounded-[2rem] flex flex-col items-center space-y-3"
                     >
-                      <div className="flex items-center space-x-2 text-rose-300 text-[10px] font-black uppercase tracking-widest">
+                      <div className="flex items-center gap-x-2 text-rose-300 text-[10px] font-black uppercase tracking-widest">
                         <Zap size={12} className="animate-pulse" />
                         <span>Acción de Retención IA Sugerida</span>
                       </div>
@@ -779,7 +784,7 @@ export function Customers() {
                                 );
                             }
                           }}
-                          className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-slate-200 transition-all border border-slate-200"
+                          className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-x-2 hover:bg-slate-200 transition-all border border-slate-200"
                         >
                           <Lock size={14} />
                           <span>Reset Clave</span>
@@ -793,7 +798,7 @@ export function Customers() {
                               message: `Se ha generado y enviado un cupón de 15% DCTO a ${customers.find((c) => c.id === selectedCustomerId)?.name} vía email.`,
                             })
                           }
-                          className="flex-1 py-3 bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-rose-400 transition-all shadow-lg shadow-rose-900/20"
+                          className="flex-1 py-3 bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-x-2 hover:bg-rose-400 transition-all shadow-lg shadow-rose-900/20"
                         >
                           <Gift size={14} />
                           <span>Enviar Cupón</span>
@@ -811,14 +816,14 @@ export function Customers() {
                       Información de Contacto
                     </h3>
                     <div className="grid grid-cols-1 gap-3">
-                      <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="flex items-center gap-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <Mail size={18} className="text-indigo-500" />
                         <p className="font-bold text-sm text-slate-700">
                           {customers.find((c) => c.id === selectedCustomerId)
                             ?.email || "Sin email"}
                         </p>
                       </div>
-                      <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="flex items-center gap-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <Phone size={18} className="text-indigo-500" />
                         <p className="font-bold text-sm text-slate-700">
                           {formatChileanPhone(
@@ -827,7 +832,7 @@ export function Customers() {
                           ) || "Sin teléfono"}
                         </p>
                       </div>
-                      <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="flex items-center gap-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <MapPin size={18} className="text-indigo-500" />
                         <p className="font-bold text-sm text-slate-700 leading-tight">
                           {customers.find((c) => c.id === selectedCustomerId)
@@ -845,7 +850,7 @@ export function Customers() {
                     <div className="grid grid-cols-1 gap-2">
                       {customers.find((c) => c.id === selectedCustomerId)
                         ?.points >= LOYALTY_TIERS.PLATINUM.min && (
-                        <div className="flex items-center space-x-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                        <div className="flex items-center gap-x-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
                           <Zap size={14} className="text-indigo-600" />
                           <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">
                             Despacho Priority 24h + Descuento 10%
@@ -854,7 +859,7 @@ export function Customers() {
                       )}
                       {customers.find((c) => c.id === selectedCustomerId)
                         ?.points >= LOYALTY_TIERS.GOLD.min && (
-                        <div className="flex items-center space-x-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                        <div className="flex items-center gap-x-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
                           <Star size={14} className="text-amber-600" />
                           <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest">
                             Atención Preferencial + Regalo Mensual
@@ -863,7 +868,7 @@ export function Customers() {
                       )}
                       {customers.find((c) => c.id === selectedCustomerId)
                         ?.points >= LOYALTY_TIERS.SILVER.min && (
-                        <div className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
                           <TrendingUp size={14} className="text-slate-600" />
                           <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
                             Crédito a 30 días + Alertas Preventas
@@ -872,7 +877,7 @@ export function Customers() {
                       )}
                       {customers.find((c) => c.id === selectedCustomerId)
                         ?.points < LOYALTY_TIERS.SILVER.min && (
-                        <div className="flex items-center space-x-3 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                        <div className="flex items-center gap-x-3 p-3 bg-orange-50 rounded-xl border border-orange-100">
                           <Target size={14} className="text-orange-600" />
                           <p className="text-[10px] font-black text-orange-900 uppercase tracking-widest">
                             Suma{" "}
@@ -913,7 +918,7 @@ export function Customers() {
                           key={item.id}
                           className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-[2rem] hover:border-amber-250 hover:bg-white hover:shadow-sm transition-all gap-4"
                         >
-                          <div className="flex items-center space-x-3 text-left">
+                          <div className="flex items-center gap-x-3 text-left">
                             <div className="size-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-bold text-lg border border-amber-100 shadow-inner shrink-0">
                               🎁
                             </div>
@@ -955,7 +960,7 @@ export function Customers() {
                                       item.productName,
                                     )
                                   }
-                                  className="py-2 px-3 bg-emerald-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md shadow-emerald-200 active:scale-95 flex items-center space-x-1"
+                                  className="py-2 px-3 bg-emerald-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md shadow-emerald-200 active:scale-95 flex items-center gap-x-1"
                                 >
                                   <span>Entregar Premio</span>
                                 </button>
@@ -992,7 +997,7 @@ export function Customers() {
                           key={tx.id}
                           className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-indigo-100 transition-all group"
                         >
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center gap-x-3">
                             <div className="size-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 font-bold text-xs">
                               #{tx.id.slice(-4)}
                             </div>
@@ -1059,7 +1064,7 @@ export function Customers() {
               className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]"
             >
               <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
-                <div className="flex items-center space-x-4 text-indigo-600">
+                <div className="flex items-center gap-x-4 text-indigo-600">
                   <div className="p-3 bg-indigo-100 rounded-2xl">
                     <Users size={24} />
                   </div>
@@ -1081,10 +1086,11 @@ export function Customers() {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor={fId("name")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Nombre / Empresa *
                     </label>
                     <input
+                      id={fId("name")}
                       required
                       type="text"
                       maxLength={INPUT_MAX.NAME}
@@ -1096,10 +1102,11 @@ export function Customers() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor={fId("taxId")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       RUT
                     </label>
                     <input
+                      id={fId("taxId")}
                       type="text"
                       placeholder="11.111.111-K"
                       maxLength={INPUT_MAX.RUT}
@@ -1114,10 +1121,11 @@ export function Customers() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor={fId("password")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Contraseña (Portal Clientes)
                     </label>
                     <input
+                      id={fId("password")}
                       type="text"
                       placeholder="PIN o Clave de acceso"
                       maxLength={INPUT_MAX.PASSWORD}
@@ -1129,10 +1137,11 @@ export function Customers() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor={fId("points")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Puntos Iniciales
                     </label>
                     <input
+                      id={fId("points")}
                       type="number"
                       min={0}
                       max={10_000_000}
@@ -1147,10 +1156,11 @@ export function Customers() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor={fId("email")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Email
                     </label>
                     <input
+                      id={fId("email")}
                       type="email"
                       maxLength={INPUT_MAX.EMAIL}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
@@ -1161,10 +1171,11 @@ export function Customers() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor={fId("phone")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Teléfono
                     </label>
                     <input
+                      id={fId("phone")}
                       type="tel"
                       placeholder="+56 9 XXXX XXXX"
                       maxLength={INPUT_MAX.PHONE}
@@ -1179,10 +1190,11 @@ export function Customers() {
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor={fId("address")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Dirección de Despacho
                     </label>
                     <input
+                      id={fId("address")}
                       type="text"
                       maxLength={INPUT_MAX.ADDRESS}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
@@ -1244,10 +1256,11 @@ export function Customers() {
                     </div>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor={fId("notes")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Notas Estratégicas
                     </label>
                     <textarea
+                      id={fId("notes")}
                       rows={3}
                       maxLength={INPUT_MAX.NOTES}
                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
@@ -1269,7 +1282,7 @@ export function Customers() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-[2] py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center space-x-2"
+                    className="flex-[2] py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-x-2"
                   >
                     <Save size={18} />
                     <span>Guardar Cambios</span>

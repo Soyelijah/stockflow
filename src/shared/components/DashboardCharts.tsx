@@ -24,7 +24,7 @@ interface DashboardAreaChartProps {
 
 export function DashboardAreaChart({ chartData, isAdmin, isMounted }: DashboardAreaChartProps) {
   if (!isMounted || chartData.length === 0 || chartData[0]?.sales === undefined) {
-    return <div className="h-[300px] w-full flex items-center justify-center text-slate-400">Generando tendencias...</div>;
+    return <div className="h-[300px] w-full flex items-center justify-center text-slate-400">Generando tendencias…</div>;
   }
 
   return (
@@ -97,7 +97,7 @@ interface DashboardPieChartProps {
 
 export function DashboardPieChart({ expenseChartData, isMounted }: DashboardPieChartProps) {
   if (!isMounted || expenseChartData.length === 0) {
-    return <div className="h-[250px] w-full flex items-center justify-center text-slate-400">Generando distribución...</div>;
+    return <div className="h-[250px] w-full flex items-center justify-center text-slate-400">Generando distribución…</div>;
   }
 
   return (
@@ -123,9 +123,9 @@ export function DashboardPieChart({ expenseChartData, isMounted }: DashboardPieC
         <Legend 
           verticalAlign="bottom" 
           content={({ payload }) => (
-            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-6">
-              {payload?.map((entry: any, index: number) => (
-                <div key={index} className="flex items-center space-x-1.5">
+            <div className="flex flex-wrap justify-center gap-x-4 space-y-2 mt-6">
+              {payload?.map((entry: any) => (
+                <div key={entry.value || entry.color} className="flex items-center gap-x-1.5">
                   <div className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter truncate max-w-[80px]">
                     {entry.value}
@@ -147,7 +147,7 @@ interface ExecutiveTrendChartProps {
 
 export function ExecutiveTrendChart({ data, isMounted }: ExecutiveTrendChartProps) {
   if (!isMounted || data.length === 0) {
-    return <div className="h-[210px] w-full flex items-center justify-center text-slate-500">Generando tendencias corporativas...</div>;
+    return <div className="h-[210px] w-full flex items-center justify-center text-slate-500">Generando tendencias corporativas…</div>;
   }
 
   return (

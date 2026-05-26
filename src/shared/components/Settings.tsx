@@ -520,7 +520,7 @@ export function Settings() {
       </header>
 
       {/* Sub-tabs Navigation */}
-      <div className={cn("flex space-x-1 p-1 bg-slate-100 rounded-2xl", profile?.role === "admin" ? "max-w-xl" : "max-w-md")}>
+      <div className={cn("flex gap-x-1 p-1 bg-slate-100 rounded-2xl", profile?.role === "admin" ? "max-w-xl" : "max-w-md")}>
         <button
           type="button"
           onClick={() => {
@@ -529,7 +529,7 @@ export function Settings() {
             setSearchEmail("");
           }}
           className={cn(
-            "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2 border-none cursor-pointer outline-none",
+            "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-x-2 border-none cursor-pointer outline-none",
             activeTab === "general" 
               ? "bg-white text-slate-800 shadow-sm" 
               : "text-slate-500 hover:text-slate-800 bg-transparent"
@@ -542,7 +542,7 @@ export function Settings() {
           type="button"
           onClick={() => setActiveTab("users")}
           className={cn(
-            "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2 border-none cursor-pointer outline-none",
+            "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-x-2 border-none cursor-pointer outline-none",
             activeTab === "users" 
               ? "bg-white text-slate-800 shadow-sm" 
               : "text-slate-500 hover:text-slate-800 bg-transparent"
@@ -556,7 +556,7 @@ export function Settings() {
             type="button"
             onClick={() => setActiveTab("audit")}
             className={cn(
-              "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2 border-none cursor-pointer outline-none",
+              "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-x-2 border-none cursor-pointer outline-none",
               activeTab === "audit" 
                 ? "bg-white text-slate-800 shadow-sm" 
                 : "text-slate-500 hover:text-slate-800 bg-transparent"
@@ -572,7 +572,7 @@ export function Settings() {
         <form onSubmit={handleSave} className="space-y-8 pb-20">
         {/* Business Profile */}
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-          <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex items-center space-x-4">
+          <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex items-center gap-x-4">
             <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600">
               <Building2 size={24} />
             </div>
@@ -642,7 +642,7 @@ export function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Printer Management */}
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-x-4">
               <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
                 <Printer size={24} />
               </div>
@@ -685,12 +685,16 @@ export function Settings() {
                   <p className="text-xs font-black text-slate-800">Impresión Automática</p>
                   <p className="text-[10px] text-slate-400 font-bold">Imprimir ticket al cerrar la venta</p>
                 </div>
-                <div 
+                <div
                   className={cn(
                     "w-10 h-5 rounded-full relative cursor-pointer transition-all",
                     settings.autoPrintInvoice ? "bg-indigo-600" : "bg-slate-200"
                   )}
+                  role="switch"
+                  aria-checked={settings.autoPrintInvoice}
+                  tabIndex={0}
                   onClick={() => setSettings({...settings, autoPrintInvoice: !settings.autoPrintInvoice})}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSettings({...settings, autoPrintInvoice: !settings.autoPrintInvoice}); } }}
                 >
                   <div className={cn(
                     "absolute top-0.5 size-4 bg-white rounded-full transition-all",
@@ -703,7 +707,7 @@ export function Settings() {
 
           {/* AI Settings */}
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-x-4">
               <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
                 <Sparkles size={24} />
               </div>
@@ -713,7 +717,14 @@ export function Settings() {
               </div>
             </div>
             
-            <div className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer" onClick={() => setSettings({...settings, aiEnabled: !settings.aiEnabled})}>
+            <div
+              className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer"
+              role="switch"
+              aria-checked={settings.aiEnabled}
+              tabIndex={0}
+              onClick={() => setSettings({...settings, aiEnabled: !settings.aiEnabled})}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSettings({...settings, aiEnabled: !settings.aiEnabled}); } }}
+            >
               <div className="space-y-1">
                 <p className="text-xs font-black text-slate-800">Smart Predictions</p>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Predicción de quiebre de stock</p>
@@ -732,7 +743,7 @@ export function Settings() {
 
           {/* Operational Settings */}
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-x-4">
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
                 <ShieldCheck size={24} />
               </div>
@@ -749,7 +760,7 @@ export function Settings() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Tasa de Impuesto (IVA)</span>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-x-2">
                   <input 
                     type="number"
                     className="w-16 h-8 bg-slate-50 border-none rounded-lg text-xs font-black text-center focus:ring-2 focus:ring-indigo-500"
@@ -764,7 +775,7 @@ export function Settings() {
 
           {/* Delivery & Logistics Settings */}
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-x-4">
               <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
                 <Truck size={24} />
               </div>
@@ -774,7 +785,14 @@ export function Settings() {
               </div>
             </div>
             
-            <div className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer" onClick={() => setSettings({...settings, deliveryEnabled: !settings.deliveryEnabled})}>
+            <div
+              className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer"
+              role="switch"
+              aria-checked={settings.deliveryEnabled}
+              tabIndex={0}
+              onClick={() => setSettings({...settings, deliveryEnabled: !settings.deliveryEnabled})}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSettings({...settings, deliveryEnabled: !settings.deliveryEnabled}); } }}
+            >
               <div className="space-y-1">
                 <p className="text-xs font-black text-slate-800">Habilitar Despachos</p>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Activar mapas y seguimiento en ruta</p>
@@ -794,7 +812,7 @@ export function Settings() {
 
           {/* Push Notifications Settings Card */}
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-x-4">
               <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
                 <Bell size={24} />
               </div>
@@ -806,9 +824,13 @@ export function Settings() {
 
             <div className="space-y-4">
               {/* Critical Stock Toggle */}
-              <div 
-                className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer" 
+              <div
+                className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer"
+                role="switch"
+                aria-checked={pushConfig.criticalStockAlerts}
+                tabIndex={0}
                 onClick={() => handleTogglePushSetting("criticalStockAlerts")}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTogglePushSetting("criticalStockAlerts"); } }}
               >
                 <div className="space-y-1">
                   <p className="text-xs font-black text-slate-800">Alertas de Stock Crítico</p>
@@ -826,9 +848,13 @@ export function Settings() {
               </div>
 
               {/* Order Toggle */}
-              <div 
-                className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer" 
+              <div
+                className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-transparent hover:border-indigo-200 transition-all cursor-pointer"
+                role="switch"
+                aria-checked={pushConfig.orderAlerts}
+                tabIndex={0}
                 onClick={() => handleTogglePushSetting("orderAlerts")}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTogglePushSetting("orderAlerts"); } }}
               >
                 <div className="space-y-1">
                   <p className="text-xs font-black text-slate-800">Alertas de Pedidos Nuevos</p>
@@ -877,7 +903,7 @@ export function Settings() {
           {/* API Gateway Health Monitor Card */}
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-6 md:col-span-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center gap-x-4">
                 <div className="p-3 bg-slate-100 text-slate-700 rounded-2xl flex items-center justify-center">
                   <Globe size={24} className={cn(isGatewayLoading ? "animate-spin text-indigo-600" : "text-slate-600")} />
                 </div>
@@ -894,7 +920,7 @@ export function Settings() {
                   e.preventDefault();
                   checkGatewayHealth();
                 }}
-                className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-colors outline-none cursor-pointer border-none"
+                className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-colors outline-none cursor-pointer border-none"
               >
                 <RefreshCw size={12} className={cn(isGatewayLoading && "animate-spin")} />
                 <span>{isGatewayLoading ? "Ping…" : "Probar Conexión"}</span>
@@ -905,7 +931,7 @@ export function Settings() {
               {/* Overall Status */}
               <div className="space-y-1">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gateway Status</span>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-x-2">
                   <span className={cn(
                     "size-3 rounded-full animate-pulse",
                     gatewayStatus?.status === "online" ? "bg-emerald-500" : gatewayStatus?.status === "degraded" ? "bg-amber-500" : "bg-rose-500"
@@ -929,7 +955,7 @@ export function Settings() {
                       {gatewayStatus.responseTime} <span className="text-xs text-slate-400 font-bold">ms</span>
                     </span>
                   ) : (
-                    <span className="text-slate-400">Calculando...</span>
+                    <span className="text-slate-400">Calculando…</span>
                   )}
                 </p>
               </div>
@@ -947,9 +973,9 @@ export function Settings() {
             {latencyHistory.length > 0 && gatewayStatus?.status !== "offline" && (
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Historial de Ráfagas (ms)</span>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-x-3">
                   {latencyHistory.map((pt, i) => (
-                    <div key={i} className="flex flex-col items-center">
+                    <div key={`${i}-${pt}`} className="flex flex-col items-center">
                       <span className={cn("text-[8px] font-mono font-bold", pt < 150 ? "text-emerald-500" : pt < 350 ? "text-amber-500" : "text-rose-500")}>
                         {pt}ms
                       </span>
@@ -967,7 +993,7 @@ export function Settings() {
 
             {/* Error Message if offline */}
             {gatewayError && (
-              <div className="flex items-start space-x-2.5 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-700">
+              <div className="flex items-start gap-x-2.5 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-700">
                 <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
                 <div className="text-xs">
                   <p className="font-extrabold">Fallo en Conexión: {gatewayError}</p>
@@ -987,7 +1013,7 @@ export function Settings() {
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{name === "barcode" ? "Código Barras" : name === "payments" ? "Pasarela Pago" : name === "comms" ? "Alertas/Comms" : name.toUpperCase()}</span>
                         <p className="text-[10px] font-bold text-slate-700 leading-normal mt-0.5">{mod.message || mod.statusText || "Servicio en línea"}</p>
                       </div>
-                      <div className="flex items-center space-x-1.5 mt-2 pt-2 border-t border-slate-200/50">
+                      <div className="flex items-center gap-x-1.5 mt-2 pt-2 border-t border-slate-200/50">
                         <span className={cn(
                           "size-2 rounded-full",
                           mod.status === "online" ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
@@ -1009,7 +1035,7 @@ export function Settings() {
 
         {/* Coupon Management Card */}
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden mt-8">
-          <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex items-center space-x-4">
+          <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex items-center gap-x-4">
             <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600">
               <Tag size={24} />
             </div>
@@ -1129,7 +1155,7 @@ export function Settings() {
               <button 
                 type="button"
                 onClick={handleCreateCoupon}
-                className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center space-x-2 shadow-sm transition-colors"
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-x-2 shadow-sm transition-colors"
               >
                 <Plus size={16} />
                 <span>Registrar Cupón</span>
@@ -1150,10 +1176,10 @@ export function Settings() {
                       !coupon.active && "opacity-50 grayscale"
                     )}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-x-3">
                       <span className="text-2xl">{coupon.img || "🎟️"}</span>
                       <div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-x-2">
                           <p className="font-extrabold text-sm">{coupon.code}</p>
                           <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-black/10">
                             {coupon.minTier}
@@ -1164,7 +1190,7 @@ export function Settings() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-x-2">
                       <button 
                         type="button"
                         onClick={() => handleToggleCoupon(coupon.id, !coupon.active)}
@@ -1210,7 +1236,7 @@ export function Settings() {
             <button 
               type="submit"
               disabled={isSaving}
-              className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-50 transition-all flex items-center space-x-2 disabled:opacity-50"
+              className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-50 transition-all flex items-center gap-x-2 disabled:opacity-50"
             >
               {isSaving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
               <span>{isSaving ? "Procesando" : "Guardar Ajustes"}</span>
@@ -1224,7 +1250,7 @@ export function Settings() {
         <div className="space-y-8 pb-20">
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center gap-x-4">
                 <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600">
                   <Users size={24} />
                 </div>
@@ -1235,7 +1261,7 @@ export function Settings() {
               </div>
 
               {/* Buscar usuario por email */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-x-2">
                 <input 
                   type="text"
                   placeholder="Buscar por email o nombre…"
@@ -1267,7 +1293,7 @@ export function Settings() {
               <div className="grid grid-cols-1 gap-4">
                 {(searchResult !== null ? searchResult : users).map((u) => (
                   <div key={u.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between group hover:bg-white hover:border-indigo-100 transition-all">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center gap-x-4">
                       <div className="size-12 bg-white rounded-xl flex items-center justify-center text-slate-400 font-black text-lg shadow-sm border border-slate-50 uppercase">
                         {u.name?.charAt(0) || u.email?.charAt(0)}
                       </div>
@@ -1276,7 +1302,7 @@ export function Settings() {
                         <p className="text-[10px] text-slate-400 font-bold">{u.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-x-3">
                       <select 
                         className="bg-white border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                         value={u.role || "seller"}
@@ -1303,7 +1329,7 @@ export function Settings() {
               </div>
 
               <div className="bg-indigo-50 p-6 rounded-2xl mt-4">
-                <div className="flex items-start space-x-3 text-indigo-600">
+                <div className="flex items-start gap-x-3 text-indigo-600">
                   <Smartphone size={20} className="mt-0.5" />
                   <div className="flex-1">
                     <p className="text-[10px] font-black uppercase tracking-widest">URL Acceso Vendedores (Móvil)</p>
@@ -1335,7 +1361,7 @@ export function Settings() {
         <div className="space-y-6">
           {/* emergency button panel (Botonera de Emergencia) */}
           <div className="bg-rose-50 border border-rose-200 p-8 rounded-[3rem] shadow-sm flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center gap-x-6">
               <div className="size-16 bg-white rounded-[1.5rem] flex items-center justify-center text-rose-600 shadow-sm border border-rose-100">
                 <AlertCircle size={32} />
               </div>
@@ -1351,7 +1377,7 @@ export function Settings() {
                 type="button"
                 onClick={handleRemoteEmergencyCloseCajas}
                 disabled={emergencyCloseLoading}
-                className="w-full md:w-auto bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-rose-100 transition-all flex items-center justify-center space-x-2 text-xs uppercase tracking-widest cursor-pointer border-none outline-none"
+                className="w-full md:w-auto bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-rose-100 transition-all flex items-center justify-center gap-x-2 text-xs uppercase tracking-widest cursor-pointer border-none outline-none"
               >
                 <RefreshCw size={16} className={cn(emergencyCloseLoading && "animate-spin")} />
                 <span>{emergencyCloseLoading ? "Cerrando Cajas…" : "Forzar Cierre de Cajas Abiertas"}</span>
@@ -1366,7 +1392,7 @@ export function Settings() {
 
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center gap-x-4">
                 <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600">
                   <ShieldCheck size={24} />
                 </div>
@@ -1375,7 +1401,7 @@ export function Settings() {
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Registros de mutación de privilegios y gastos</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-x-3">
                 <select
                   value={auditPageSize}
                   onChange={(e) => setAuditPageSize(Number(e.target.value))}
@@ -1443,7 +1469,7 @@ export function Settings() {
               {isAuditLoading && auditLogs.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 font-bold flex flex-col items-center justify-center space-y-2">
                   <RefreshCw className="animate-spin text-slate-300" size={32} />
-                  <span>Cargando registros de auditoría...</span>
+                  <span>Cargando registros de auditoría…</span>
                 </div>
               ) : auditError ? (
                 <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-center text-rose-600 text-xs font-bold">

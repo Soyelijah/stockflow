@@ -155,7 +155,12 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     let totalStockCost = 0;
     let inactiveStockCost = 0;
     
-    const activeProductIds = new Set(recentTransactions.filter(t => t.type === "sale").map(t => t.productId));
+    const activeProductIds = new Set(
+      recentTransactions.reduce<string[]>((acc, t) => {
+        if (t.type === "sale" && t.productId) acc.push(t.productId);
+        return acc;
+      }, [])
+    );
 
     allProducts.forEach(p => {
       const cost = Number(p.costPrice || p.price * 0.6 || 0);
@@ -465,7 +470,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <h1 className="text-4xl font-black text-slate-800 tracking-tight">Panel de Bodega</h1>
             <p className="text-slate-500 font-medium mt-1">Niveles de stock y alertas de reposición.</p>
           </div>
-          <div className="flex items-center space-x-2 bg-amber-50 border border-amber-100 px-4 py-3 rounded-2xl">
+          <div className="flex items-center gap-x-2 bg-amber-50 border border-amber-100 px-4 py-3 rounded-2xl">
             <div className="size-2 bg-amber-600 rounded-full animate-pulse" />
             <span className="text-xs font-black text-amber-700 uppercase tracking-widest">
               Rol: Logística
@@ -479,8 +484,8 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             { label: "Bajo Stock", value: stats.lowStockCount, icon: AlertTriangle, color: "bg-amber-500" },
             { label: "Salud Inventario", value: `${Math.round(((stats.totalProducts - stats.lowStockCount) / stats.totalProducts) * 100) || 0}%`, icon: Activity, color: "bg-emerald-500" },
             { label: "Movimientos Hoy", value: recentTransactions.length, icon: RefreshCw, color: "bg-slate-800" },
-          ].map((stat, i) => (
-            <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
               <div className="flex items-start justify-between mb-4">
                 <div className={cn("p-4 rounded-3xl text-white shadow-lg", stat.color)}>
                   <stat.icon size={24} />
@@ -521,7 +526,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
               {recentTransactions.slice(0, 6).map((tx) => (
                 <div key={tx.id} className="p-4 flex items-center justify-between">
-                   <div className="flex items-center space-x-3">
+                   <div className="flex items-center gap-x-3">
                       <div className={cn(
                         "size-10 rounded-xl flex items-center justify-center",
                         tx.type === "in" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
@@ -618,8 +623,8 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
           <h1 className="text-4xl font-black text-slate-800 tracking-tight">Centro de Mando</h1>
           <p className="text-slate-500 font-medium mt-1">Sincronizado y listo para operar, {profile?.name}.</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl">
+        <div className="flex items-center gap-x-3">
+          <div className="flex items-center gap-x-2 bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl">
             <div className={cn("size-2 rounded-full", "bg-emerald-500 animate-pulse")} />
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">
               Nube Sincronizada
@@ -628,13 +633,13 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
           {isAdmin && (
             <button type="button" 
               onClick={handlePrintZReport}
-              className="flex items-center space-x-2 bg-white border border-slate-200 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+              className="flex items-center gap-x-2 bg-white border border-slate-200 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
             >
               <FileText size={18} />
               <span>Cierre Z</span>
             </button>
           )}
-          <div className="flex items-center space-x-2 bg-indigo-50 border border-indigo-100 px-4 py-3 rounded-2xl">
+          <div className="flex items-center gap-x-2 bg-indigo-50 border border-indigo-100 px-4 py-3 rounded-2xl">
             <div className="size-2 bg-indigo-600 rounded-full animate-pulse" />
             <span className="text-xs font-black text-indigo-700 uppercase tracking-widest">
               {isAdmin ? "Admin" : "Vendedor"} Activo
@@ -727,7 +732,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <stat.icon size={24} />
                   </div>
                   <div className={cn(
-                    "flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                    "flex items-center gap-x-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
                     stat.up ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
                   )}>
                     {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
@@ -749,7 +754,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             >
               <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="space-y-3 text-center md:text-left max-w-xl">
-                  <div className="inline-flex items-center space-x-2 bg-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
+                  <div className="inline-flex items-center gap-x-2 bg-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
                     <Sparkles size={12} className="text-yellow-300" />
                     <span>Gemini IA Sincronizada</span>
                   </div>
@@ -760,7 +765,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 </div>
                 <button type="button" 
                   onClick={handleFetchAI}
-                  className="bg-white text-indigo-600 px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-indigo-50 transition-all flex items-center space-x-3 shadow-xl hover:scale-105 active:scale-95 group"
+                  className="bg-white text-indigo-600 px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-indigo-50 transition-all flex items-center gap-x-3 shadow-xl hover:scale-105 active:scale-95 group"
                 >
                   <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
                   <span>Consultar a la IA</span>
@@ -773,7 +778,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
           {/* Apps & Channels Section */}
           <div className="bg-indigo-50 border border-indigo-100 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center gap-x-6">
               <div className="size-16 bg-white rounded-[1.5rem] flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
                 <Smartphone size={32} />
               </div>
@@ -788,7 +793,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
               <a 
                 href="/cliente" 
                 target="_blank" 
-                className="w-full sm:w-auto bg-white text-slate-900 font-black px-8 py-4 rounded-2xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center space-x-2 text-xs uppercase tracking-widest"
+                className="w-full sm:w-auto bg-white text-slate-900 font-black px-8 py-4 rounded-2xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-x-2 text-xs uppercase tracking-widest"
               >
                 <Activity size={16} />
                 <span>Ver Portal Cliente</span>
@@ -799,7 +804,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   navigator.clipboard.writeText(url);
                   alert("Link del Portal de Clientes copiado: " + url);
                 }}
-                className="w-full sm:w-auto bg-indigo-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-500 transition-all flex items-center justify-center space-x-2 text-xs uppercase tracking-widest"
+                className="w-full sm:w-auto bg-indigo-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-500 transition-all flex items-center justify-center gap-x-2 text-xs uppercase tracking-widest"
               >
                 <Plus size={16} />
                 <span>Copiar Link</span>
@@ -816,7 +821,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <div className={cn(isAdmin ? "lg:col-span-8" : "lg:col-span-12")}>
               <div className="bg-white p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-sm h-full">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center gap-x-3">
                     <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
                       {isAdmin ? <BarChart3 size={20} /> : <Zap size={20} />}
                     </div>
@@ -831,17 +836,17 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                       {isAdmin ? "Ventas vs Utilidad" : "Tendencia de Ventas"}
                     </p>
-                    <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-1.5"><div className="size-2 rounded-full bg-indigo-600" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Ventas</span></div>
+                    <div className="flex items-center gap-x-4">
+                        <div className="flex items-center gap-x-1.5"><div className="size-2 rounded-full bg-indigo-600" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Ventas</span></div>
                         {isAdmin && (
-                          <div className="flex items-center space-x-1.5"><div className="size-2 rounded-full bg-emerald-500" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Utilidad</span></div>
+                          <div className="flex items-center gap-x-1.5"><div className="size-2 rounded-full bg-emerald-500" /> <span className="text-[10px] font-bold text-slate-500 uppercase">Utilidad</span></div>
                         )}
                     </div>
                   </div>
                 </div>
                 
                 <div className="h-[300px] w-full relative overflow-hidden" style={{ minHeight: '300px' }}>
-                  <React.Suspense fallback={<div className="h-[300px] w-full flex items-center justify-center text-slate-400">Cargando gráfico de ventas...</div>}>
+                  <React.Suspense fallback={<div className="h-[300px] w-full flex items-center justify-center text-slate-400">Cargando gráfico de ventas…</div>}>
                     <DashboardAreaChart chartData={chartData} isAdmin={isAdmin} isMounted={isMounted} />
                   </React.Suspense>
                 </div>
@@ -852,7 +857,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             {isAdmin && (
               <div className="lg:col-span-4">
                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm h-full flex flex-col">
-                  <div className="flex items-center space-x-3 mb-8">
+                  <div className="flex items-center gap-x-3 mb-8">
                     <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
                       <PieIcon size={20} />
                     </div>
@@ -864,7 +869,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   
                   <div className="h-[250px] relative w-full overflow-hidden" style={{ minHeight: '250px' }}>
                     {isMounted && expenseChartData.length > 0 ? (
-                      <React.Suspense fallback={<div className="h-[250px] w-full flex items-center justify-center text-slate-400">Cargando gráfico de gastos...</div>}>
+                      <React.Suspense fallback={<div className="h-[250px] w-full flex items-center justify-center text-slate-400">Cargando gráfico de gastos…</div>}>
                         <DashboardPieChart expenseChartData={expenseChartData} isMounted={isMounted} />
                       </React.Suspense>
                     ) : (
@@ -890,7 +895,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   <h4 className="text-sm font-black uppercase text-slate-300">Tendencia de Rentabilidad Semanal</h4>
                   <p className="text-[10px] text-slate-500 font-bold uppercase">Comparativa de ingresos vs gastos operacionales</p>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-x-4">
                   <span className="flex items-center text-[10px] font-black uppercase text-indigo-400">
                     <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 mr-1.5" /> Ventas
                   </span>
@@ -899,7 +904,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   </span>
                 </div>
               </div>
-              <React.Suspense fallback={<div className="h-[240px] w-full flex items-center justify-center text-slate-500">Iniciando gráficos de tendencia...</div>}>
+              <React.Suspense fallback={<div className="h-[240px] w-full flex items-center justify-center text-slate-500">Iniciando gráficos de tendencia…</div>}>
                 <ExecutiveTrendChart data={executiveTrendData} isMounted={isMounted} />
               </React.Suspense>
             </div>
@@ -924,13 +929,13 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   </span>
                   <h2 className="text-2xl font-black tracking-tight mt-1">Executive Cockpit ("Mando Corporativo")</h2>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-x-3">
                   <span className="text-xs font-black uppercase py-2 px-3 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">
                     Rentabilidad Máxima
                   </span>
                   <button type="button" 
                     onClick={handlePrintZReport}
-                    className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/10 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all shadow-sm shrink-0"
+                    className="flex items-center gap-x-2 bg-white/10 hover:bg-white/20 border border-white/10 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all shadow-sm shrink-0"
                   >
                     <FileText size={16} />
                     <span>Imprimir Reporte Z</span>
@@ -942,7 +947,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 {/* Margen de Ganancia Neto */}
                 <div className="bg-slate-800/40 border border-slate-800 p-6 rounded-2xl">
                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Margen de Ganancia Neto</p>
-                  <div className="flex items-baseline space-x-2">
+                  <div className="flex items-baseline gap-x-2">
                     <h3 className="text-2xl font-black text-emerald-400">
                       {formatCurrency(executiveStats.netProfit)}
                     </h3>
@@ -965,7 +970,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 {/* Proyección de Gastos Mensuales */}
                 <div className="bg-slate-800/40 border border-slate-800 p-6 rounded-2xl">
                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Proyección de Gastos Mensuales</p>
-                  <div className="flex items-baseline space-x-2">
+                  <div className="flex items-baseline gap-x-2">
                     <h3 className="text-2xl font-black text-amber-400">
                       {formatCurrency(executiveStats.projectedExpenses)}
                     </h3>
@@ -985,7 +990,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 {/* Costo Total del Stock Inmovilizado */}
                 <div className="bg-slate-800/40 border border-slate-800 p-6 rounded-2xl">
                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Costo de Stock Inmovilizado</p>
-                  <div className="flex items-baseline space-x-2">
+                  <div className="flex items-baseline gap-x-2">
                     <h3 className="text-2xl font-black text-rose-400">
                       {formatCurrency(executiveStats.inactiveStockCost)}
                     </h3>
@@ -1013,7 +1018,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <h4 className="text-sm font-black uppercase text-slate-300">Tendencia de Rentabilidad Semanal</h4>
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Comparativa de ingresos vs gastos operacionales</p>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center gap-x-4">
                     <span className="flex items-center text-[10px] font-black uppercase text-indigo-400">
                       <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 mr-1.5" /> Ventas
                     </span>
@@ -1022,7 +1027,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     </span>
                   </div>
                 </div>
-                <React.Suspense fallback={<div className="h-[210px] w-full flex items-center justify-center text-slate-500">Iniciando gráficos de tendencia...</div>}>
+                <React.Suspense fallback={<div className="h-[210px] w-full flex items-center justify-center text-slate-500">Iniciando gráficos de tendencia…</div>}>
                   <ExecutiveTrendChart data={executiveTrendData} isMounted={isMounted} />
                 </React.Suspense>
               </div>
@@ -1040,7 +1045,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
               <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
                 {topCustomers.slice(0, 4).map((cust, i) => (
                   <div key={cust.id || i} className="bg-slate-50/50 p-4 rounded-2xl flex items-center justify-between border border-slate-100 transition-all hover:bg-slate-50 gap-2">
-                    <div className="flex items-center space-x-3 min-w-0">
+                    <div className="flex items-center gap-x-3 min-w-0">
                       <div className="size-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 font-extrabold text-xs shrink-0">
                         {cust.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
@@ -1085,7 +1090,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             {/* Recent activity logs */}
             <div className="lg:col-span-8 space-y-6">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-x-3">
                   <div className="p-3 bg-slate-900 rounded-2xl text-white">
                     <Activity size={20} />
                   </div>
@@ -1111,7 +1116,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       key={tx.id} 
                       className="flex items-center justify-between p-4 sm:p-5 hover:bg-slate-50/80 transition-all rounded-2xl group gap-3"
                     >
-                      <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                      <div className="flex items-center gap-x-3 sm:gap-x-4 min-w-0 flex-1">
                         <div className={cn(
                           "size-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shrink-0",
                           tx.type === "sale" || tx.type === "out" ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
@@ -1121,7 +1126,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-bold text-slate-800 text-xs sm:text-sm truncate">{tx.productName}</p>
-                          <div className="flex items-center space-x-2 mt-1 min-w-0">
+                          <div className="flex items-center gap-x-2 mt-1 min-w-0">
                             <Clock size={10} className="text-slate-400 shrink-0" />
                             <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide flex items-center gap-1 truncate">
                               <span>{tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Reciente"}</span>
@@ -1165,7 +1170,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
                     {topCustomers.slice(0, 3).map((cust, i) => (
                       <div key={cust.id || i} className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center space-x-3 min-w-0">
+                        <div className="flex items-center gap-x-3 min-w-0">
                           <div className="size-8 rounded-lg bg-emerald-50 text-emerald-600 font-bold text-xs flex items-center justify-center shrink-0">
                             {cust.name[0]?.toUpperCase()}
                           </div>
@@ -1184,7 +1189,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
                   {topProducts.map((p, idx) => (
                     <div key={p.name} className="flex items-center justify-between gap-1.5">
-                      <div className="flex items-center space-x-3 min-w-0">
+                      <div className="flex items-center gap-x-3 min-w-0">
                         <span className="text-xs font-black text-slate-200">0{idx + 1}</span>
                         <p className="text-xs font-bold text-slate-800 truncate">{p.name}</p>
                       </div>
@@ -1266,7 +1271,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           className="p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-indigo-100 transition-all flex items-center justify-between gap-2"
                         >
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center gap-x-2">
                               <span className={cn(
                                 "text-[7px] font-black uppercase px-1.5 py-0.2 rounded-full",
                                 claim.reason === "damaged"
@@ -1343,7 +1348,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             {/* Right side column: Predictive alerts, restocking button */}
             <div className="lg:col-span-6 space-y-6">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-x-3">
                   <div className="p-3 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-100">
                     <AlertTriangle size={20} />
                   </div>
@@ -1411,7 +1416,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
               className="relative bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-indigo-600 text-white">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-x-4">
                   <div className="p-3 bg-white/10 rounded-2xl">
                     <Sparkles size={24} className="text-yellow-300" />
                   </div>
@@ -1433,14 +1438,14 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-600 animate-pulse" size={24} />
                     </div>
                     <div className="text-center">
-                      <p className="text-lg font-black text-slate-800">Analizando tu negocio...</p>
+                      <p className="text-lg font-black text-slate-800">Analizando tu negocio…</p>
                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-2 animate-pulse">Este proceso toma unos segundos</p>
                     </div>
                   </div>
                 ) : aiInsight ? (
                   <>
                     <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
-                      <h3 className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-3 flex items-center space-x-2">
+                      <h3 className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-3 flex items-center gap-x-2">
                         <Info size={14} />
                         <span>Resumen Ejecutivo</span>
                       </h3>
@@ -1451,7 +1456,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Recomendaciones de Inventario</h3>
                       <div className="grid gap-4">
                         {aiInsight.recommendations.map((rec, i) => (
-                          <div key={i} className="bg-slate-50 p-5 rounded-3xl border border-slate-100 flex items-start space-x-4">
+                          <div key={`${rec.action}-${rec.productName}-${i}`} className="bg-slate-50 p-5 rounded-3xl border border-slate-100 flex items-start gap-x-4">
                             <div className={cn(
                               "p-3 rounded-2xl",
                               rec.action === "RESTOCK" ? "bg-amber-100 text-amber-600" :
@@ -1464,7 +1469,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                             </div>
                             <div>
                               <p className="text-sm font-black text-slate-800">{rec.productName}</p>
-                              <div className="flex items-center space-x-2 mt-0.5">
+                              <div className="flex items-center gap-x-2 mt-0.5">
                                 <span className={cn(
                                   "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg",
                                   rec.action === "RESTOCK" ? "bg-amber-200 text-amber-800" :
@@ -1596,8 +1601,12 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           </a>
                         </div>
                       </div>
-                      <div 
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Expandir imagen en pantalla completa"
                         onClick={() => setIsImageZoomed(true)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsImageZoomed(true); } }}
                         className="group relative rounded-xl overflow-hidden border border-slate-200 max-h-48 flex justify-center bg-slate-200 cursor-pointer hover:border-indigo-400 transition-all"
                         title="Haga clic para expandir en pantalla completa"
                       >

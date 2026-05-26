@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { 
   User, 
@@ -18,6 +18,8 @@ import { cn } from "../../lib/utils";
 
 export function Profile() {
   const { profile, user } = useAuth();
+  const fid = useId();
+  const fId = (s: string) => `${fid}-${s}`;
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -217,14 +219,14 @@ export function Profile() {
             </div>
             
             <div className="mt-8 pt-8 border-t border-slate-50 space-y-4">
-              <div className="flex items-center text-left space-x-3 text-slate-500">
+              <div className="flex items-center text-left gap-x-3 text-slate-500">
                 <Mail size={16} className="text-slate-300" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email</p>
                   <p className="text-xs font-bold text-slate-700 truncate">{profile?.email}</p>
                 </div>
               </div>
-              <div className="flex items-center text-left space-x-3 text-slate-500">
+              <div className="flex items-center text-left gap-x-3 text-slate-500">
                 <Calendar size={16} className="text-slate-300" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Miembro desde</p>
@@ -242,10 +244,11 @@ export function Profile() {
           <form onSubmit={handleSave} className="bg-white rounded-[2.5rem] border border-slate-100 p-10 shadow-sm space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nombre Completo</label>
+                <label htmlFor={fId("name")} className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nombre Completo</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
+                    id={fId("name")}
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -257,10 +260,11 @@ export function Profile() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">RUT / Identificación</label>
+                <label htmlFor={fId("rut")} className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">RUT / Identificación</label>
                 <div className="relative">
                   <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
+                    id={fId("rut")}
                     type="text"
                     value={formData.rut}
                     onChange={(e) => setFormData({ ...formData, rut: formatRUT(e.target.value) })}
@@ -271,13 +275,14 @@ export function Profile() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Teléfono</label>
+                <label htmlFor={fId("phone")} className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Teléfono</label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs flex items-center space-x-1">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs flex items-center gap-x-1">
                     <Phone size={14} />
                     <span>+56</span>
                   </div>
                   <input
+                    id={fId("phone")}
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
@@ -288,10 +293,11 @@ export function Profile() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Fecha de Nacimiento</label>
+                <label htmlFor={fId("birthday")} className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Fecha de Nacimiento</label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
+                    id={fId("birthday")}
                     type="date"
                     value={formData.birthday}
                     onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
@@ -301,9 +307,10 @@ export function Profile() {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Dirección Particular</label>
+                <label htmlFor={fId("address")} className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Dirección Particular</label>
                 <div className="relative">
                   <input
+                    id={fId("address")}
                     type="text"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -314,10 +321,11 @@ export function Profile() {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Correo Electrónico (Solo Lectura)</label>
+                <label htmlFor={fId("email")} className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Correo Electrónico (Solo Lectura)</label>
                 <div className="relative opacity-60">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
+                    id={fId("email")}
                     type="email"
                     value={profile?.email || ""}
                     disabled
@@ -329,7 +337,7 @@ export function Profile() {
             </div>
 
             <div className="pt-6 border-t border-slate-50 flex items-center justify-between gap-6">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-x-2">
                 {showSuccess && (
                   <motion.div 
                     initial={{ opacity: 0, x: -10 }}
@@ -344,7 +352,7 @@ export function Profile() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="flex items-center space-x-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:shadow-none"
+                className="flex items-center gap-x-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:shadow-none"
               >
                 {isSaving ? (
                   <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -357,7 +365,7 @@ export function Profile() {
           </form>
 
           {/* Security Notice */}
-          <div className="mt-6 p-6 bg-amber-50 border border-amber-100 rounded-[2rem] flex items-start space-x-4">
+          <div className="mt-6 p-6 bg-amber-50 border border-amber-100 rounded-[2rem] flex items-start gap-x-4">
             <div className="size-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
               <Shield size={20} />
             </div>

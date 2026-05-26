@@ -117,12 +117,12 @@ export function MercadoPagoWallet({ amount, onSuccess, onError }: MercadoPagoWal
       {loading && (
         <div className="py-10 flex flex-col items-center animate-pulse">
           <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
-          <p className="text-xs font-black uppercase tracking-widest text-slate-400">Preparando Contactless...</p>
+          <p className="text-xs font-black uppercase tracking-widest text-slate-400">Preparando Contactless…</p>
         </div>
       )}
       
       {error && (
-        <div className="p-6 bg-rose-50 text-rose-600 rounded-2xl flex items-center space-x-3 mb-4">
+        <div className="p-6 bg-rose-50 text-rose-600 rounded-2xl flex items-center gap-x-3 mb-4">
           <AlertCircle size={20} />
           <p className="text-sm font-bold">{error}</p>
         </div>

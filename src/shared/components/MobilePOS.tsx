@@ -500,7 +500,12 @@ export function MobilePOS() {
   }, []);
 
   const categories = useMemo(() => {
-    const cats = new Set(products.map(p => p.category).filter(Boolean));
+    const cats = new Set(
+      products.reduce<string[]>((acc, p) => {
+        if (p.category) acc.push(p.category);
+        return acc;
+      }, [])
+    );
     return ["Todos", ...Array.from(cats)];
   }, [products]);
 
@@ -899,7 +904,7 @@ export function MobilePOS() {
         <div className="flex-1 flex flex-col h-full overflow-hidden relative pt-6 md:pt-10">
           {/* Mobile Header */}
           <header className="bg-white px-6 pt-4 pb-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-x-3">
               <div className="relative size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
                 <Store size={20} />
                 {offlineQueue.length > 0 && (
@@ -913,9 +918,13 @@ export function MobilePOS() {
                 <div className="flex items-center gap-1.5 mt-1">
                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none">POS Móvil</p>
                   {offlineQueue.length > 0 && (
-                    <span 
+                    <span
                       className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/20 rounded-full text-[8px] font-black text-amber-600 uppercase tracking-widest animate-pulse cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Sincronizar ${offlineQueue.length} ventas offline pendientes`}
                       onClick={handleSyncOfflineSales}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSyncOfflineSales(); } }}
                       title="Sincronizar ventas offline"
                     >
                       <span className="w-1.2 h-1.2 rounded-full bg-amber-500" />
@@ -926,7 +935,7 @@ export function MobilePOS() {
               </div>
             </div>
             {/* Dynamic Connectivity Controls (Paso 2.2) */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-x-2">
               {offlineQueue.length > 0 && (
                 <button type="button" 
                   onClick={handleSyncOfflineSales}
@@ -990,7 +999,7 @@ export function MobilePOS() {
               className="p-6 space-y-4"
             >
               {/* Buscador Optimizado para Móvil */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-x-2">
                 <button type="button" 
                   onClick={() => setIsScanning(true)}
                   className="size-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 active:bg-indigo-50 active:text-indigo-600 transition-all shrink-0 shadow-sm"
@@ -1025,7 +1034,7 @@ export function MobilePOS() {
               </div>
 
               {/* Category Slider */}
-              <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-2">
+              <div className="flex gap-x-2 overflow-x-auto no-scrollbar pb-2">
                 {categories.map(cat => (
                   <button type="button"
                     key={cat}
@@ -1071,7 +1080,7 @@ export function MobilePOS() {
                         cartItem ? "ring-2 ring-indigo-500/25 border-indigo-200 bg-indigo-50/5" : ""
                       )}
                     >
-                      <div className="flex items-center space-x-4 min-w-0 flex-1 mr-2">
+                      <div className="flex items-center gap-x-4 min-w-0 flex-1 mr-2">
                         {/* Interactive dynamic category visual dot */}
                         <div className={cn(
                           "size-12 rounded-xl flex items-center justify-center transition-all shrink-0 font-bold text-sm",
@@ -1088,7 +1097,7 @@ export function MobilePOS() {
                           <p className="font-extrabold text-slate-800 text-xs sm:text-sm truncate pr-1" title={p.name}>
                             {p.name}
                           </p>
-                          <div className="flex items-center space-x-2 mt-1">
+                          <div className="flex items-center gap-x-2 mt-1">
                             <span className="text-xs font-black text-indigo-600 tracking-tight">
                               {formatCurrency(p.price)}
                             </span>
@@ -1100,7 +1109,7 @@ export function MobilePOS() {
                           </div>
                           
                           {/* Stock color warning badge */}
-                          <div className="mt-1.5 flex items-center space-x-1">
+                          <div className="mt-1.5 flex items-center gap-x-1">
                             {isOutOfStock ? (
                               <span className="text-[8px] font-black tracking-wider text-rose-500 uppercase bg-rose-50 px-2 py-0.5 rounded-full">
                                 ✕ Agotado
@@ -1121,7 +1130,7 @@ export function MobilePOS() {
                       {/* Premium direct addition trigger tool right on the slot! */}
                       <div className="shrink-0">
                         {cartItem ? (
-                          <div className="flex items-center space-x-2 bg-indigo-650/10 bg-indigo-50 border border-indigo-100 rounded-xl p-1 shadow-sm">
+                          <div className="flex items-center gap-x-2 bg-indigo-650/10 bg-indigo-50 border border-indigo-100 rounded-xl p-1 shadow-sm">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1158,7 +1167,7 @@ export function MobilePOS() {
                             disabled={isOutOfStock}
                             onClick={() => addToCart(p)}
                             className={cn(
-                              "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center space-x-1 shadow-sm active:scale-95",
+                              "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-x-1 shadow-sm active:scale-95",
                               isOutOfStock 
                                 ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
                                 : "bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-md hover:shadow-indigo-500/10"
@@ -1179,7 +1188,7 @@ export function MobilePOS() {
                 <button
                   type="button"
                   onClick={() => setVisibleCount(prev => prev + 16)}
-                  className="w-full py-4 bg-white border border-dashed border-indigo-200 text-indigo-600 rounded-3xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-indigo-50 active:scale-98 transition-all shadow-sm"
+                  className="w-full py-4 bg-white border border-dashed border-indigo-200 text-indigo-600 rounded-3xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-x-2 hover:bg-indigo-50 active:scale-98 transition-all shadow-sm"
                 >
                   <RefreshCw size={12} className="animate-spin-slow text-indigo-400" />
                   <span>Cargar más productos ({filteredProducts.length - visibleCount} restantes)</span>
@@ -1233,7 +1242,7 @@ export function MobilePOS() {
                   selectedCustomer ? "bg-indigo-50 border-indigo-200 text-indigo-900" : "bg-white border-slate-100 text-slate-400"
                 )}
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-x-3">
                   <div className={cn("size-10 rounded-xl flex items-center justify-center", selectedCustomer ? "bg-white text-indigo-600" : "bg-slate-50 text-slate-300")}>
                     <Users size={18} />
                   </div>
@@ -1300,7 +1309,7 @@ export function MobilePOS() {
                       <p className="font-bold text-slate-800 text-sm truncate">{item.name}</p>
                       <p className="text-[10px] font-bold text-slate-400">{formatCurrency(item.price)} ea.</p>
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-x-3">
                       <button type="button" 
                         onClick={() => {
                           if (item.quantity === 1) {
@@ -1339,12 +1348,12 @@ export function MobilePOS() {
 
                {cart.length > 0 && (
                 <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
-                  <div className="flex items-center space-x-2 text-indigo-950">
+                  <div className="flex items-center gap-x-2 text-indigo-950">
                     <Ticket className="size-5 text-indigo-600" />
                     <span className="text-xs font-black uppercase tracking-wider">¿Tienes un cupón?</span>
                   </div>
                   
-                  <div className="flex space-x-2">
+                  <div className="flex gap-x-2">
                     <div className="relative flex-1">
                       <input 
                         type="text"
@@ -1378,7 +1387,7 @@ export function MobilePOS() {
                     <motion.p 
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="text-[10px] font-bold text-rose-500 ml-1 flex items-center space-x-1"
+                      className="text-[10px] font-bold text-rose-500 ml-1 flex items-center gap-x-1"
                     >
                       <span>⚠️ {couponError}</span>
                     </motion.p>
@@ -1390,7 +1399,7 @@ export function MobilePOS() {
                       animate={{ opacity: 1, scale: 1 }}
                       className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-center justify-between"
                     >
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-x-2">
                         <span className="text-xl">{appliedCoupon.img || "🎟️"}</span>
                         <div>
                           <p className="text-xs font-extrabold text-emerald-950 uppercase tracking-tight">{appliedCoupon.code}</p>
@@ -1438,7 +1447,7 @@ export function MobilePOS() {
                               }}
                               disabled={!eligible}
                               className={cn(
-                                "text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-lg flex items-center space-x-1 border transition-all",
+                                "text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-lg flex items-center gap-x-1 border transition-all",
                                 eligible 
                                   ? "bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100" 
                                   : "bg-slate-50 border-slate-100 text-slate-400"
@@ -1476,7 +1485,7 @@ export function MobilePOS() {
                     disabled={isProcessing || (documentType === "factura" && !selectedCustomer)}
                     onClick={initiatePayment}
                     className={cn(
-                      "w-full h-16 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2 transition-all",
+                      "w-full h-16 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-x-2 transition-all",
                       (documentType === "factura" && !selectedCustomer) ? "bg-slate-800 text-slate-500 cursor-not-allowed" : "bg-white text-slate-900"
                     )}
                   >
@@ -1500,7 +1509,7 @@ export function MobilePOS() {
             >
               {/* VENDEDOR BANNER & TARGETS */}
               <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-[2.2rem] p-6 text-white shadow-xl flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-x-4">
                   <div className="size-12 bg-white/10 text-white rounded-xl flex items-center justify-center font-black text-lg border border-white/10">
                     {profile?.name?.charAt(0)}
                   </div>
@@ -1552,7 +1561,7 @@ export function MobilePOS() {
 
                 {/* Lifetime Commission feedback box */}
                 <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center gap-x-3">
                     <div className="size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
                       <Coins size={18} />
                     </div>
@@ -1684,7 +1693,7 @@ export function MobilePOS() {
                       <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Retiros Registrados ({(shiftData.retiros || []).length})</div>
                       <div className="max-h-24 overflow-y-auto space-y-1 text-[9px] font-mono leading-tight">
                         {shiftData.retiros.map((r: any, idx: number) => (
-                          <div key={idx} className="flex justify-between bg-rose-50/40 border border-rose-100 p-2 rounded-xl text-slate-600 font-bold">
+                          <div key={`${r.timestamp ?? idx}-${r.amount ?? 0}`} className="flex justify-between bg-rose-50/40 border border-rose-100 p-2 rounded-xl text-slate-600 font-bold">
                             <span className="truncate max-w-[120px]">⚠️ {r.reason}</span>
                             <span className="text-rose-600 font-black">-{formatCurrency(r.amount)}</span>
                           </div>
@@ -1731,7 +1740,7 @@ export function MobilePOS() {
                 {profile?.role !== "seller" && (
                   <button type="button" 
                     onClick={() => window.location.href = "/"}
-                    className="flex items-center justify-center space-x-3 w-full py-4 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-100 shadow-inner"
+                    className="flex items-center justify-center gap-x-3 w-full py-4 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-100 shadow-inner"
                   >
                     <Store size={14} />
                     <span>Ir a Versión PC</span>
@@ -1783,7 +1792,7 @@ export function MobilePOS() {
                   });
                 }
               }}
-              className="w-full h-16 bg-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs border border-white/20 mb-4 flex items-center justify-center space-x-2"
+              className="w-full h-16 bg-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs border border-white/20 mb-4 flex items-center justify-center gap-x-2"
             >
               <Ticket size={18} />
               <span>Imprimir Ticket</span>
@@ -2165,7 +2174,7 @@ export function MobilePOS() {
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-x-2">
                   <div className="w-2.5 h-2.5 bg-indigo-550 rounded-full animate-ping bg-indigo-500" />
                   <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">STOCKFLOW LINK™</span>
                 </div>
@@ -2182,7 +2191,7 @@ export function MobilePOS() {
               <div className="bg-slate-950 border border-slate-850 p-5 rounded-2xl text-center space-y-1">
                 <p className="text-[9px] font-black text-slate-500 tracking-widest uppercase">Monto Total a Cobrar</p>
                 <p className="text-3xl font-black text-white tracking-tight">{formatCurrency(finalTotal)}</p>
-                <div className="flex items-center justify-center space-x-1.5 text-slate-400 text-[10px] uppercase font-bold pt-1.5 border-t border-slate-900/50">
+                <div className="flex items-center justify-center gap-x-1.5 text-slate-400 text-[10px] uppercase font-bold pt-1.5 border-t border-slate-900/50">
                   <Lock size={10} className="text-indigo-400" />
                   <span>Conexión Encriptada SSL</span>
                 </div>
@@ -2328,7 +2337,7 @@ export function MobilePOS() {
                       
                       {/* Interactive dynamic wallets visual */}
                       {simulationState === "idle" && (
-                        <div className="flex items-center justify-center space-x-1.5 text-[8px] font-black text-slate-400 bg-slate-950 border border-slate-850/60 rounded-xl px-3 py-1.5 uppercase tracking-wide">
+                        <div className="flex items-center justify-center gap-x-1.5 text-[8px] font-black text-slate-400 bg-slate-950 border border-slate-850/60 rounded-xl px-3 py-1.5 uppercase tracking-wide">
                           <span>Compatible con:</span>
                           <span className="text-sky-400 font-bold">Mercado Pago</span>
                           <span>•</span>

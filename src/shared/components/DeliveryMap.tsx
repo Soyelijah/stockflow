@@ -443,7 +443,11 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
 
   const getStopSequence = () => {
     if (isOptimizedMode && optimizedIndices.length > 0 && activeShipments.length > 0) {
-      return optimizedIndices.map(idx => activeShipments[idx]).filter(Boolean);
+      return optimizedIndices.reduce<typeof activeShipments>((acc, idx) => {
+        const sh = activeShipments[idx];
+        if (sh) acc.push(sh);
+        return acc;
+      }, []);
     }
     return activeShipments;
   };
@@ -512,7 +516,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
               <li>Pegue su valor y guarde. El sistema se compilará con datos reales automáticos.</li>
             </ul>
           </div>
-          <div className="p-4 bg-amber-50 rounded-2xl text-[11px] font-black tracking-wide text-amber-800 uppercase flex items-center space-x-2 justify-center">
+          <div className="p-4 bg-amber-50 rounded-2xl text-[11px] font-black tracking-wide text-amber-800 uppercase flex items-center gap-x-2 justify-center">
             <span>⚠ ESTA EXPERIENCIA UTILIZA COORDENADAS GEOGRÁFICAS REALES DE LA CADENA</span>
           </div>
         </div>
@@ -654,7 +658,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
         {isOptimizedMode ? (
           <div className="flex-1 flex flex-col space-y-4 text-left min-h-0">
             <div className="p-4 bg-indigo-50/50 rounded-3xl border border-indigo-100 space-y-3 shrink-0">
-              <div className="flex items-center space-x-2 text-indigo-700 font-extrabold text-xs">
+              <div className="flex items-center gap-x-2 text-indigo-700 font-extrabold text-xs">
                 <Sparkles size={14} className="shrink-0" />
                 <span>Optimizador de Ruta Diario</span>
               </div>
@@ -662,7 +666,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 Esta herramienta calcula la secuencia óptima de paradas usando la API de Google Maps, reduciendo tiempos de reparto y consumo de combustible.
               </p>
 
-              <div className="pt-1 flex items-center space-x-2">
+              <div className="pt-1 flex items-center gap-x-2">
                 <input
                   type="checkbox"
                   id="return_wh"
@@ -682,12 +686,12 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 type="button"
                 onClick={handleOptimizeRoute}
                 disabled={activeShipments.length === 0 || isOptimizing}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2"
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-x-2"
               >
                 {isOptimizing ? (
                   <>
                     <Loader2 className="animate-spin" size={12} />
-                    <span>Calculando con Google Maps...</span>
+                    <span>Calculando con Google Maps…</span>
                   </>
                 ) : (
                   <>
@@ -757,7 +761,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                     <button
                       type="button"
                       onClick={stopSimulation}
-                      className="w-full py-2 bg-rose-650 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-2 shadow-lg shadow-rose-950/20"
+                      className="w-full py-2 bg-rose-650 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-x-2 shadow-lg shadow-rose-950/20"
                     >
                       <Square size={10} className="fill-white" />
                       <span>Detener Simulación</span>
@@ -766,7 +770,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                     <button
                       type="button"
                       onClick={startSimulation}
-                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-2 shadow-lg shadow-indigo-950/20"
+                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-x-2 shadow-lg shadow-indigo-950/20"
                     >
                       <Play size={10} className="fill-white" />
                       <span>Ejecutar Simulación Animada</span>
@@ -777,7 +781,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   {simulatedLogs.length > 0 && (
                     <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-[9px] font-mono text-emerald-400 font-semibold max-h-24 overflow-y-auto space-y-1 text-left leading-relaxed scrollbar-none">
                       {simulatedLogs.map((log, idx) => (
-                        <p key={idx} className="truncate">{log}</p>
+                        <p key={`${idx}-${log.slice(0, 30)}`} className="truncate">{log}</p>
                       ))}
                     </div>
                   )}
@@ -788,7 +792,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Secuencia de Reparto:</p>
                   
                   {/* Origin */}
-                  <div className="p-2 bg-slate-50 rounded-xl border border-dashed text-xs font-bold text-slate-500 flex items-center space-x-2">
+                  <div className="p-2 bg-slate-50 rounded-xl border border-dashed text-xs font-bold text-slate-500 flex items-center gap-x-2">
                     <span className="size-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">🏢</span>
                     <span className="truncate">Bodega Principal (Partida)</span>
                   </div>
@@ -801,7 +805,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                         simulationStopIndex === index ? "border-emerald-500 bg-emerald-50/25 shadow-sm" : "border-slate-100"
                       )}
                     >
-                      <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className="flex items-center gap-x-2.5 min-w-0">
                         <span className={cn(
                           "size-5 flex items-center justify-center rounded-full text-[10px] font-black shrink-0 shadow-sm",
                           simulationStopIndex === index ? "bg-emerald-600 text-white" : "bg-emerald-500 text-white"
@@ -821,7 +825,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
 
                   {/* Return optionally */}
                   {returnToWarehouse && (
-                    <div className="p-2 bg-slate-50 rounded-xl border border-dashed text-xs font-bold text-slate-500 flex items-center space-x-2">
+                    <div className="p-2 bg-slate-50 rounded-xl border border-dashed text-xs font-bold text-slate-500 flex items-center gap-x-2">
                       <span className="size-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">🏢</span>
                       <span className="truncate">Bodega Principal (Retorno)</span>
                     </div>
@@ -864,7 +868,11 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
             {shipments.map((s) => (
               <div
                 key={s.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Seleccionar envío ${s.id}`}
                 onClick={() => setSelectedShipment(s)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedShipment(s); } }}
                 className={cn(
                   "p-4 rounded-3xl border text-left transition-all cursor-pointer relative overflow-hidden",
                   selectedShipment?.id === s.id
@@ -895,7 +903,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 <p className="text-xs font-extrabold tracking-tight truncate leading-tight font-sans">
                   {s.customerName}
                 </p>
-                <div className="flex items-center space-x-1 mt-1 text-[10px] opacity-60 font-sans">
+                <div className="flex items-center gap-x-1 mt-1 text-[10px] opacity-60 font-sans">
                   <MapPin size={10} className="shrink-0" />
                   <span className="truncate">{s.address}</span>
                 </div>
@@ -927,12 +935,12 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
         {/* Dynamic header details based on mode */}
         {isOptimizedMode ? (
           <div className="p-4 bg-slate-900 text-white rounded-t-3xl border-b border-white/5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center space-x-3 text-left font-sans">
+            <div className="flex items-center gap-x-3 text-left font-sans">
               <div className="size-10 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
                 <Sparkles size={18} />
               </div>
               <div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-x-2">
                   <h4 className="text-sm font-black tracking-tight uppercase">Ruta de Reparto Optimizada</h4>
                   <span className="text-[9px] font-black bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                     Google Maps Activo
@@ -967,7 +975,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
         ) : selectedShipment ? (
           <div className="p-4 bg-slate-900 text-white rounded-t-3xl border-b border-white/5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-left font-semibold">
             <div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-x-2">
                 <h4 className="text-sm font-black tracking-tight font-sans">{selectedShipment.customerName}</h4>
                 <span className="text-[10px] font-black bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-sans">
                   Pedido #{selectedShipment.orderId}
@@ -979,7 +987,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
             </div>
 
             {portalCustomerId ? (
-              <div className="flex items-center space-x-3 shrink-0 font-sans">
+              <div className="flex items-center gap-x-3 shrink-0 font-sans">
                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
                   Estado despacho:
                 </span>
@@ -999,7 +1007,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 </span>
               </div>
             ) : (
-              <div className="flex items-center space-x-2 shrink-0 font-sans">
+              <div className="flex items-center gap-x-2 shrink-0 font-sans">
                 <span className="text-xs font-black text-white/40 uppercase tracking-widest mr-2">Control Logístico:</span>
                 <button type="button"
                   onClick={() => handleUpdateStatus(selectedShipment.id, "prepared")}
@@ -1156,12 +1164,12 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
           {/* Quick info-tag floating on the map */}
           {selectedShipment && !isOptimizedMode && (
             <div className="absolute bottom-6 right-6 bg-slate-900/95 backdrop-blur text-white p-4 rounded-3xl shadow-2xl max-w-xs border border-white/10 space-y-2 z-10 text-left font-sans">
-              <div className="flex items-center space-x-2 text-indigo-400 font-black text-[10px] uppercase tracking-wider">
+              <div className="flex items-center gap-x-2 text-indigo-400 font-black text-[10px] uppercase tracking-wider">
                 <Truck size={12} />
                 <span>Hoja de Ruta Real</span>
               </div>
               <p className="text-xs font-extrabold">{selectedShipment.driverName || "Repartidor No Asignado"}</p>
-              <p className="text-[10px] text-white/60 flex items-center space-x-1 font-semibold">
+              <p className="text-[10px] text-white/60 flex items-center gap-x-1 font-semibold">
                 <Phone size={10} />
                 <span>{selectedShipment.driverPhone || "Sin fono"}</span>
               </p>
@@ -1174,7 +1182,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 <p className="text-[9px] text-white/40 font-black uppercase tracking-widest font-semibold">Paquete de Pedido:</p>
                 <div className="max-h-20 overflow-y-auto mt-1 space-y-1">
                   {selectedShipment.items?.map((item: string, idx: number) => (
-                    <p key={idx} className="text-[10px] text-white/80 font-medium truncate">• {item}</p>
+                    <p key={`${idx}-${item}`} className="text-[10px] text-white/80 font-medium truncate">• {item}</p>
                   ))}
                 </div>
               </div>

@@ -442,7 +442,7 @@ export function ShrinkageReport() {
           <button type="button"
             onClick={handleExportCSV}
             disabled={filteredMovements.length === 0}
-            className="bg-white border border-slate-200 text-slate-700 font-bold px-5 py-2.5 rounded-2xl shadow-sm hover:bg-slate-50 hover:-translate-y-0.5 transition-all flex items-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-white border border-slate-200 text-slate-700 font-bold px-5 py-2.5 rounded-2xl shadow-sm hover:bg-slate-50 hover:-translate-y-0.5 transition-all flex items-center gap-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Download size={16} className="text-emerald-600" />
             <span>CSV</span>
@@ -450,7 +450,7 @@ export function ShrinkageReport() {
           <button type="button"
             onClick={handleExportPDF}
             disabled={filteredMovements.length === 0}
-            className="bg-rose-600 text-white font-bold px-5 py-2.5 rounded-2xl shadow-xl shadow-rose-200 hover:bg-rose-500 hover:-translate-y-0.5 transition-all flex items-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-rose-600 text-white font-bold px-5 py-2.5 rounded-2xl shadow-xl shadow-rose-200 hover:bg-rose-500 hover:-translate-y-0.5 transition-all flex items-center gap-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <FileText size={16} />
             <span>PDF Auditoría</span>
@@ -479,7 +479,7 @@ export function ShrinkageReport() {
 
         {period === "custom" && (
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
               <Calendar size={14} className="text-slate-400" />
               <input
                 type="date"
@@ -489,7 +489,7 @@ export function ShrinkageReport() {
               />
             </div>
             <span className="text-slate-400 text-xs font-bold">→</span>
-            <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
               <Calendar size={14} className="text-slate-400" />
               <input
                 type="date"
@@ -830,7 +830,7 @@ export function ShrinkageReport() {
                 </div>
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                   {motiveDistribution.map((item, index) => (
-                    <div key={index} className="flex items-center gap-3 bg-slate-50 rounded-2xl px-4 py-3">
+                    <div key={item.name || index} className="flex items-center gap-3 bg-slate-50 rounded-2xl px-4 py-3">
                       <div
                         className="size-3 rounded-full shrink-0"
                         style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
@@ -959,7 +959,7 @@ export function ShrinkageReport() {
                   Página <span className="font-bold text-slate-700">{currentPage}</span> de{" "}
                   <span className="font-bold text-slate-700">{totalPages}</span>
                 </span>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-x-2">
                   <button type="button"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}

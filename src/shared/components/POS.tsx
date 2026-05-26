@@ -277,7 +277,12 @@ export function POS() {
   }, []);
 
   const categories = useMemo(() => {
-    const cats = new Set(products.map(p => p.category).filter(Boolean));
+    const cats = new Set(
+      products.reduce<string[]>((acc, p) => {
+        if (p.category) acc.push(p.category);
+        return acc;
+      }, [])
+    );
     return ["Todos", ...Array.from(cats)];
   }, [products]);
 
@@ -873,7 +878,7 @@ export function POS() {
         </div>
 
         {/* Category Rail */}
-        <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
+        <div className="flex items-center gap-x-2 overflow-x-auto pb-2 no-scrollbar">
           {categories.map((cat) => (
             <button type="button"
               key={cat}
@@ -979,7 +984,7 @@ export function POS() {
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl flex flex-col p-8 relative overflow-hidden">
           
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3 text-slate-800">
+            <div className="flex items-center gap-x-3 text-slate-800">
               <ShoppingCart size={20} />
               <h2 className="text-xl font-black tracking-tight">Checkout</h2>
             </div>
@@ -996,7 +1001,7 @@ export function POS() {
             <button type="button" 
               onClick={() => setDocumentType("boleta")}
               className={cn(
-                "flex items-center justify-center space-x-2 py-3 rounded-2xl border transition-all",
+                "flex items-center justify-center gap-x-2 py-3 rounded-2xl border transition-all",
                 documentType === "boleta" ? "bg-slate-900 border-slate-900 text-white shadow-lg" : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
               )}
             >
@@ -1006,7 +1011,7 @@ export function POS() {
             <button type="button" 
               onClick={() => setDocumentType("factura")}
               className={cn(
-                "flex items-center justify-center space-x-2 py-3 rounded-2xl border transition-all",
+                "flex items-center justify-center gap-x-2 py-3 rounded-2xl border transition-all",
                 documentType === "factura" ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100" : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
               )}
             >
@@ -1023,7 +1028,7 @@ export function POS() {
               selectedCustomer ? "bg-indigo-50 border-indigo-200 text-indigo-900" : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
             )}
           >
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-x-3">
               <div className={cn("size-10 rounded-xl flex items-center justify-center transition-colors", selectedCustomer ? "bg-white text-indigo-600" : "bg-slate-50 text-slate-300")}>
                 <Users size={20} />
               </div>
@@ -1075,7 +1080,7 @@ export function POS() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-x-1">
                   <button type="button" onClick={() => updateQuantity(item.id, -1)} className="p-1 rounded-lg bg-white shadow-sm border border-slate-100"><Minus size={12}/></button>
                   <input 
                     type="number"
@@ -1166,7 +1171,7 @@ export function POS() {
                 return (
                   <div key={m.id} className="space-y-1.5">
                     <div className="flex items-center justify-between px-1">
-                      <div className="flex items-center space-x-1.5 text-[10px] font-bold text-slate-500 uppercase">
+                      <div className="flex items-center gap-x-1.5 text-[10px] font-bold text-slate-500 uppercase">
                         <m.icon size={12} className={m.color} />
                         <span>{m.label}</span>
                       </div>
@@ -1212,7 +1217,7 @@ export function POS() {
               <div className="bg-slate-950/50 p-4 rounded-2xl border border-white/5 space-y-3 relative z-10">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-white/40 font-black uppercase tracking-widest">Monto Recibido</span>
-                  <div className="flex items-baseline space-x-0.5">
+                  <div className="flex items-baseline gap-x-0.5">
                     <span className="text-xs font-black text-white/20 select-none mr-0.5">$</span>
                     <span className="text-lg sm:text-xl font-black text-white tracking-tight">
                       {cashReceived || "0"}
@@ -1252,7 +1257,7 @@ export function POS() {
                 <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Cupón de Descuento</p>
                 {appliedCoupon ? (
                   <div className="flex items-center justify-between bg-white/5 p-2 rounded-xl border border-white/10">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-x-2">
                       <span className="text-lg">{appliedCoupon.img || "🎟️"}</span>
                       <div>
                         <p className="text-xs font-black text-white">{appliedCoupon.code}</p>
@@ -1319,7 +1324,7 @@ export function POS() {
                 onClick={handleCheckout}
                 disabled={isProcessing || cart.length === 0 || remaining > 0 || (documentType === "factura" && !selectedCustomer) || !isCashRegisterOpen}
                 className={cn(
-                  "w-full h-16 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center space-x-2 shadow-xl",
+                  "w-full h-16 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-x-2 shadow-xl",
                   (isProcessing || cart.length === 0 || remaining > 0 || (documentType === "factura" && !selectedCustomer) || !isCashRegisterOpen)
                     ? "bg-slate-800 text-slate-500 shadow-none cursor-not-allowed"
                     : "bg-white text-slate-900 hover:bg-indigo-50 hover:scale-[1.02] shadow-black/20"
@@ -1425,7 +1430,7 @@ export function POS() {
               <div className="mt-8 pt-8 border-t border-slate-50 w-full">
                 <button type="button" 
                   onClick={startFlowQR}
-                  className="w-full h-14 bg-slate-50 text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center space-x-2 border border-indigo-100 hover:bg-slate-100 transition-all"
+                  className="w-full h-14 bg-slate-50 text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-x-2 border border-indigo-100 hover:bg-slate-100 transition-all"
                 >
                   <Smartphone size={16} />
                   <span>Cambiar a Flow QR</span>
@@ -1478,9 +1483,9 @@ export function POS() {
                     />
                   </div>
 
-                  <div className="flex items-center space-x-2 text-indigo-500 font-black text-xs animate-pulse">
+                  <div className="flex items-center gap-x-2 text-indigo-500 font-black text-xs animate-pulse">
                     <RefreshCw size={14} className="animate-spin" />
-                    <span>ESPERANDO PAGO...</span>
+                    <span>ESPERANDO PAGO…</span>
                   </div>
                 </>
               )}
@@ -1542,7 +1547,7 @@ export function POS() {
               className="bg-white rounded-[3rem] shadow-2xl max-w-2xl w-full overflow-hidden relative z-10 flex flex-col max-h-[85vh]"
             >
               <div className="p-10 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-x-4">
                   <div className="size-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-indigo-600">
                     <Users size={28} />
                   </div>
@@ -1653,13 +1658,13 @@ export function POS() {
                           onClick={() => { setSelectedCustomer(c); setShowCustomerModal(false); }}
                           className="w-full p-6 bg-white border border-slate-100 rounded-[2rem] flex items-center justify-between hover:border-indigo-200 hover:bg-indigo-50/30 transition-all"
                         >
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-center gap-x-4">
                             <div className="size-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
                               <Store size={24} />
                             </div>
                             <div className="text-left">
                               <p className="font-bold text-slate-800">{c.name}</p>
-                              <div className="flex items-center space-x-2 mt-1">
+                              <div className="flex items-center gap-x-2 mt-1">
                                 <span className="text-[10px] font-black uppercase tracking-tight text-slate-400">RUT:</span>
                                 <span className="text-[10px] font-black uppercase tracking-tight text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{formatRUT(c.taxId)}</span>
                               </div>

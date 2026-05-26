@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import {
   CreditCard,
   Plus,
@@ -48,6 +48,8 @@ const CATEGORIES = [
 
 export function Expenses() {
   const { user } = useAuth();
+  const fid = useId();
+  const fId = (s: string) => `${fid}-${s}`;
   const [expenses, setExpenses] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
@@ -78,7 +80,7 @@ export function Expenses() {
 
   const PAGE_SIZE = 25;
   const [currentPage, setCurrentPage] = useState(1);
-  const [cursors, setCursors] = useState<any[]>([]);
+  const cursorsRef = useRef<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
 
@@ -90,7 +92,7 @@ export function Expenses() {
       let targetPage = currentPage;
       if (direction === "next") {
         targetPage = currentPage + 1;
-        const lastVisible = cursors[currentPage - 1];
+        const lastVisible = cursorsRef.current[currentPage - 1];
         if (lastVisible) {
           q = query(q, startAfter(lastVisible), limit(PAGE_SIZE));
         } else {
@@ -99,7 +101,7 @@ export function Expenses() {
       } else if (direction === "prev") {
         targetPage = Math.max(1, currentPage - 1);
         const prevIndex = targetPage - 1;
-        const prevVisible = prevIndex > 0 ? cursors[prevIndex - 1] : null;
+        const prevVisible = prevIndex > 0 ? cursorsRef.current[prevIndex - 1] : null;
         if (prevVisible) {
           q = query(q, startAfter(prevVisible), limit(PAGE_SIZE));
         } else {
@@ -119,14 +121,15 @@ export function Expenses() {
 
       const lastVisibleDoc = snap.docs[snap.docs.length - 1];
       if (direction === "init") {
-        setCursors([lastVisibleDoc]);
+        cursorsRef.current = [lastVisibleDoc];
         setCurrentPage(1);
       } else if (direction === "next") {
-        setCursors((prev) => {
-          const nextCursors = [...prev];
+        {
+        
+          const nextCursors = [...cursorsRef.current];
           nextCursors[targetPage - 1] = lastVisibleDoc;
-          return nextCursors;
-        });
+        cursorsRef.current = nextCursors;
+      }
         setCurrentPage(targetPage);
       } else if (direction === "prev") {
         setCurrentPage(targetPage);
@@ -142,6 +145,8 @@ export function Expenses() {
 
   useEffect(() => {
     fetchExpenses("init");
+    // Mount-only fetch; fetchExpenses closes over pagination state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totalExpenses = expenses.reduce(
@@ -320,7 +325,7 @@ export function Expenses() {
             });
             setIsModalOpen(true);
           }}
-          className="bg-slate-900 text-white font-bold px-8 py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center space-x-2"
+          className="bg-slate-900 text-white font-bold px-8 py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center gap-x-2"
         >
           <Plus size={20} />
           <span>Registrar Gasto</span>
@@ -387,7 +392,7 @@ export function Expenses() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center space-x-2 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
+        <div className="flex items-center gap-x-2 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
           <button type="button"
             onClick={() => setSelectedCategory("Todos")}
             className={cn(
@@ -446,7 +451,7 @@ export function Expenses() {
                   className="hover:bg-slate-50/50 transition-colors"
                 >
                   <td className="px-8 py-5">
-                    <div className="flex items-center space-x-2 text-slate-600">
+                    <div className="flex items-center gap-x-2 text-slate-600">
                       <Calendar size={14} className="text-slate-300" />
                       <span className="text-xs font-bold">{exp.date}</span>
                     </div>
@@ -457,7 +462,7 @@ export function Expenses() {
                     </p>
                   </td>
                   <td className="px-8 py-5">
-                    <div className="inline-flex items-center space-x-2 bg-slate-100 px-3 py-1 rounded-lg">
+                    <div className="inline-flex items-center gap-x-2 bg-slate-100 px-3 py-1 rounded-lg">
                       <Tag size={12} className="text-slate-400" />
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-tight">
                         {exp.category}
@@ -470,7 +475,7 @@ export function Expenses() {
                     </span>
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <div className="flex items-center justify-end space-x-2">
+                    <div className="flex items-center justify-end gap-x-2">
                       <button type="button"
                         onClick={() => handleEdit(exp)}
                         className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-all"
@@ -507,7 +512,7 @@ export function Expenses() {
             <span className="text-xs font-semibold text-slate-500">
               Página <span className="font-bold text-slate-700">{currentPage}</span>
             </span>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-x-2">
               <button type="button"
                 onClick={() => fetchExpenses("prev")}
                 disabled={currentPage === 1 || loading}
@@ -572,10 +577,11 @@ export function Expenses() {
                 className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 text-slate-700"
               >
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label htmlFor={fId("description")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                     Descripción
                   </label>
                   <input
+                    id={fId("description")}
                     required
                     type="text"
                     maxLength={INPUT_MAX.NAME}
@@ -590,7 +596,7 @@ export function Expenses() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    <label htmlFor={fId("amount")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       Monto ($)
                     </label>
                     <div className="relative">
@@ -599,6 +605,7 @@ export function Expenses() {
                         size={16}
                       />
                       <input
+                        id={fId("amount")}
                         required
                         type="number"
                         min={1}
@@ -613,10 +620,11 @@ export function Expenses() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    <label htmlFor={fId("date")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       Fecha
                     </label>
                     <input
+                      id={fId("date")}
                       required
                       type="date"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-slate-500/10 focus:border-slate-500 focus:bg-white transition-all text-slate-800"
@@ -629,10 +637,11 @@ export function Expenses() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label htmlFor={fId("category")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                     Categoría
                   </label>
                   <select
+                    id={fId("category")}
                     className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-slate-500/10 focus:border-slate-500 focus:bg-white transition-all text-slate-800 appearance-none"
                     value={formData.category}
                     onChange={(e) =>
@@ -658,7 +667,7 @@ export function Expenses() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full sm:flex-[2] h-14 md:h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 shadow-xl transition-all flex items-center justify-center space-x-2"
+                    className="w-full sm:flex-[2] h-14 md:h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 shadow-xl transition-all flex items-center justify-center gap-x-2"
                   >
                     {isSubmitting ? (
                       <div className="size-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
