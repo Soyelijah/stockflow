@@ -1,4 +1,5 @@
 import { Router } from "express";
+import * as crypto from "crypto";
 import { requireAuthBearer, SendReceiptSchema, AuthenticatedRequest } from "../services/security";
 
 export const commsRouter = Router();
@@ -13,8 +14,10 @@ commsRouter.post("/send-receipt", requireAuthBearer as any, async (req: Authenti
     const headerTitle = isEn ? "DIGITAL RECEIPT" : "RECIBO DIGITAL";
     const thanksMsg = isEn ? "Thank you for your purchase!" : "¡Gracias por su compra!";
 
-    console.log(`[Modular Comms Engine] Enqueuing digital receipt email (${lang.toUpperCase()}) to: ${customerEmail} for ${businessName}`);
-    console.log(`[Modular Comms Engine] Transaction payload serialized:`, JSON.stringify(orderDetails, null, 2));
+    // C-SAN-2: PII-safe — hash recipient email, log only minimal payload fields (anti-pattern §6.5).
+    const emailHash = crypto.createHash("sha1").update(customerEmail).digest("hex").substring(0, 8);
+    console.log(`[Modular Comms Engine] Enqueuing digital receipt (${lang.toUpperCase()}) to email#${emailHash} for ${businessName}`);
+    console.log(`[Modular Comms Engine] Receipt totals: { orderId: ${orderDetails.orderId}, finalTotal: ${orderDetails.finalTotal} }`);
 
     // Simulate standard async background loop for modern microservices SMTP gateways
     await new Promise(resolve => setTimeout(resolve, 850));

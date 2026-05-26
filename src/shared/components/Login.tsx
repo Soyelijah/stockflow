@@ -100,7 +100,9 @@ export function Login() {
             matchedRole && 
             passwordToUse === matchedRole.defaultPass
           ) {
-            console.log(`Auto-provisioning real firebase auth account for ${emailToUse}...`);
+            // C-SAN-1: PII-safe log — never plain email (anti-pattern §6.5)
+            const emailMaskedA = `${emailToUse.split("@")[0]?.slice(0,2) || "??"}***@${emailToUse.split("@")[1] || "domain"}`;
+            console.log(`Auto-provisioning real firebase auth account for ${emailMaskedA}`);
             await register(emailToUse, passwordToUse, `Operador ${matchedRole.title}`, matchedRole.id);
             // Real login retry
             await login(emailToUse, passwordToUse);
@@ -179,7 +181,9 @@ export function Login() {
 
     // Since standard login with all common candidates failed, let's try to register it
     try {
-      console.log(`Sandbox: Trying primary registration for ${email}`);
+      // C-SAN-1: PII-safe log — never plain email (anti-pattern §6.5)
+      const emailMaskedB = `${email.split("@")[0]?.slice(0,2) || "??"}***@${email.split("@")[1] || "domain"}`;
+      console.log(`Sandbox: Trying primary registration for ${emailMaskedB}`);
       await register(email, matched.defaultPass, `${matched.title} (Oficial)`, matched.id);
       await login(email, matched.defaultPass);
       setFormData({ email, password: matched.defaultPass });
