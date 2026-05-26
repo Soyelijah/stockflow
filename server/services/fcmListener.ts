@@ -8,8 +8,8 @@ export function startFCMStatusListener() {
   const lastAssignedDrivers = new Map<string, string>();
 
   // Subscribe to real-time changes of the shipments collection
-  const unsubscribe = adminDb.collection("shipments").onSnapshot((snapshot) => {
-    snapshot.docChanges().forEach(async (change) => {
+  const unsubscribe = adminDb.collection("shipments").onSnapshot(async (snapshot) => {
+    await Promise.all(snapshot.docChanges().map(async (change) => {
       const docId = change.doc.id;
       const data = change.doc.data();
       if (!data) return;
@@ -106,7 +106,7 @@ export function startFCMStatusListener() {
           });
         }
       }
-    });
+    }));
   }, (error) => {
     console.error("❌ [FCM Listener] Error listening to shipments:", error);
   });
