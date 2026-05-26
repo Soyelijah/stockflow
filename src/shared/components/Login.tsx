@@ -271,12 +271,13 @@ export function Login() {
             
             {/* Email Address */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">
+              <label htmlFor="email" className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">
                 Correo Electrónico
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" size={15} />
                 <input 
+                  id="email"
                   required
                   type="email" 
                   placeholder="ej. admin@stockflow.com"
@@ -292,7 +293,7 @@ export function Login() {
             {mode === "login" && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between ml-1">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                  <label htmlFor="password" className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
                     Contraseña
                   </label>
                   <button 
@@ -306,6 +307,7 @@ export function Login() {
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" size={15} />
                   <input 
+                    id="password"
                     required
                     type="password" 
                     placeholder="••••••••"
