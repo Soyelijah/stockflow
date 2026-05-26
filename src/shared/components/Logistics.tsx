@@ -195,7 +195,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
           stockFisico: Number(item.physicalStock),
           motive: item.motive || (Number(item.physicalStock) < Number(item.systemStock) ? "Merma de Auditoría" : "Ajuste por Sobrante")
         })),
-        responsible: responsible || profile?.name || "Pierre Solier",
+        responsible: responsible || profile?.name || "Operador del sistema",
         comments: `Sesión de toma de inventario físico completada con éxito. Se cuadraron ${adjustedItems.length} SKU con descuadres físicos.`,
         lang: "es"
       };
@@ -1072,7 +1072,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                             return;
                           }
 
-                          await downloadAuditPDF(items, profile?.name || "Pierre Solier");
+                          await downloadAuditPDF(items, profile?.name || "Operador del sistema");
                         }}
                         className="py-1.5 px-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 border border-red-100 cursor-pointer"
                       >
@@ -1339,7 +1339,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                             modifiedSKUs: modifiedCount,
                             totalMermas: mermasTotal,
                             totalSobrantes: sobrantesTotal,
-                            auditedBy: profile?.name || "Pierre Solier",
+                            auditedBy: profile?.name || "Operador del sistema",
                             branchId: resolveBranchIdForStockOp(selectedBranchId),
                             timestamp: serverTimestamp()
                           });
@@ -1349,7 +1349,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           // Automatically generate and download high-integrity bilingual PDF
                           if (adjustedItems.length > 0) {
                             try {
-                              await downloadAuditPDF(adjustedItems, profile?.name || "Pierre Solier");
+                              await downloadAuditPDF(adjustedItems, profile?.name || "Operador del sistema");
                             } catch (pdfErr) {
                               console.error("Auto PDF generation failed:", pdfErr);
                             }
