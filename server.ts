@@ -14,6 +14,7 @@ import { startLowStockMonitor } from "./server/services/lowStockMonitor";
 import { startFCMStatusListener } from "./server/services/fcmListener";
 import { shrinkageRouter, healthCheck as shrinkageHealth } from "./server/routes/shrinkage";
 import { auditRouter, expressAuditMiddleware, healthCheck as auditHealth } from "./server/routes/audit";
+import { customerRouter, healthCheck as customerHealth } from "./server/routes/customer";
 
 dotenv.config();
 
@@ -97,18 +98,20 @@ async function startServer() {
     const aiStatus = aiHealth();
     const shrinkageStatus = shrinkageHealth();
     const auditStatus = auditHealth();
+    const customerStatus = customerHealth();
 
-    const allOnline = 
-      barcodeStatus.status === "online" && 
-      paymentsStatus.status === "online" && 
-      commsStatus.status === "online" && 
+    const allOnline =
+      barcodeStatus.status === "online" &&
+      paymentsStatus.status === "online" &&
+      commsStatus.status === "online" &&
       aiStatus.status === "online" &&
       shrinkageStatus.status === "online" &&
-      auditStatus.status === "online";
+      auditStatus.status === "online" &&
+      customerStatus.status === "online";
 
-    res.json({ 
-      status: allOnline ? "online" : "degraded", 
-      architecture: "hybrid-modular", 
+    res.json({
+      status: allOnline ? "online" : "degraded",
+      architecture: "hybrid-modular",
       apiVersion: "2.0.0",
       timestamp: new Date().toISOString(),
       modules: {
@@ -117,7 +120,8 @@ async function startServer() {
         comms: commsStatus,
         ai: aiStatus,
         shrinkage: shrinkageStatus,
-        audit: auditStatus
+        audit: auditStatus,
+        customer: customerStatus
       }
     });
   });
@@ -129,6 +133,7 @@ async function startServer() {
   app.use("/api", aiRouter);
   app.use("/api", shrinkageRouter);
   app.use("/api", auditRouter);
+  app.use("/api", customerRouter);
 
   // Vite development compiler integration or static production delivery
   if (process.env.NODE_ENV !== "production") {
