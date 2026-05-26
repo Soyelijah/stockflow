@@ -61,16 +61,49 @@ function normalizeBackendRUT(value: string): string {
 }
 
 export async function emitElectronicBoleta(input: BoletaInput) {
-  const { 
-    orderId, 
-    amount, 
-    buyerEmail, 
-    customerName = "Cliente Online", 
-    customerTaxId = "Sin RUT", 
-    gateway = "credit_card", 
-    paymentId = "direct", 
-    items = [] 
+  const {
+    orderId,
+    amount,
+    buyerEmail,
+    customerName = "Cliente Online",
+    customerTaxId = "Sin RUT",
+    gateway = "credit_card",
+    paymentId = "direct",
+    items = []
   } = input;
+
+  // CRITICAL idempotency check (anti-pattern §6.4):
+  // MercadoPago and Flow can retry the same webhook multiple times (delivery guarantees,
+  // network errors, manual replays). Without this guard, every retry generates a NEW folio
+  // and a duplicate boleta. We use `webhook_idempotency/{gateway}_{paymentId}` as the key.
+  // Default-deny rules (§0) block client access; only Admin SDK (this code) reads/writes.
+  const idempotencyKey = `${gateway}_${paymentId}`;
+  const idempRef = adminDb.collection("webhook_idempotency").doc(idempotencyKey);
+
+  const alreadyProcessed = await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(idempRef);
+    if (snap.exists) {
+      return snap.data();
+    }
+    tx.set(idempRef, {
+      gateway,
+      paymentId,
+      orderId,
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: "processing"
+    });
+    return null;
+  });
+
+  if (alreadyProcessed) {
+    console.log(`🔁 [Boleta Service] Idempotent skip: ${gateway}/${paymentId} already processed (folio ${alreadyProcessed.folio || "n/a"})`);
+    return {
+      idempotent: true,
+      folio: alreadyProcessed.folio || null,
+      orderId: alreadyProcessed.orderId
+    };
+  }
+
   const folio = await generateNextFolio();
   const dateStr = new Date().toISOString().split("T")[0] || "2026-05-23";
   const emittedAtStr = new Date().toISOString();
@@ -148,9 +181,23 @@ export async function emitElectronicBoleta(input: BoletaInput) {
 
     const emailHash = crypto.createHash('sha1').update(cleanEmail).digest('hex').substring(0, 8);
     console.log(`📧 [Boleta Service] Enviando boleta PDF Folio ${folio} a correo enmascarado: ${emailHash}`);
+
+    // Mark idempotency record as completed (allows audits to see folio mapping).
+    await idempRef.set({
+      gateway,
+      paymentId,
+      orderId,
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: "completed",
+      folio
+    }, { merge: true });
+
     return boletaData;
   } catch (err) {
     console.error("❌ [Boleta Service] Error saving boleta to Firestore:", err);
+    // On failure, release the idempotency lock so a retry can succeed.
+    // Without this, a transient Firestore error would permanently block the payment.
+    await idempRef.delete().catch(() => {});
     throw err;
   }
 }
