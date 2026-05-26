@@ -22,6 +22,20 @@ functions/node_modules/
 .claude/worktrees/
 .agents/
 .qwen/
+.codex/
+AGENTS.md
+
+# Tier 5 migration artifacts — pre-migration data backups and runtime logs stay local.
+# Backups contain PII (customer emails, RUTs); do NOT commit.
+backups/
+logs/
+
+# Ad-hoc smoke / probe scripts written for one-off Tier 5 verification.
+# They use admin SDK against prod and must NOT ship in the repo.
+smoke-*.ts
+smoke-*.cjs
+probe-*.ts
+probe-*.cjs
 
 # react-doctor output
 doctor-report.txt

@@ -21,8 +21,9 @@
 
 import { Router, Request, Response } from "express";
 import * as crypto from "crypto";
-import admin from "../services/firebaseAdmin";
+import "../services/firebaseAdmin";
 import { adminDb } from "../services/firebaseAdmin";
+import { getAuth } from "firebase-admin/auth";
 import { requireAuthBearer, AuthenticatedRequest } from "../services/security";
 import { FieldValue } from "firebase-admin/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
@@ -95,7 +96,7 @@ customerRouter.post("/customer/claim", requireAuthBearer, async (req: Authentica
   }
 
   try {
-    const userRecord = await admin.auth().getUser(uid);
+    const userRecord = await getAuth().getUser(uid);
     const existingClaims = (userRecord.customClaims || {}) as Record<string, unknown>;
     const existingRole = typeof existingClaims.role === "string" ? existingClaims.role : null;
 
@@ -119,7 +120,7 @@ customerRouter.post("/customer/claim", requireAuthBearer, async (req: Authentica
       });
     }
 
-    await admin.auth().setCustomUserClaims(uid, { role: "customer", branchId: "default" });
+    await getAuth().setCustomUserClaims(uid, { role: "customer", branchId: "default" });
 
     await adminDb.collection("role_audit").add({
       action: "CUSTOMER_SELF_CLAIMED",
@@ -233,12 +234,12 @@ customerRouter.post("/customer/activate-request", async (req: Request, res: Resp
         // Look up Auth user by email.
         let userRecord;
         try {
-          userRecord = await admin.auth().getUserByEmail(email);
+          userRecord = await getAuth().getUserByEmail(email);
         } catch (err: any) {
           if (err.code !== "auth/user-not-found") throw err;
           // Create Auth user with random password — the actual password is
           // never used; the customer sets one via the password reset link.
-          userRecord = await admin.auth().createUser({
+          userRecord = await getAuth().createUser({
             email,
             emailVerified: false,
             password: generateStrongPassword(),
@@ -255,7 +256,7 @@ customerRouter.post("/customer/activate-request", async (req: Request, res: Resp
           outcome = "staff_conflict";
         } else {
           // Set/refresh customer claim.
-          await admin.auth().setCustomUserClaims(userRecord.uid, { role: "customer", branchId: "default" });
+          await getAuth().setCustomUserClaims(userRecord.uid, { role: "customer", branchId: "default" });
 
           // If the customer doc id is NOT the Auth uid, relocate it (same pattern
           // as the migration script). Drop the password field if it slipped in

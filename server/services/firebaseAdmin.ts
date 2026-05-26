@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
+import { initializeApp, getApps, cert, type AppOptions } from "firebase-admin/app";
 import firebaseConfig from "../../firebase-applet-config.json";
 
 // Lazy-initialized Firebase Admin instance to ensure single instance
@@ -11,14 +11,14 @@ function getFirebaseAdminInstance(): any {
   }
 
   try {
-    const adminConfig: admin.AppOptions = {};
+    const adminConfig: AppOptions = {};
     if (firebaseConfig.projectId) {
       adminConfig.projectId = firebaseConfig.projectId;
     }
 
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      adminConfig.credential = admin.credential.cert(serviceAccount);
+      adminConfig.credential = cert(serviceAccount);
     }
 
     return initializeApp(adminConfig);
