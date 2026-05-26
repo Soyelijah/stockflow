@@ -177,7 +177,36 @@ service cloud.firestore {
         (isCrossBranch() && (isAdmin() || isLogistics() || isSeller())) ||
         (isSeller() && inMyBranch(incomingBranch()))
       );
-      allow update, delete: if false;
+      // Tier 2: narrow update window — admin (cross-branch) or pinned seller in own branch
+      // can mark a sale as voided. ONLY these five fields may change. The original sale data
+      // (productId, amount, customerId, timestamp, etc.) remains immutable for audit integrity.
+      // The transaction must not be already voided (no double-void).
+      allow update: if (isCrossBranch() || (isSeller() && inMyBranch(resourceBranch()))) &&
+        existing().type == 'sale' &&
+        existing().voided != true &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['voided', 'voidedAt', 'voidedBy', 'voidReason', 'refundId']) &&
+        incoming().voided == true;
+      allow delete: if false;
+    }
+
+    // Tier 2: refund records. One doc per voided transaction line. Acts as the durable
+    // audit trail for "this transaction was reversed, by whom, when, why, points deducted,
+    // payment-gateway reconciliation pending or done".
+    match /refunds/{refundId} {
+      allow read, list: if isSignedIn() && (
+        isCrossBranch() ||
+        (isSeller() && inMyBranch(resourceBranch())) ||
+        (resource != null && resource.data.customerId == request.auth.uid)
+      );
+      allow create: if isSignedIn() &&
+        isValidBranchId(incomingBranch()) &&
+        inMyBranch(incomingBranch()) &&
+        (isCrossBranch() || isSeller());
+      // Update narrowly allowed for the paymentReversed flag (finance manually confirms
+      // the gateway refund). Cross-branch staff only.
+      allow update: if isCrossBranch() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['paymentReversed', 'paymentReversedAt']);
+      allow delete: if false;
     }
 
     match /settings/{docId} {

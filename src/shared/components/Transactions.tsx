@@ -28,15 +28,20 @@ import {
   Printer,
   ArrowRightLeft,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  RotateCcw,
+  XCircle,
+  AlertTriangle
 } from "lucide-react";
-import { cn, formatCurrency, formatDate, formatNumber } from "../../lib/utils";
+import { cn, formatCurrency, formatDate, formatNumber, INPUT_MAX } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
 import { useBranch } from "../../contexts/BranchContext";
 import { CROSS_BRANCH_SENTINEL } from "../../lib/branches";
 import { printReceipt } from "../../lib/printUtils";
+import { voidTransaction } from "../../lib/refunds";
+import { ModernAlert } from "./ui/ModernAlert";
 
 export function Transactions() {
   const { profile } = useAuth();
@@ -47,6 +52,60 @@ export function Transactions() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'manager';
+  const canVoid = isAdmin || profile?.role === 'seller'; // seller can void in their own branch (rules enforce)
+
+  // Tier 2: void modal state.
+  const [voidTarget, setVoidTarget] = useState<any | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [voiding, setVoiding] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "delete" | "info";
+  }>({ isOpen: false, title: "", message: "", type: "info" });
+
+  const handleConfirmVoid = async () => {
+    if (!voidTarget) return;
+    if (voidReason.trim().length < 4) {
+      setAlertConfig({
+        isOpen: true,
+        type: "warning",
+        title: "Razón muy corta",
+        message: "Indique al menos 4 caracteres explicando la anulación.",
+      });
+      return;
+    }
+    setVoiding(true);
+    try {
+      const result = await voidTransaction({
+        txId: voidTarget.id,
+        reason: voidReason.trim(),
+        operatorUid: profile?.uid || "unknown",
+        operatorName: profile?.name || profile?.email || "Operador",
+      });
+      setAlertConfig({
+        isOpen: true,
+        type: "success",
+        title: "Venta anulada",
+        message: `Se reversaron ${result.reversedQuantity} unidades por ${formatCurrency(result.reversedAmount)}. ` +
+          (result.pointsDeducted > 0 ? `Se descontaron ${result.pointsDeducted} puntos al cliente. ` : "") +
+          `Refund ID: ${result.refundId}. La reversa del pago al cliente debe procesarse manualmente con el proveedor (Flow/MP).`,
+      });
+      setVoidTarget(null);
+      setVoidReason("");
+      fetchTransactions("init");
+    } catch (err: any) {
+      setAlertConfig({
+        isOpen: true,
+        type: "error",
+        title: "Error al anular",
+        message: err?.message || "No se pudo anular la transacción.",
+      });
+    } finally {
+      setVoiding(false);
+    }
+  };
 
   const PAGE_SIZE = 25;
   const [currentPage, setCurrentPage] = useState(1);
@@ -439,13 +498,30 @@ export function Transactions() {
                           {tx.note && <span className="text-[9px] text-slate-400 font-medium italic mt-0.5 truncate max-w-[120px]">{tx.note}</span>}
                         </div>
                         {tx.type === 'sale' && (
-                          <button type="button" 
+                          <button type="button"
                             onClick={() => handlePrint(tx)}
                             className="p-2 hover:bg-indigo-50 rounded-xl text-slate-300 hover:text-indigo-600 transition-all shadow-sm border border-slate-50 flex items-center justify-center"
                             title="Reimprimir Ticket"
+                            aria-label="Reimprimir ticket"
                           >
                             <Printer size={16} />
                           </button>
+                        )}
+                        {tx.type === 'sale' && canVoid && !tx.voided && (
+                          <button type="button"
+                            onClick={() => { setVoidTarget(tx); setVoidReason(""); }}
+                            className="p-2 hover:bg-rose-50 rounded-xl text-slate-300 hover:text-rose-600 transition-all shadow-sm border border-slate-50 flex items-center justify-center"
+                            title="Anular venta (devolución)"
+                            aria-label="Anular venta"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
+                        {tx.voided && (
+                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-rose-100 text-rose-700 rounded-lg inline-flex items-center gap-x-1" title={`Anulada: ${tx.voidReason || "sin razón"}`}>
+                            <XCircle size={11} />
+                            Anulada
+                          </span>
                         )}
                       </div>
                     </td>
@@ -503,6 +579,122 @@ export function Transactions() {
           )}
         </div>
       </div>
+
+      {/* Tier 2: void / refund modal */}
+      <AnimatePresence>
+        {voidTarget && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              role="button"
+              tabIndex={-1}
+              aria-label="Cerrar modal"
+              onClick={() => !voiding && setVoidTarget(null)}
+              onKeyDown={(e) => { if (e.key === "Escape" && !voiding) setVoidTarget(null); }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 20 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative z-10 overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center gap-x-3 bg-rose-50/40">
+                <div className="size-10 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center">
+                  <AlertTriangle size={18} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-black text-slate-800 tracking-tight">Anular venta</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Reversa de inventario + puntos
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Producto</span>
+                    <span className="text-xs font-black text-slate-800 truncate ml-3 max-w-[60%]">{voidTarget.productName || "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cantidad</span>
+                    <span className="text-xs font-black text-slate-800">{voidTarget.quantity} unidades</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Monto</span>
+                    <span className="text-xs font-black text-rose-600">- {formatCurrency(voidTarget.amount || 0)}</span>
+                  </div>
+                  {voidTarget.customerName && voidTarget.customerName !== "VENTA GENERAL" && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</span>
+                      <span className="text-xs font-black text-slate-800 truncate ml-3 max-w-[60%]">{voidTarget.customerName}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="voidReasonInput" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">
+                    Razón de la anulación <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    id="voidReasonInput"
+                    rows={3}
+                    required
+                    maxLength={500}
+                    placeholder="Ej: Cliente devuelve producto defectuoso. RUT 12.345.678-9."
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-3 text-sm font-medium focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-slate-800"
+                    value={voidReason}
+                    onChange={(e) => setVoidReason(e.target.value)}
+                  />
+                  <p className="text-[9px] font-bold text-slate-400 ml-1">
+                    Esta razón queda en el audit trail. Min 4 caracteres, max 500.
+                  </p>
+                </div>
+
+                <div className="px-3 py-2 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-x-2">
+                  <AlertTriangle size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-[10px] font-bold text-amber-700 leading-relaxed">
+                    Esta acción: revierte el stock, descuenta puntos al cliente (si aplica) y crea un
+                    registro de refund. <strong>NO procesa el reembolso del pago al cliente</strong> — eso
+                    debe hacerse manualmente con el proveedor (Flow / MercadoPago).
+                  </p>
+                </div>
+
+                <div className="flex gap-x-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setVoidTarget(null)}
+                    disabled={voiding}
+                    className="flex-1 py-3 bg-slate-100 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-slate-200 transition-all disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmVoid}
+                    disabled={voiding || voidReason.trim().length < 4}
+                    className="flex-[2] py-3 bg-rose-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-rose-500 transition-all flex items-center justify-center gap-x-2 shadow-lg shadow-rose-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RotateCcw size={14} />
+                    <span>{voiding ? "Anulando…" : "Confirmar anulación"}</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <ModernAlert
+        isOpen={alertConfig.isOpen}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })}
+      />
     </div>
   );
 }
