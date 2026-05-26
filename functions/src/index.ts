@@ -8,31 +8,64 @@ import * as firebaseConfig from "../firebase-applet-config.json";
 const app = initializeApp();
 const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
-// 1. HTTP Callable para definir roles (Custom Claims y DB Sync)
+// 1. HTTP Callable para definir roles (Custom Claims y DB Sync).
+// C-CF-1 fix: caller must be admin or owner. Previously this was unauthenticated-equivalent
+// (any signed-in user could call it and promote themselves to admin — privilege escalation).
+// C-CF-2 fix: writes audit log entry for every role assignment.
 export const setUserRole = onCall(async (request: any) => {
+  // 1. Caller must be authenticated.
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debe iniciar sesión.");
+  }
+
+  // 2. Caller must hold the admin or owner custom claim (NOT a Firestore doc field — claim is authoritative per CLAUDE.md §6.1).
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "admin" && callerRole !== "owner") {
+    throw new HttpsError("permission-denied", "Solo admin/owner pueden asignar roles.");
+  }
+
   const { userId, role } = request.data || {};
-  
   if (!userId || !role) {
     throw new HttpsError("invalid-argument", "userId y role son requeridos.");
   }
+  if (typeof userId !== "string" || userId.length === 0 || userId.length > 128) {
+    throw new HttpsError("invalid-argument", "userId con formato inválido.");
+  }
 
-  const validRoles = ["admin", "manager", "seller", "logistics"];
+  // 3. Whitelist (NOTE: 'owner' intentionally excluded — owner must be bootstrapped via
+  // scripts/bootstrap-admin.ts using Admin SDK directly, to prevent escalation chains).
+  const validRoles = ["admin", "manager", "seller", "logistics", "driver"];
   if (!validRoles.includes(role)) {
     throw new HttpsError("invalid-argument", "Rol inválido.");
   }
 
+  // 4. Caller cannot demote/reassign themselves (basic defense against accidental lockout).
+  if (request.auth.uid === userId && role !== callerRole) {
+    throw new HttpsError("permission-denied", "No puede reasignar su propio rol.");
+  }
+
   try {
-    // 1. Establecer Custom Claims
     await getAuth().setCustomUserClaims(userId, { role });
-    
-    // 2. Actualizar documento de usuario en Firestore
+
     await db.collection("users").doc(userId).set({
       role: role,
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
 
+    // 5. Audit log for every role assignment (matches CLAUDE.md §9 contract).
+    await db.collection("role_audit").add({
+      action: "ROLE_ASSIGNED",
+      targetUserId: userId,
+      newRole: role,
+      operatorUid: request.auth.uid,
+      operatorEmail: request.auth.token.email || "unknown",
+      operatorRole: callerRole,
+      timestamp: FieldValue.serverTimestamp()
+    });
+
     return { success: true, message: `Rol ${role} asignado al usuario ${userId}.` };
   } catch (error: any) {
+    if (error instanceof HttpsError) throw error;
     console.error("Error en setUserRole:", error);
     throw new HttpsError("internal", error.message || "Error al asignar rol.");
   }
