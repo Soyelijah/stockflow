@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Login } from "./shared/components/Login";
@@ -7,10 +7,17 @@ import { FlowResult } from "./shared/components/FlowResult";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { seedCouponsIfEmpty, seedCustomersIfEmpty } from "./lib/coupons";
 
-// Import the sub-app routes
-import { AdminRoutes } from "./apps/admin/routes";
-import { StoreRoutes } from "./apps/store/routes";
-import { DeliveryRoutes } from "./apps/delivery/routes";
+// Lazy-load sub-app routes to enable per-role code-splitting.
+// Without this, all admin/store/delivery code ships in a single ~2.4 MB bundle.
+const AdminRoutes = React.lazy(() => import("./apps/admin/routes").then(m => ({ default: m.AdminRoutes })));
+const StoreRoutes = React.lazy(() => import("./apps/store/routes").then(m => ({ default: m.StoreRoutes })));
+const DeliveryRoutes = React.lazy(() => import("./apps/delivery/routes").then(m => ({ default: m.DeliveryRoutes })));
+
+const LazyFallback = () => (
+  <div className="flex h-screen items-center justify-center bg-gray-50">
+    <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent shadow-md"></div>
+  </div>
+);
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
@@ -30,7 +37,11 @@ function AppContent() {
 
   // Allow accessing the customer portal or payment callback without auth
   if (isCustomerPath) {
-    return <StoreRoutes />;
+    return (
+      <Suspense fallback={<LazyFallback />}>
+        <StoreRoutes />
+      </Suspense>
+    );
   }
 
   if (isFlowResultPath) {
@@ -58,11 +69,19 @@ function AppContent() {
 
   // Multi-role routing based strictly on custom claim / profile role
   if (profile?.role === "driver") {
-    return <DeliveryRoutes />;
+    return (
+      <Suspense fallback={<LazyFallback />}>
+        <DeliveryRoutes />
+      </Suspense>
+    );
   }
 
   // admin, manager, seller, logistics, owner roles get AdminRoutes
-  return <AdminRoutes />;
+  return (
+    <Suspense fallback={<LazyFallback />}>
+      <AdminRoutes />
+    </Suspense>
+  );
 }
 
 export default function App() {

@@ -177,25 +177,34 @@ service cloud.firestore {
         isDriver() && 
         resource != null && 
         resource.data.assignedDriverId == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentLat', 'currentLng', 'updatedAt', 'lastLocationUpdate', 'startedTransitAt', 'deliveredAt'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentLat', 'currentLng', 'updatedAt', 'lastLocationUpdate', 'startedTransitAt', 'deliveredAt', 'locationSource', 'customerSignature', 'customerSignedName'])
       );
     }
 
     match /fcm_tokens/{tokenId} {
       allow get, list: if isAdmin() || isLogistics();
-      allow create, update: if true; // Write-only registration for clients and drivers
+      // R4 fix: require authentication (was `if true` — public hijack vector).
+      // Stricter scope (tokenId == auth.uid) deferred to next sprint once structure is verified.
+      allow create, update: if isSignedIn();
       allow delete: if isAdmin() || isLogistics();
     }
 
     match /client_notifications/{docId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
+      // R2 fix: read scoped to recipient (admin/logistics see all, others only their own).
+      allow read: if isSignedIn() && (
+        isAdmin() || isLogistics() ||
+        (resource != null && resource.data.userId == request.auth.uid)
+      );
+      // R2 fix: only staff can write client notifications (was open to any signed-in).
+      allow create, update: if isAdmin() || isLogistics();
       allow delete: if isAdmin() || isLogistics();
     }
 
     match /notifications/{docId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
+      // R3 fix: read restricted to staff (was open to any signed-in).
+      allow read: if isAdmin() || isLogistics();
+      // R3 fix: only staff can write internal notifications (was open to any signed-in).
+      allow create, update: if isAdmin() || isLogistics();
       allow delete: if isAdmin() || isLogistics();
     }
 

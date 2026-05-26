@@ -1,0 +1,59 @@
+name: Repository Governance CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify CLAUDE.md exists
+        run: |
+          if [ ! -f "CLAUDE.md" ]; then
+            echo "❌ ERROR: CLAUDE.md has been deleted! This is a structural regression."
+            exit 1
+          fi
+          echo "✅ CLAUDE.md is present."
+
+      - name: Verify pnpm-lock.yaml exists
+        run: |
+          if [ ! -f "pnpm-lock.yaml" ]; then
+            echo "❌ ERROR: pnpm-lock.yaml has been deleted! package-lock.json is forbidden."
+            exit 1
+          fi
+          echo "✅ pnpm-lock.yaml is present."
+
+      - name: Verify .gitignore contains serviceAccountKey.json
+        run: |
+          if ! grep -q "serviceAccountKey.json" .gitignore; then
+            echo "❌ ERROR: .gitignore does not protect serviceAccountKey.json! Secrets exfiltration risk."
+            exit 1
+          fi
+          echo "✅ .gitignore contains serviceAccountKey.json protection."
+
+      - name: Verify premium agents exist
+        run: |
+          if [ ! -f ".claude/agents/stockflow-code-reviewer.md" ]; then
+            echo "❌ ERROR: Premium agents folder (.claude/agents/) is missing or incomplete."
+            exit 1
+          fi
+          echo "✅ Premium agents are present."
+
+      - name: Audit firestore.rules for public bypasses
+        run: |
+          # Verify that customers rules are not wide open (e.g. read: if true)
+          if grep -A 5 "match /customers/" firestore.rules | grep -q "read: if true"; then
+            echo "❌ ERROR: firestore.rules has been regression-patched with public /customers reads!"
+            exit 1
+          fi
+          if grep -A 5 "match /transactions/" firestore.rules | grep -q "read: if true"; then
+            echo "❌ ERROR: firestore.rules has been regression-patched with public /transactions reads!"
+            exit 1
+          fi
+          echo "✅ firestore.rules security boundaries verified successfully."
