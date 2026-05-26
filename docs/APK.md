@@ -20,19 +20,39 @@ fresh clones.
 | Android Studio | Latest (Iguana / Koala / current) | Download from https://developer.android.com/studio |
 | Android SDK Platforms | API 31–35 | Via Android Studio → SDK Manager |
 | Android SDK Build-Tools | 33.x – 35.x | Via Android Studio → SDK Manager |
-| JDK | 17 (Capacitor 7 requirement) | `brew install openjdk@17` |
+| JDK | **21** (Capacitor 7.6.x + AGP 8.x requirement) | `brew install openjdk@21` |
 | `ANDROID_HOME` | `/Users/<you>/Library/Android/sdk` | Export in `~/.zshrc` / `~/.bashrc` |
-| `JAVA_HOME` | Pointing to JDK 17 | Export in `~/.zshrc` / `~/.bashrc` |
+| `JAVA_HOME` | Pointing to JDK 21 | Export in `~/.zshrc` / `~/.bashrc` |
 | SDK licenses | Accepted | `sdkmanager --licenses` |
 
 Sanity checks:
 
 ```bash
-java -version          # should report 17.x
+java -version          # should report 21.x
 echo $ANDROID_HOME     # should print the sdk path
-echo $JAVA_HOME        # should print the JDK 17 path
+echo $JAVA_HOME        # should point to JDK 21, NOT 17 or 20
 adb --version          # confirms platform-tools installed
 ```
+
+If you have multiple JDKs installed (which is common — macOS often ships JDK 20,
+Homebrew offers @17 + @21), set `JAVA_HOME` explicitly in your shell rc file:
+
+```bash
+# ~/.zshrc or ~/.bashrc
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+# (Apple Silicon path; Intel Mac uses /usr/local/opt/openjdk@21/...)
+```
+
+Or set per-command without polluting the shell:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home pnpm apk:debug
+```
+
+Why JDK 21 specifically: Capacitor 7.6.x ships with an Android Gradle Plugin (AGP)
+that targets `sourceCompatibility = 21` in the generated Gradle config. Building with
+JDK 17 fails with `error: invalid source release: 21`. AGP 8.x also rejects JDK 22+ at
+the time of writing, so JDK 21 is the sweet spot.
 
 ### One-time Capacitor scaffolding
 
@@ -166,7 +186,10 @@ Add as needed in subsequent tiers. The wrap works without any of these.
 | Symptom | Fix |
 |---|---|
 | `Could not find any matches for com.android.tools.build:gradle:8.x.x` | Update Android Studio + retry. Capacitor 7 needs AGP 8.x. |
-| `Unsupported Java version` | Confirm `JAVA_HOME` points to JDK 17, not 11 or 20. |
+| `error: invalid source release: 21` | Your `JAVA_HOME` points to JDK 17 or earlier. Switch to JDK 21 (see Sanity checks above). |
+| `Unsupported Java version` | Confirm `JAVA_HOME` points to JDK 21, not 17, 20, or 22+. |
+| `INSTALL_FAILED_USER_RESTRICTED` (MIUI / Xiaomi) | Xiaomi blocks USB installs by default. On the phone: Settings → Additional settings → Developer options → enable BOTH `Install via USB` AND `USB debugging (Security settings)`. |
+| Samsung "Install blocked" prompt | Tap More details → Install anyway. Or pre-enable Settings → Biometrics & security → Install unknown apps → toggle on for the file manager you use. |
 | `adb: device unauthorized` | Tap "Allow always" on the phone dialog. If absent: toggle USB Debugging off/on in Developer Options. |
 | `INSTALL_FAILED_VERSION_DOWNGRADE` | The device has a newer version of the APK installed. `adb uninstall cl.stockflow.app` then reinstall. |
 | Webview can't reach Firebase | Confirm `server.androidScheme: "https"` in capacitor.config.ts. |
