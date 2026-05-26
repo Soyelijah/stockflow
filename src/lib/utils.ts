@@ -124,3 +124,29 @@ export function formatDate(date: Date | string) {
     timeStyle: "short",
   }).format(d);
 }
+
+// Sprint 20 — input length caps (defense against accidental or malicious mega-strings).
+// Used as `maxLength` on <input> and <textarea> in forms. Trims at the browser before submit.
+export const INPUT_MAX = {
+  NAME: 120,
+  EMAIL: 254,
+  PHONE: 20,
+  RUT: 12,
+  ADDRESS: 200,
+  SHORT_TEXT: 80,
+  URL: 2048,
+  NOTES: 1000,
+  DESCRIPTION: 500,
+} as const;
+
+// Sprint 20 — normalize a RUT for search/comparison (strip dots/dashes/spaces, uppercase).
+// Use on BOTH sides of the comparison so "12.345.678-9" matches stored "123456789".
+export function normalizeRutForSearch(s: string): string {
+  return (s || "").replace(/[^0-9kK]/g, "").toUpperCase();
+}
+
+// Sprint 20 — defense-in-depth email cleaner.
+// Use at point of consumption (storage, comparison) even when source is supposed to be normalized.
+export function cleanEmail(s: string | null | undefined): string {
+  return (s || "").trim().toLowerCase();
+}

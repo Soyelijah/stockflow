@@ -50,6 +50,7 @@ import {
   getCustomerTier,
   getHealthStatus,
   LOYALTY_TIERS,
+  INPUT_MAX,
 } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -1086,6 +1087,7 @@ export function Customers() {
                     <input
                       required
                       type="text"
+                      maxLength={INPUT_MAX.NAME}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.name}
                       onChange={(e) =>
@@ -1099,6 +1101,7 @@ export function Customers() {
                     </label>
                     <input
                       type="text"
+                      maxLength={INPUT_MAX.RUT}
                       placeholder="11.111.111-K"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.taxId}
@@ -1146,6 +1149,7 @@ export function Customers() {
                     </label>
                     <input
                       type="email"
+                      maxLength={INPUT_MAX.EMAIL}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.email}
                       onChange={(e) =>
@@ -1159,6 +1163,7 @@ export function Customers() {
                     </label>
                     <input
                       type="tel"
+                      maxLength={INPUT_MAX.PHONE}
                       placeholder="+56 9 XXXX XXXX"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.phone}
@@ -1176,6 +1181,7 @@ export function Customers() {
                     </label>
                     <input
                       type="text"
+                      maxLength={INPUT_MAX.ADDRESS}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.address}
                       onChange={(e) =>
@@ -1240,6 +1246,7 @@ export function Customers() {
                     </label>
                     <textarea
                       rows={3}
+                      maxLength={INPUT_MAX.NOTES}
                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.notes}
                       onChange={(e) =>

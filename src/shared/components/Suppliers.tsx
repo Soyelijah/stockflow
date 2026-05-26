@@ -28,7 +28,7 @@ import {
   startAfter
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
-import { cn, formatChileanPhone } from "../../lib/utils";
+import { cn, formatChileanPhone, INPUT_MAX } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { ModernAlert } from "./ui/ModernAlert";
 
@@ -230,7 +230,8 @@ export function Suppliers() {
         <button 
           onClick={() => {
             setEditingSupplier(null);
-            setFormData({ name: "", contactName: "", email: "", phone: "+56 ", category: "", address: "" });
+            // L-SAN-1: blank phone (was "+56 " placeholder that could persist if user submits without typing).
+            setFormData({ name: "", contactName: "", email: "", phone: "", category: "", address: "" });
             setIsModalOpen(true);
           }}
           className="bg-indigo-600 text-white font-bold px-6 py-4 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2"
@@ -408,9 +409,10 @@ export function Suppliers() {
               <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 text-slate-700">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre de la Empresa</label>
-                  <input 
+                  <input
                     required
-                    type="text" 
+                    type="text"
+                    maxLength={INPUT_MAX.NAME}
                     className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                     placeholder="Ej: Distribuidora Nacional"
                     value={formData.name}
@@ -421,8 +423,9 @@ export function Suppliers() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Persona de Contacto</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
+                      maxLength={INPUT_MAX.NAME}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                       placeholder="Nombre del agente"
                       value={formData.contactName}
@@ -431,8 +434,9 @@ export function Suppliers() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Rubro / Categoría</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
+                      maxLength={INPUT_MAX.SHORT_TEXT}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                       placeholder="Ej: Abarrotes"
                       value={formData.category}
@@ -444,8 +448,9 @@ export function Suppliers() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
+                      maxLength={INPUT_MAX.PHONE}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                       placeholder="+56 9 XXXX XXXX"
                       value={formData.phone}
@@ -454,8 +459,9 @@ export function Suppliers() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
-                    <input 
-                      type="email" 
+                    <input
+                      type="email"
+                      maxLength={INPUT_MAX.EMAIL}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                       placeholder="ventas@proveedor.com"
                       value={formData.email}
@@ -466,8 +472,9 @@ export function Suppliers() {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dirección / Oficina</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
+                    maxLength={INPUT_MAX.ADDRESS}
                     className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                     placeholder="Casa matriz o bodega"
                     value={formData.address}

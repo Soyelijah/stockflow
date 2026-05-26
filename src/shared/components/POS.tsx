@@ -43,7 +43,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
-import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, getCustomerTier, calculatePoints } from "../../lib/utils";
+import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, getCustomerTier, calculatePoints, normalizeRutForSearch, cleanEmail } from "../../lib/utils";
 import confetti from "canvas-confetti";
 import { CashRegisterManagement } from "./CashRegister";
 import { MercadoPagoWallet } from "./MercadoPagoWallet";
@@ -295,9 +295,10 @@ export function POS() {
     return Number(p.stock) > 0 && (nameMatch || skuMatch || barcodeMatch) && categoryMatch;
   }), [products, searchTerm, selectedCategory]);
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
-    c.taxId?.includes(customerSearch)
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    // M-SAN-2: normalize both sides — "12.345.678-9" matches stored "123456789"
+    normalizeRutForSearch(c.taxId || "").includes(normalizeRutForSearch(customerSearch))
   ).slice(0, 5);
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
@@ -591,7 +592,7 @@ export function POS() {
         },
         body: JSON.stringify({
           amount: payments.digital,
-          email: profile?.email || "caja@stockflow.cl",
+          email: cleanEmail(profile?.email) || "caja@stockflow.cl", // M-SAN-3: defense-in-depth
           description: `Cobro POS - ${profile?.name || "Caja"}`,
           externalId: `pos_${Date.now()}`,
           baseUrl: baseUrl
@@ -747,7 +748,7 @@ export function POS() {
         id: selectedCustomer.id || "",
         name: selectedCustomer.name || "",
         taxId: selectedCustomer.taxId || "",
-        email: selectedCustomer.email || "",
+        email: cleanEmail(selectedCustomer.email), // M-SAN-3: defense-in-depth
         phone: selectedCustomer.phone || ""
       } : null;
 

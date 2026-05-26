@@ -257,7 +257,10 @@ service cloud.firestore {
     }
 
     match /system_config/{docId} {
-      allow read: if true;
+      // Sprint 20 audit: was `read: if true` — flags like couponsSeeded/customerSeeding
+      // were exposed publicly. Restricted to staff (seeding only runs from admin/manager/owner
+      // session per App.tsx useEffect).
+      allow read: if isAdmin() || isLogistics();
       allow write: if isAdmin();
     }
 
