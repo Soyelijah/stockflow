@@ -152,15 +152,16 @@ export function Settings() {
         return;
       }
       
-      let closedCount = 0;
-      for (const d of snap.docs) {
-        await updateDoc(doc(db, "cashRegisters", d.id), {
+      // Concurrent closes: cash register updates are independent — no need to serialize.
+      // Sequential `await` in for…of made N-cajas take N × RTT; Promise.all runs in ~1 RTT.
+      await Promise.all(snap.docs.map(d =>
+        updateDoc(doc(db, "cashRegisters", d.id), {
           status: "closed",
           closedAt: serverTimestamp(),
           closedBy: profile?.uid || "EMERGENCY_REMOTELY_CLOSED"
-        });
-        closedCount++;
-      }
+        })
+      ));
+      const closedCount = snap.docs.length;
       
       // Log this emergency event in role_audit
       const auditRef = collection(db, "role_audit");
