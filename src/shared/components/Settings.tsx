@@ -30,6 +30,7 @@ import { motion } from "motion/react";
 import { getPushConfig, savePushConfig } from "../../lib/idbNotifications";
 import { Branch, CROSS_BRANCH_SENTINEL, DEFAULT_BRANCH_ID, defaultBranchForRole } from "../../lib/branches";
 import { BranchesManager } from "./BranchesManager";
+import { RefundsHistory } from "./RefundsHistory";
 
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -37,7 +38,7 @@ export function Settings() {
   const fid = useId();
   const fId = (s: string) => `${fid}-${s}`;
   const { profile, user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"general" | "users" | "audit" | "branches">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "users" | "audit" | "branches" | "refunds">("general");
   // Multi-branch (Tier 1.4): load active+inactive branches for the role assignment picker.
   const [branchesList, setBranchesList] = useState<Branch[]>([]);
   // Per-user branch picker state for the role assignment modal.
@@ -631,10 +632,29 @@ export function Settings() {
             </button>
           </>
         )}
+        {(profile?.role === "admin" || profile?.role === "owner" || profile?.role === "manager") && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("refunds")}
+              className={cn(
+                "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-x-2 border-none cursor-pointer outline-none",
+                activeTab === "refunds"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800 bg-transparent"
+              )}
+            >
+              <RefreshCw size={16} />
+              <span>Devoluciones</span>
+            </button>
+        )}
       </div>
 
       {activeTab === "branches" && (profile?.role === "admin" || profile?.role === "owner") && (
         <BranchesManager />
+      )}
+
+      {activeTab === "refunds" && (profile?.role === "admin" || profile?.role === "owner" || profile?.role === "manager") && (
+        <RefundsHistory branchesList={branchesList} />
       )}
 
       {activeTab === "general" && (
