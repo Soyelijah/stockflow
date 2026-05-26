@@ -185,16 +185,17 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   }, []);
 
   useEffect(() => {
-    // Listen to customers
-    const qCust = query(collection(db, "customers"));
+    // Listen to customers — capped to avoid unbounded reads. Dashboard only uses
+    // count + recent activity; full pagination is in Customers.tsx.
+    const qCust = query(collection(db, "customers"), limit(500));
     const unsubCust = onSnapshot(qCust, (snapshot) => {
       const custData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCustomers(custData);
       setStats(prev => ({ ...prev, activeCustomers: snapshot.size }));
     });
 
-    // Listen to products for stats
-    const qProducts = query(collection(db, "products"));
+    // Listen to products for stats — capped. Inventory.tsx has the paginated view.
+    const qProducts = query(collection(db, "products"), limit(1000));
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
       let totalValue = 0;
       let lowStock = 0;

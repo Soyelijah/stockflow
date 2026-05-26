@@ -226,22 +226,25 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
   };
 
   useEffect(() => {
-    const unsubProds = onSnapshot(query(collection(db, "products"), orderBy("name")), (snap) => {
+    // Listeners capped with limit() to prevent unbounded read costs as collections grow.
+    // If the operations team needs paginated views, that's a follow-up UX work; for now
+    // capping protects against accidental N×100k re-fetches on each doc change.
+    const unsubProds = onSnapshot(query(collection(db, "products"), orderBy("name"), limit(1000)), (snap) => {
       setProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    const unsubSupps = onSnapshot(query(collection(db, "suppliers"), orderBy("name")), (snap) => {
+    const unsubSupps = onSnapshot(query(collection(db, "suppliers"), orderBy("name"), limit(500)), (snap) => {
       setSuppliers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    const unsubCats = onSnapshot(query(collection(db, "categories"), orderBy("name")), (snap) => {
+    const unsubCats = onSnapshot(query(collection(db, "categories"), orderBy("name"), limit(200)), (snap) => {
       setCategories(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    const unsubCusts = onSnapshot(query(collection(db, "customers"), orderBy("name")), (snap) => {
+    const unsubCusts = onSnapshot(query(collection(db, "customers"), orderBy("name"), limit(500)), (snap) => {
       setCustomers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    const unsubShipments = onSnapshot(query(collection(db, "shipments")), (snap) => {
+    const unsubShipments = onSnapshot(query(collection(db, "shipments"), limit(500)), (snap) => {
       setShipments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    const unsubClaimsCount = onSnapshot(collection(db, "claims"), (snap) => {
+    const unsubClaimsCount = onSnapshot(query(collection(db, "claims"), limit(500)), (snap) => {
       const unresolved = snap.docs.filter(doc => doc.data().status !== "resolved").length;
       setPendingClaimsCount(unresolved);
     });
