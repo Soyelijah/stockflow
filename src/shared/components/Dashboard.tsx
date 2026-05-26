@@ -873,7 +873,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         <DashboardPieChart expenseChartData={expenseChartData} isMounted={isMounted} />
                       </React.Suspense>
                     ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center space-y-3">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-y-3">
                          <div className="size-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                            <CreditCard size={32} />
                          </div>
@@ -1432,7 +1432,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
               <div className="flex-1 overflow-y-auto p-10 space-y-10">
                 {isAILoading ? (
-                  <div className="flex flex-col items-center justify-center py-20 space-y-6">
+                  <div className="flex flex-col items-center justify-center py-20 gap-y-6">
                     <div className="relative">
                       <div className="size-20 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
                       <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-600 animate-pulse" size={24} />
@@ -1627,8 +1627,9 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">Nota de Resolución de Soporte</label>
+                  <label htmlFor="resolutionNote" className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">Nota de Resolución de Soporte</label>
                   <textarea
+                    id="resolutionNote"
                     rows={4}
                     value={resolutionNote}
                     onChange={(e) => setResolutionNote(e.target.value)}

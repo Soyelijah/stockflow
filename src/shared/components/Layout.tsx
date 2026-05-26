@@ -643,6 +643,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input 
                 type="text" 
+                aria-label="Búsqueda rápida"
                 placeholder="Busqueda rápida…" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}

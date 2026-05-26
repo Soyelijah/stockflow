@@ -230,6 +230,7 @@ export function SignatureModal({
           </div>
           <button type="button"
             onClick={onClose}
+            aria-label="Cerrar modal"
             className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-colors cursor-pointer"
           >
             <X size={15} />
@@ -240,12 +241,13 @@ export function SignatureModal({
         <div className="p-6 space-y-4">
           {/* Recipient Full Name */}
           <div className="space-y-1 text-left">
-            <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+            <label htmlFor="recipientName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
               <User size={10} className="text-slate-400" />
               Nombre de Quien Recibe:
             </label>
             <div className="relative">
               <input
+                id="recipientName"
                 type="text"
                 placeholder="Ej. Pierre Solier"
                 value={recipientName}
@@ -281,9 +283,9 @@ export function SignatureModal({
           {/* Canvas Wrapper */}
           <div className="space-y-1 text-left">
             <div className="flex items-center justify-between">
-              <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
+              <span className="block text-[9px] font-black uppercase text-slate-400 tracking-wider">
                 Captura de Firma Digital:
-              </label>
+              </span>
               {!isCanvasEmpty && (
                 <button
                   type="button"

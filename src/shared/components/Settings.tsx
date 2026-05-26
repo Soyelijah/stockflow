@@ -1213,6 +1213,7 @@ export function Settings() {
 
                       <button 
                         type="button"
+                        aria-label="Eliminar cupón"
                         onClick={() => handleDeleteCoupon(coupon.id)}
                         className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
                       >
@@ -1423,6 +1424,7 @@ export function Settings() {
                 </select>
                 <button
                   type="button"
+                  aria-label="Actualizar registros"
                   onClick={fetchAuditLogs}
                   disabled={isAuditLoading}
                   className="p-3 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-all cursor-pointer border-none flex items-center justify-center outline-none"
@@ -1435,8 +1437,9 @@ export function Settings() {
             {/* Audit Log Filters Panel */}
             <div className="p-6 bg-slate-50/30 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Email del Operador</label>
+                <label htmlFor="operatorEmailFilter" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Email del Operador</label>
                 <input
+                  id="operatorEmailFilter"
                   type="text"
                   placeholder="Filtrar por email…"
                   value={operatorEmailFilter}
@@ -1445,8 +1448,9 @@ export function Settings() {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Acción / Evento</label>
+                <label htmlFor="actionFilter" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Acción / Evento</label>
                 <input
+                  id="actionFilter"
                   type="text"
                   placeholder="Ej: ROLE_CHANGE, EXP_DELETED…"
                   value={actionFilter}
@@ -1455,8 +1459,9 @@ export function Settings() {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Desde Fecha</label>
+                <label htmlFor="startDateFilter" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Desde Fecha</label>
                 <input
+                  id="startDateFilter"
                   type="date"
                   value={startDateFilter}
                   onChange={(e) => setStartDateFilter(e.target.value)}
@@ -1464,8 +1469,9 @@ export function Settings() {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Hasta Fecha</label>
+                <label htmlFor="endDateFilter" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Hasta Fecha</label>
                 <input
+                  id="endDateFilter"
                   type="date"
                   value={endDateFilter}
                   onChange={(e) => setEndDateFilter(e.target.value)}

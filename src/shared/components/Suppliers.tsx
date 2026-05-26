@@ -251,6 +251,7 @@ export function Suppliers() {
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
+            aria-label="Buscar proveedores"
             type="text" 
             placeholder="Buscar por nombre, contacto o rubro…"
             className="w-full bg-slate-50 border-none rounded-xl py-3 pl-12 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
@@ -287,10 +288,11 @@ export function Suppliers() {
                   </div>
                 </div>
                 <div className="flex items-center gap-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button type="button" onClick={() => handleEdit(supplier)} className="p-2 hover:bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors">
+                  <button type="button" aria-label="Editar proveedor" onClick={() => handleEdit(supplier)} className="p-2 hover:bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors">
                     <Edit2 size={16} />
                   </button>
                   <button type="button" 
+                    aria-label="Eliminar proveedor"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(supplier.id, supplier.name);
@@ -404,6 +406,7 @@ export function Suppliers() {
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Completa los detalles</p>
                 </div>
                 <button type="button" 
+                  aria-label="Cerrar modal"
                   onClick={() => setIsModalOpen(false)}
                   className="p-2.5 hover:bg-slate-100 rounded-2xl transition-all"
                 >
