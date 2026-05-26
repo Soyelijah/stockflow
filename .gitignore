@@ -16,3 +16,9 @@ functions/node_modules/
 .claude/__pycache__/
 .claude/logs/
 .claude/settings.local.json
+
+# Local agent scaffolding (not part of the application — installed per-developer)
+.claude/skills/
+.claude/worktrees/
+.agents/
+.qwen/
