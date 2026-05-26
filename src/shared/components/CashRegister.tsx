@@ -14,6 +14,8 @@ import {
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { resolveBranchIdForStockOp } from "../../lib/productStock";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Banknote, 
@@ -38,6 +40,7 @@ interface CashRegisterProps {
 
 export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
   const { profile } = useAuth();
+  const { selectedBranchId } = useBranch();
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -147,7 +150,8 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
         openedAt: serverTimestamp(),
         initialAmount: amount,
         status: "open",
-        userName: profile?.name
+        userName: profile?.name,
+        branchId: resolveBranchIdForStockOp(selectedBranchId),
       });
       setInitialAmount("");
     } catch (err) {
@@ -333,6 +337,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
               className="bg-white max-w-sm sm:max-w-md w-full rounded-3xl sm:rounded-[2.5rem] shadow-2xl p-6 sm:p-10 text-center relative max-h-[92vh] overflow-y-auto mx-4"
             >
               <button type="button" 
+                aria-label="Minimizar caja"
                 onClick={() => setIsMinimized(true)}
                 className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600 transition-colors"
                 title="Explorar sistema (solo lectura)"
@@ -349,10 +354,11 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
               
               <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl sm:rounded-3xl mb-4 sm:mb-8 space-y-4">
                 <div className="text-left">
-                  <label className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto Inicial (Efectivo)</label>
+                  <label htmlFor="initialAmount" className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto Inicial (Efectivo)</label>
                   <div className="relative mt-1">
                     <Banknote className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
+                      id="initialAmount"
                       type="number" 
                       placeholder="0"
                       className="w-full bg-white border-none rounded-xl sm:rounded-2xl py-3 sm:py-4 pl-10 sm:pl-12 pr-4 text-base sm:text-xl font-black text-slate-800 shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
@@ -442,7 +448,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                     <p className="text-[9px] md:text-xs font-black text-rose-200 uppercase tracking-widest mt-0.5">Finalización de Turno</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => setIsClosing(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                <button type="button" aria-label="Cancelar cierre" onClick={() => setIsClosing(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
                   <X size={20} md:size={24} />
                 </button>
               </div>
@@ -466,10 +472,11 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                 </div>
 
                 <div className="space-y-3">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Declaración de Efectivo Contado</h3>
+                  <label htmlFor="finalCash" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Declaración de Efectivo Contado</label>
                   <div className="relative">
                     <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} md:size={24} />
                     <input 
+                      id="finalCash"
                       type="number" 
                       placeholder="Ingrese monto contado…"
                       className="w-full bg-slate-50 border-2 border-transparent rounded-2xl md:rounded-[2rem] py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-lg md:text-2xl font-black text-slate-800 focus:ring-0 focus:border-rose-500/30 transition-all shadow-inner"

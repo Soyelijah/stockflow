@@ -693,9 +693,10 @@ export function POS() {
             userId: profile?.uid,
             userName: profile?.name,
             source: "web",
+            branchId: saleBranchId,
             timestamp: serverTimestamp()
           });
-          
+
           resTransaction.set(transactionRef, {
             productId: item.id,
             productName: item.name,
@@ -713,6 +714,7 @@ export function POS() {
             paymentBreakdown: payments,
             timestamp: serverTimestamp(),
             orderId: orderId,
+            branchId: saleBranchId,
             cashRegisterId: currentSession?.id,
             couponCode: appliedCoupon?.code || null,
             discountApplied: couponDiscount,

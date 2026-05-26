@@ -391,6 +391,11 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
         driverPhone: newShipment.driverPhone,
         total: Number(newShipment.total),
         items: newShipment.itemsText.split(",").map(i => i.trim()),
+        // Multi-branch (Tier 1.2): pickupBranchId is the warehouse the shipment is dispatched from.
+        // For mock/admin-created shipments, defaults to "default". Tier 1.4 will add a branch
+        // picker so admin can assign shipments to specific source branches.
+        pickupBranchId: "default",
+        branchId: "default",
         timestamp: new Date().toISOString()
       });
 
@@ -528,13 +533,14 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 min-h-[600px] bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-3 md:p-6">
       {/* Shipment sidebar */}
       {!portalCustomerId && (
-        <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-6 flex flex-col h-full space-y-4">
+        <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-6 flex flex-col h-full gap-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Despachos En Ruta</h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Monitoreo de logística real</p>
           </div>
           <button type="button"
+            aria-label="Crear guía de despacho"
             onClick={() => setShowAddForm(!showAddForm)}
             className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-colors"
             title="Crear guía despacho real"
@@ -548,8 +554,9 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
             <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Nueva Guía de Despacho</h4>
             
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">ID Pedido / Venta</label>
+              <label htmlFor="orderId" className="text-[9px] font-black text-slate-400 uppercase tracking-widest">ID Pedido / Venta</label>
               <input
+                id="orderId"
                 type="text"
                 placeholder="Ej: FE9281A"
                 required
@@ -560,8 +567,9 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nombre Cliente</label>
+              <label htmlFor="customerName" className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nombre Cliente</label>
               <input
+                id="customerName"
                 type="text"
                 placeholder="Ej: Sofía Pérez"
                 required
@@ -572,8 +580,9 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dirección Despacho</label>
+              <label htmlFor="address" className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dirección Despacho</label>
               <input
+                id="address"
                 type="text"
                 placeholder="Ej: Av Providencia 1205, Providencia"
                 required
@@ -585,8 +594,9 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
 
             <div className="grid grid-cols-2 gap-1.5">
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Referencia Geográfica</label>
+                <label htmlFor="geoRef" className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Referencia Geográfica</label>
                 <select
+                  id="geoRef"
                   className="w-full h-8 bg-white border border-slate-100 rounded-lg px-1 text-[10px] font-bold"
                   onChange={e => {
                     const comm = santiagoCommunes[parseInt(e.target.value)];
@@ -608,8 +618,9 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total</label>
+                <label htmlFor="total" className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total</label>
                 <input
+                  id="total"
                   type="number"
                   className="w-full h-8 bg-white border border-slate-100 rounded-lg px-2 text-xs font-bold"
                   value={newShipment.total}
@@ -656,7 +667,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
 
         {/* Sidebar panels content conditionally */}
         {isOptimizedMode ? (
-          <div className="flex-1 flex flex-col space-y-4 text-left min-h-0">
+          <div className="flex-1 flex flex-col gap-y-4 text-left min-h-0">
             <div className="p-4 bg-indigo-50/50 rounded-3xl border border-indigo-100 space-y-3 shrink-0">
               <div className="flex items-center gap-x-2 text-indigo-700 font-extrabold text-xs">
                 <Sparkles size={14} className="shrink-0" />
@@ -668,6 +679,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
 
               <div className="pt-1 flex items-center gap-x-2">
                 <input
+                  aria-label="Retornar a bodega"
                   type="checkbox"
                   id="return_wh"
                   checked={returnToWarehouse}
@@ -709,7 +721,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
             )}
 
             {optimizedIndices.length > 0 && (
-              <div className="flex-1 flex flex-col min-h-0 space-y-3">
+              <div className="flex-1 flex flex-col min-h-0 gap-y-3">
                 {/* Visual Comparative Analytics & Ecological metrics panel */}
                 <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl border border-emerald-100 p-3.5 space-y-3 shrink-0">
                   <div className="flex items-center justify-between">

@@ -52,6 +52,8 @@ import {
   Navigation
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { resolveBranchIdForStockOp } from "../../lib/productStock";
 import { cn } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
@@ -75,6 +77,7 @@ import {
 
 export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) {
   const { profile, user } = useAuth();
+  const { selectedBranchId } = useBranch();
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -494,6 +497,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
           targetSucursal: null,
           userId: profile?.uid,
           userName: profile?.name,
+          branchId: resolveBranchIdForStockOp(selectedBranchId),
           timestamp: serverTimestamp(),
           source: "logistics",
           updatedBarcode: finalBarcode
@@ -600,7 +604,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
       batch.set(movementRef, {
         productId: selectedProduct.id,
         productName: selectedProduct.name,
-        type: actualType, 
+        type: actualType,
         subType: mode === "reception" ? "reception" : "dispatch",
         quantity: formData.quantity,
         previousStock: selectedProduct.stock || 0,
@@ -613,6 +617,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
         targetSucursal: formData.targetSucursal || null,
         userId: profile?.uid,
         userName: profile?.name,
+        branchId: resolveBranchIdForStockOp(selectedBranchId),
         timestamp: serverTimestamp(),
         source: "logistics",
         updatedBarcode: unrecognizedBarcode || null
@@ -1313,6 +1318,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                                 reference: "Auditoría Física",
                                 userId: profile?.uid,
                                 userName: profile?.name,
+                                branchId: resolveBranchIdForStockOp(selectedBranchId),
                                 timestamp: serverTimestamp(),
                                 source: "inventory_audit"
                               });
@@ -1327,6 +1333,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                             totalMermas: mermasTotal,
                             totalSobrantes: sobrantesTotal,
                             auditedBy: profile?.name || "Pierre Solier",
+                            branchId: resolveBranchIdForStockOp(selectedBranchId),
                             timestamp: serverTimestamp()
                           });
 
@@ -1668,6 +1675,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                               supplierId: selectedProductForOC.supplierId || null,
                               userId: profile?.uid,
                               userName: profile?.name,
+                              branchId: resolveBranchIdForStockOp(selectedBranchId),
                               timestamp: serverTimestamp(),
                               source: "logistics_replenish"
                             });

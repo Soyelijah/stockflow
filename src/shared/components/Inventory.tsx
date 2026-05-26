@@ -43,12 +43,15 @@ import {
 import { ModernAlert } from "./ui/ModernAlert";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { resolveBranchIdForStockOp } from "../../lib/productStock";
 import { cn, formatCurrency, INPUT_MAX } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { CategoryManager } from "./CategoryManager";
 
 export function Inventory() {
   const { profile } = useAuth();
+  const { selectedBranchId } = useBranch();
   const fid = useId();
   const inputId = (suffix: string) => `${fid}-${suffix}`;
   const [products, setProducts] = useState<any[]>([]);
@@ -408,6 +411,7 @@ export function Inventory() {
             userId: userUidVal,
             userName: updatedByName,
             source: "web",
+            branchId: resolveBranchIdForStockOp(selectedBranchId),
             timestamp: serverTimestamp()
           });
         }
@@ -432,6 +436,7 @@ export function Inventory() {
             userId: userUidVal,
             userName: updatedByName,
             source: "web",
+            branchId: resolveBranchIdForStockOp(selectedBranchId),
             timestamp: serverTimestamp()
           });
         }
@@ -492,7 +497,8 @@ export function Inventory() {
             userName: profile?.name,
             timestamp: serverTimestamp(),
             reason: `Producto eliminado del catálogo`,
-            source: "web"
+            source: "web",
+            branchId: resolveBranchIdForStockOp(selectedBranchId)
           });
           
           fetchProducts("init");

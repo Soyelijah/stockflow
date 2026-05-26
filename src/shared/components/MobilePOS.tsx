@@ -248,6 +248,7 @@ export function MobilePOS() {
         estimatedCash: estimatedCashOnHand,
         countedCash: countedCash,
         discrepancy: discrepancy,
+        branchId: resolveBranchIdForStockOp(selectedBranchId),
         timestamp: serverTimestamp()
       });
 
@@ -435,6 +436,7 @@ export function MobilePOS() {
                 amount: item.price * item.quantity,
                 cost: (item.costPrice || item.price * 0.7) * item.quantity, // fallback
                 profit: (item.price - (item.costPrice || item.price * 0.7)) * item.quantity,
+                branchId: offlineSyncBranchId,
                 userId: profile?.uid || "sys",
                 userName: profile?.name || "Cajero",
                 customerId: sale.customerId || null,
@@ -827,6 +829,7 @@ export function MobilePOS() {
               amount: item.price * item.quantity,
               cost: (item.costPrice || pData.costPrice) * item.quantity,
               profit: (item.price - (item.costPrice || pData.costPrice)) * item.quantity,
+              branchId: onlineSaleBranchId,
               userId: profile?.uid,
               userName: profile?.name,
               customerId: selectedCustomer?.id || null,

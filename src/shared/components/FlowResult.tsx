@@ -119,9 +119,10 @@ export function FlowResult() {
               userId: customer?.id || profile?.uid || "system",
               userName: customer?.name || profile?.name || "Auto System",
               source: "mobile",
+              branchId: orderBranchId,
               timestamp: serverTimestamp()
             });
-            
+
             batch.set(transactionRef, {
               productId: item.id,
               productName: item.name,
@@ -139,6 +140,7 @@ export function FlowResult() {
               paymentBreakdown: payments,
               timestamp: serverTimestamp(),
               orderId: orderId,
+              branchId: orderBranchId,
               note: `Venta Flow Procesada. Token: ${token}`
             });
           });

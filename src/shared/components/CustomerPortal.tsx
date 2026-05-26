@@ -723,6 +723,7 @@ export function CustomerPortal() {
         amount: 0,
         pointsAwarded: -reward.pointsCost,
         type: "redemption",
+        branchId: "default",
         timestamp: new Date()
       });
 
@@ -824,6 +825,7 @@ export function CustomerPortal() {
         timestamp: serverTimestamp(),
         type: "app_purchase",
         paymentStatus: "paid",
+        branchId: "default",
         documentType: customer.type === "wholesale" ? "Factura Electrónica" : "Boleta Electrónica"
       });
     }

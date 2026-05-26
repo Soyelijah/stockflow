@@ -30,6 +30,8 @@ import {
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { resolveBranchIdForStockOp } from "../../lib/productStock";
 import { cn, formatCurrency, INPUT_MAX } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { ModernAlert } from "./ui/ModernAlert";
@@ -48,6 +50,7 @@ const CATEGORIES = [
 
 export function Expenses() {
   const { user } = useAuth();
+  const { selectedBranchId } = useBranch();
   const fid = useId();
   const fId = (s: string) => `${fid}-${s}`;
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -242,6 +245,7 @@ export function Expenses() {
       } else {
         await addDoc(collection(db, "expenses"), {
           ...data,
+          branchId: resolveBranchIdForStockOp(selectedBranchId),
           timestamp: Timestamp.now(),
         });
       }
