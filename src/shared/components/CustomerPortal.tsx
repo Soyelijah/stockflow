@@ -1279,12 +1279,32 @@ export function CustomerPortal() {
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
         setCustomer({ id: snap.id, ...snap.data() });
-      } else {
-        // Auth user exists but no profile doc — edge case (e.g. claim endpoint
-        // succeeded but setDoc failed). Show a soft error in the portal header
-        // instead of locking the user out.
-        setCustomer(null);
+        return;
       }
+      // Tier 5.A4.4: distinguish "staff user landed on customer portal by
+      // mistake" from "customer without a profile yet" — without this branch
+      // the UI silently re-renders the Login screen and the user is stuck
+      // with an active Firebase session but no apparent way in.
+      const STAFF_ROLES = ["owner", "admin", "manager", "seller", "logistics", "driver"];
+      authUser
+        .getIdTokenResult()
+        .then((t) => {
+          const role = (t.claims as Record<string, unknown>)?.role;
+          if (typeof role === "string" && STAFF_ROLES.includes(role)) {
+            signOut(auth).catch(() => {});
+            setError(
+              "Esta cuenta es del personal interno. Inicia sesión en el panel administrativo, no en el portal de cliente."
+            );
+          } else {
+            setError(
+              "Tu cuenta de cliente no tiene perfil asociado. Si compraste en la tienda, usa “Activar mi cuenta”. Si nunca compraste, regístrate."
+            );
+          }
+        })
+        .catch(() => {
+          setError("No pudimos verificar tu cuenta. Intenta nuevamente.");
+        });
+      setCustomer(null);
     });
     return unsub;
   }, [authUser?.uid]);
