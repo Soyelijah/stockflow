@@ -43,7 +43,7 @@ import {
 import { ModernAlert } from "./ui/ModernAlert";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { useAuth } from "../../contexts/AuthContext";
-import { cn, formatCurrency } from "../../lib/utils";
+import { cn, formatCurrency, INPUT_MAX } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { CategoryManager } from "./CategoryManager";
 
@@ -995,9 +995,10 @@ export function Inventory() {
                   <div className="sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre del Producto</label>
                     <div className="flex gap-4">
-                      <input 
+                      <input
                         required
-                        type="text" 
+                        type="text"
+                        maxLength={INPUT_MAX.NAME}
                         placeholder="Escribe el nombre del producto manualmente"
                         className="flex-1 h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                         value={formData.name}
@@ -1062,8 +1063,9 @@ export function Inventory() {
 
                   <div className="sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Imagen URL (Opcional)</label>
-                    <input 
-                      type="url" 
+                    <input
+                      type="url"
+                      maxLength={INPUT_MAX.URL}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                       value={formData.image}
                       onChange={e => setFormData({...formData, image: e.target.value})}
@@ -1072,8 +1074,9 @@ export function Inventory() {
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">SKU / ID Interno</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
+                      maxLength={INPUT_MAX.SHORT_TEXT}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                       value={formData.sku}
                       onChange={e => setFormData({...formData, sku: e.target.value})}
@@ -1144,8 +1147,9 @@ export function Inventory() {
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
+                        maxLength={INPUT_MAX.SHORT_TEXT}
                         placeholder="O escribir nueva..."
                         className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                         value={formData.category}
