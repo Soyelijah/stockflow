@@ -9,9 +9,16 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "doctor": "react-doctor"
+    "doctor": "react-doctor",
+    "cap:sync": "pnpm build && npx cap sync",
+    "cap:android:open": "npx cap open android",
+    "cap:android:run": "pnpm cap:sync && npx cap run android",
+    "apk:debug": "pnpm cap:sync && cd android && ./gradlew assembleDebug",
+    "apk:release": "pnpm cap:sync && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vis.gl/react-google-maps": "^1.8.3",
@@ -41,6 +48,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/google.maps": "^3.64.1",

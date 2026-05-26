@@ -79,6 +79,26 @@ pnpm --prefix functions build                  # Cloud Functions tsc
 pnpm tsx scripts/bootstrap-admin.ts <email>    # Promote first owner (one-time)
 ```
 
+### Multi-branch operational scripts (Tier 1.x — `/branches`, `/product_stock`, `branchId`)
+
+```bash
+pnpm tsx scripts/seed-default-branch.ts                       # Create /branches/default (idempotent)
+pnpm tsx scripts/migrate-users-add-branchid.ts                # Backfill branchId on /users (claim + profile)
+pnpm tsx scripts/migrate-products-split-stock.ts              # Backfill /product_stock from products.stock
+pnpm tsx scripts/migrate-backfill-branchid-transactional.ts   # Backfill branchId on 7 transactional collections
+```
+
+### Capacitor / APK (Tier 3 — Android wrap of the PWA, see `docs/APK.md`)
+
+```bash
+npx cap add android                            # ONE-TIME generate /android Gradle project
+pnpm cap:sync                                  # Build web + sync to native
+pnpm cap:android:open                          # Open /android in Android Studio
+pnpm cap:android:run                           # Build + deploy + launch on connected device
+pnpm apk:debug                                 # Build debug APK → /android/app/build/outputs/apk/debug/
+pnpm apk:release                               # Build signed release APK (keystore required)
+```
+
 ## 5. Canonical roles (single source of truth: `src/lib/roles.ts`)
 
 ```ts
