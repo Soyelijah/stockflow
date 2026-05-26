@@ -29,7 +29,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
 import { useBranch } from "../../contexts/BranchContext";
-import { branchLabel } from "../../lib/branches";
+import { branchLabel, CROSS_BRANCH_SENTINEL } from "../../lib/branches";
 import { cn } from "../../lib/utils";
 import { STORAGE_KEYS, getStorageJSON, setStorageJSON } from "../../lib/storage";
 import { collection, query, onSnapshot, where, getDocs, limit, orderBy } from "firebase/firestore";
@@ -83,20 +83,45 @@ function playNotificationChime() {
   }
 }
 
-// Multi-branch (Tier 1.0): tiny badge that surfaces the user's branch in the sidebar/topbar.
-// For cross-branch users (admin/owner/logistics) it shows "Todas las sucursales".
-// For pinned users (manager/seller) it shows the branch name from /branches metadata.
-// In Tier 1.4 this gets replaced by a real dropdown for cross-branch users.
-function BranchBadge() {
-  const { branches, myBranchId, selectedBranchId, isCrossBranchUser } = useBranch();
-  // Cross-branch users see the SELECTED branch (could be "*" or a specific one).
-  // Pinned users always see their own branch.
-  const displayedId = isCrossBranchUser ? selectedBranchId : myBranchId;
+// Multi-branch (Tier 1.4): branch indicator in the sidebar.
+// - Pinned users (seller/manager/driver): read-only badge with their assigned branch name.
+// - Cross-branch users (admin/owner/logistics): interactive dropdown to switch the
+//   selected branch context. "Todas las sucursales" (the "*" sentinel) shows the
+//   aggregated view; selecting a specific branch filters every branch-aware screen.
+function BranchSelector() {
+  const { branches, myBranchId, selectedBranchId, selectBranch, isCrossBranchUser } = useBranch();
+  const activeBranches = useMemo(() => branches.filter(b => b.active !== false), [branches]);
+
+  // Pinned users → read-only badge.
+  if (!isCrossBranchUser) {
+    return (
+      <p className="text-[9px] font-bold text-slate-400 mt-1 truncate">
+        <Building2 size={9} className="inline -mt-0.5 mr-1" />
+        {branchLabel(myBranchId, branches)}
+      </p>
+    );
+  }
+
+  // Cross-branch users → dropdown.
   return (
-    <p className="text-[9px] font-bold text-slate-400 mt-1 truncate">
-      <Building2 size={9} className="inline -mt-0.5 mr-1" />
-      {branchLabel(displayedId, branches)}
-    </p>
+    <div className="mt-1.5">
+      <label className="sr-only" htmlFor="branch-selector">Sucursal activa</label>
+      <div className="relative">
+        <Building2 size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-indigo-500 pointer-events-none" />
+        <select
+          id="branch-selector"
+          value={selectedBranchId}
+          onChange={(e) => selectBranch(e.target.value)}
+          className="w-full bg-white border border-slate-200 rounded-lg pl-7 pr-2 py-1 text-[10px] font-black text-slate-700 uppercase tracking-wider focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all cursor-pointer appearance-none"
+          aria-label="Filtrar vistas por sucursal"
+        >
+          <option value={CROSS_BRANCH_SENTINEL}>Todas las sucursales</option>
+          {activeBranches.map(b => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }
 
@@ -460,7 +485,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                    profile?.role === "seller" ? "Vendedor / Cajero" :
                    profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role}
                 </p>
-                <BranchBadge />
+                <BranchSelector />
               </div>
             </div>
           )}

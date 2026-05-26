@@ -28,6 +28,8 @@ import { db, handleFirestoreError, OperationType, functions } from "../../lib/fi
 import { cn, formatChileanPhone } from "../../lib/utils";
 import { motion } from "motion/react";
 import { getPushConfig, savePushConfig } from "../../lib/idbNotifications";
+import { Branch, CROSS_BRANCH_SENTINEL, DEFAULT_BRANCH_ID, defaultBranchForRole } from "../../lib/branches";
+import { BranchesManager } from "./BranchesManager";
 
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -35,7 +37,11 @@ export function Settings() {
   const fid = useId();
   const fId = (s: string) => `${fid}-${s}`;
   const { profile, user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"general" | "users" | "audit">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "users" | "audit" | "branches">("general");
+  // Multi-branch (Tier 1.4): load active+inactive branches for the role assignment picker.
+  const [branchesList, setBranchesList] = useState<Branch[]>([]);
+  // Per-user branch picker state for the role assignment modal.
+  const [pendingRoleAssignment, setPendingRoleAssignment] = useState<{ userId: string; role: string; branchId: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
@@ -361,6 +367,22 @@ export function Settings() {
     deliveryEnabled: true
   });
 
+  // Multi-branch (Tier 1.4): subscribe to /branches for the role-assignment picker
+  // and the per-user branch display in the users list.
+  useEffect(() => {
+    const unsub = onSnapshot(
+      query(collection(db, "branches")),
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Branch);
+        setBranchesList(list);
+      },
+      (err) => {
+        console.warn("[Settings] branches listener:", err.message);
+      }
+    );
+    return unsub;
+  }, []);
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -458,24 +480,46 @@ export function Settings() {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: string) => {
+  // Multi-branch (Tier 1.4): opens the branch picker modal. Cross-branch roles
+  // (admin/owner/logistics) skip the picker and go straight to assignment with branchId="*".
+  // Pinned roles (manager/seller/driver) require a concrete branch selection.
+  const initiateRoleChange = (userId: string, newRole: string) => {
+    const defaultBranch = defaultBranchForRole(newRole);
+    if (defaultBranch === CROSS_BRANCH_SENTINEL) {
+      // Cross-branch role — no picker needed, assign immediately.
+      void updateUserRole(userId, newRole, CROSS_BRANCH_SENTINEL);
+      return;
+    }
+    // Pinned role — open picker. Preselect "default" or the user's current branch if it exists.
+    const currentBranch = users.find(u => u.id === userId)?.branchId || DEFAULT_BRANCH_ID;
+    setPendingRoleAssignment({ userId, role: newRole, branchId: currentBranch });
+  };
+
+  const confirmPendingRoleAssignment = async () => {
+    if (!pendingRoleAssignment) return;
+    const { userId, role, branchId } = pendingRoleAssignment;
+    setPendingRoleAssignment(null);
+    await updateUserRole(userId, role, branchId);
+  };
+
+  const updateUserRole = async (userId: string, newRole: string, branchId: string) => {
     setIsSaving(true);
     try {
       const setUserRoleCall = httpsCallable(functions, "setUserRole");
-      const res: any = await setUserRoleCall({ userId, role: newRole });
-      
+      const res: any = await setUserRoleCall({ userId, role: newRole, branchId });
+
       if (res.data?.success) {
         const previousRole = users.find(u => u.id === userId)?.role || "unknown";
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole, branchId } : u));
         if (searchResult) {
-          setSearchResult(prev => prev ? prev.map(u => u.id === userId ? { ...u, role: newRole } : u) : null);
+          setSearchResult(prev => prev ? prev.map(u => u.id === userId ? { ...u, role: newRole, branchId } : u) : null);
         }
-        
+
         // Asynchronously post to our new secure centralized audit log
         user?.getIdToken().then(token => {
           fetch("/api/audit/log", {
             method: "POST",
-            headers: { 
+            headers: {
               "Content-Type": "application/json",
               ...(token ? { "Authorization": `Bearer ${token}` } : {})
             },
@@ -484,12 +528,15 @@ export function Settings() {
               operatorUid: profile?.uid || "sys",
               action: "ROLE_CHANGE",
               targetId: userId,
-              details: { previousRole, newRole }
+              details: { previousRole, newRole, branchId }
             })
           }).catch(err => console.error("Failed to post audit log:", err));
         });
 
-        alert(`Rol actualizado correctamente a ${newRole} mediante Cloud Function`);
+        const branchLabel = branchId === CROSS_BRANCH_SENTINEL
+          ? "(cross-branch)"
+          : `(sucursal: ${branchesList.find(b => b.id === branchId)?.name || branchId})`;
+        alert(`Rol actualizado correctamente a ${newRole} ${branchLabel} mediante Cloud Function`);
       } else {
         alert("Error: " + (res.data?.message || "No se pudo actualizar el rol"));
       }
@@ -523,7 +570,7 @@ export function Settings() {
       </header>
 
       {/* Sub-tabs Navigation */}
-      <div className={cn("flex gap-x-1 p-1 bg-slate-100 rounded-2xl", profile?.role === "admin" ? "max-w-xl" : "max-w-md")}>
+      <div className={cn("flex gap-x-1 p-1 bg-slate-100 rounded-2xl flex-wrap", profile?.role === "admin" || profile?.role === "owner" ? "max-w-2xl" : "max-w-md")}>
         <button
           type="button"
           onClick={() => {
@@ -554,22 +601,41 @@ export function Settings() {
           <Users size={16} />
           <span>Gestión de Usuarios</span>
         </button>
-        {profile?.role === "admin" && (
-          <button
-            type="button"
-            onClick={() => setActiveTab("audit")}
-            className={cn(
-              "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-x-2 border-none cursor-pointer outline-none",
-              activeTab === "audit" 
-                ? "bg-white text-slate-800 shadow-sm" 
-                : "text-slate-500 hover:text-slate-800 bg-transparent"
-            )}
-          >
-            <ShieldCheck size={16} />
-            <span>Auditoría</span>
-          </button>
+        {(profile?.role === "admin" || profile?.role === "owner") && (
+          <>
+            <button
+              type="button"
+              onClick={() => setActiveTab("branches")}
+              className={cn(
+                "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-x-2 border-none cursor-pointer outline-none",
+                activeTab === "branches"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800 bg-transparent"
+              )}
+            >
+              <Building2 size={16} />
+              <span>Sucursales</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("audit")}
+              className={cn(
+                "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-x-2 border-none cursor-pointer outline-none",
+                activeTab === "audit"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800 bg-transparent"
+              )}
+            >
+              <ShieldCheck size={16} />
+              <span>Auditoría</span>
+            </button>
+          </>
         )}
       </div>
+
+      {activeTab === "branches" && (profile?.role === "admin" || profile?.role === "owner") && (
+        <BranchesManager />
+      )}
 
       {activeTab === "general" && (
         <form onSubmit={handleSave} className="space-y-8 pb-20">
@@ -1312,21 +1378,30 @@ export function Settings() {
                         <p className="text-[10px] text-slate-400 font-bold">{u.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-x-3">
-                      <select 
-                        className="bg-white border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-                        value={u.role || "seller"}
-                        onChange={(e) => updateUserRole(u.id, e.target.value)}
-                      >
-                        <option value="admin">Administrador</option>
-                        <option value="manager">Gerente / Encargado</option>
-                        <option value="seller">Vendedor / POS</option>
-                        <option value="logistics">Logística / Bodega</option>
-                      </select>
-                      <div className={cn(
-                        "size-2 rounded-full",
-                        u.role === "admin" ? "bg-indigo-600" : u.role === "manager" ? "bg-emerald-500" : u.role === "logistics" ? "bg-amber-500" : "bg-slate-300"
-                      )} title={u.role} />
+                    <div className="flex flex-col items-end gap-y-1">
+                      <div className="flex items-center gap-x-3">
+                        <select
+                          className="bg-white border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                          value={u.role || "seller"}
+                          onChange={(e) => initiateRoleChange(u.id, e.target.value)}
+                          aria-label={`Cambiar rol de ${u.email || u.id}`}
+                        >
+                          <option value="admin">Administrador</option>
+                          <option value="manager">Gerente / Encargado</option>
+                          <option value="seller">Vendedor / POS</option>
+                          <option value="logistics">Logística / Bodega</option>
+                          <option value="driver">Repartidor / Driver</option>
+                        </select>
+                        <div className={cn(
+                          "size-2 rounded-full",
+                          u.role === "admin" ? "bg-indigo-600" : u.role === "manager" ? "bg-emerald-500" : u.role === "logistics" ? "bg-amber-500" : u.role === "driver" ? "bg-sky-500" : "bg-slate-300"
+                        )} title={u.role} />
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-400 tracking-wider">
+                        {u.branchId === CROSS_BRANCH_SENTINEL
+                          ? "Todas las sucursales"
+                          : `Sucursal: ${branchesList.find(b => b.id === u.branchId)?.name || u.branchId || "—"}`}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -1545,6 +1620,75 @@ export function Settings() {
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Multi-branch (Tier 1.4): branch picker modal for role assignment.
+          Opens when admin/owner changes a user's role to a pinned role (manager/seller/driver).
+          Cross-branch roles (admin/owner/logistics) skip this and assign with branchId="*" directly. */}
+      {pendingRoleAssignment && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-label="Cerrar selección"
+            onClick={() => setPendingRoleAssignment(null)}
+            onKeyDown={(e) => { if (e.key === "Escape") setPendingRoleAssignment(null); }}
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+          />
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative z-10 p-7 space-y-5">
+            <div className="flex items-center gap-x-3 text-indigo-600">
+              <Building2 size={20} />
+              <h3 className="text-base font-black text-slate-800 tracking-tight">
+                Asignar sucursal
+              </h3>
+            </div>
+            <p className="text-xs font-medium text-slate-500">
+              El rol <span className="font-black text-slate-800">{pendingRoleAssignment.role}</span> está
+              pinned a una sucursal. Elegí dónde trabaja este usuario.
+            </p>
+            <div className="space-y-2">
+              <label htmlFor={fId("branch-picker")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">
+                Sucursal
+              </label>
+              <select
+                id={fId("branch-picker")}
+                className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
+                value={pendingRoleAssignment.branchId}
+                onChange={(e) => setPendingRoleAssignment(p => p ? { ...p, branchId: e.target.value } : null)}
+              >
+                {branchesList.filter(b => b.active).length === 0 && (
+                  <option value="default">Sucursal Principal (default)</option>
+                )}
+                {branchesList.filter(b => b.active).map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              {branchesList.filter(b => b.active).length === 0 && (
+                <p className="text-[9px] font-bold text-amber-600 ml-1">
+                  No hay sucursales activas cargadas. Se asignará a la sucursal default.
+                </p>
+              )}
+            </div>
+            <div className="flex gap-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingRoleAssignment(null)}
+                disabled={isSaving}
+                className="flex-1 py-3 bg-slate-100 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-slate-200 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmPendingRoleAssignment}
+                disabled={isSaving}
+                className="flex-[2] py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+              >
+                {isSaving ? "Asignando…" : "Confirmar asignación"}
+              </button>
             </div>
           </div>
         </div>
