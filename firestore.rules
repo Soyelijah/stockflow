@@ -202,11 +202,13 @@ service cloud.firestore {
     }
 
     match /fcm_tokens/{tokenId} {
+      // tokenId is the FCM registration token string (not the user's uid).
+      // Doc shape: { token: string, userId: uid, role: "driver"|"customer"|"admin", updatedAt }
       allow get, list: if isAdmin() || isLogistics();
-      // R4 fix: require authentication (was `if true` — public hijack vector).
-      // Stricter scope (tokenId == auth.uid) deferred to next sprint once structure is verified.
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin() || isLogistics();
+      // Hardened: writer must claim their own userId (prevents hijacking another user's push channel).
+      allow create, update: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Owner can delete their own tokens (logout/device cleanup); staff can delete any.
+      allow delete: if isAdmin() || isLogistics() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /client_notifications/{docId} {
