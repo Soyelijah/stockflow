@@ -20,7 +20,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { Building2, Plus, Edit2, X, Save, MapPin, Phone, Power, AlertCircle } from "lucide-react";
+import { Building2, Plus, Edit2, X, Save, MapPin, Phone, Power, AlertCircle, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
 import { Branch, DEFAULT_BRANCH_ID } from "../../lib/branches";
@@ -32,6 +32,7 @@ interface NewBranchForm {
   name: string;
   address: string;
   phone: string;
+  businessHours: string;
   lat: string;
   lng: string;
 }
@@ -41,6 +42,7 @@ const EMPTY_FORM: NewBranchForm = {
   name: "",
   address: "",
   phone: "",
+  businessHours: "",
   lat: "",
   lng: "",
 };
@@ -100,6 +102,7 @@ export function BranchesManager() {
       name: b.name || "",
       address: b.address || "",
       phone: b.phone || "",
+      businessHours: b.businessHours || "",
       lat: b.geolocation?.lat?.toString() || "",
       lng: b.geolocation?.lng?.toString() || "",
     });
@@ -147,6 +150,7 @@ export function BranchesManager() {
           name,
           address: form.address.trim(),
           phone: form.phone.trim(),
+          businessHours: form.businessHours.trim().replace(/\s+/g, ' '),
           geolocation,
           updatedAt: serverTimestamp(),
         });
@@ -162,6 +166,7 @@ export function BranchesManager() {
           name,
           address: form.address.trim(),
           phone: form.phone.trim(),
+          businessHours: form.businessHours.trim().replace(/\s+/g, ' '),
           geolocation,
           active: true,
           managerUserId: null,
@@ -287,6 +292,12 @@ export function BranchesManager() {
                     <span className="flex items-center gap-x-1">
                       <Phone size={9} />
                       {b.phone}
+                    </span>
+                  )}
+                  {b.businessHours && (
+                    <span className="flex items-center gap-x-1" aria-label={`Horario: ${b.businessHours}`}>
+                      <Clock size={9} />
+                      {b.businessHours}
                     </span>
                   )}
                 </div>
@@ -432,6 +443,21 @@ export function BranchesManager() {
                     className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor={fId("businessHours")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">
+                    Horario de Atención
+                  </label>
+                  <input
+                    id={fId("businessHours")}
+                    type="text"
+                    maxLength={200}
+                    placeholder="Ej. Lun-Vie 09:00 - 18:00"
+                    className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
+                    value={form.businessHours}
+                    onChange={(e) => setForm({ ...form, businessHours: e.target.value })}
                   />
                 </div>
 

@@ -13,6 +13,7 @@ export interface Branch {
   name: string;
   address?: string;
   phone?: string;
+  businessHours?: string;
   geolocation?: { lat: number; lng: number } | null;
   active: boolean;
   managerUserId?: string | null;
