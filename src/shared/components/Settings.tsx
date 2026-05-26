@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { 
   Building2, 
   Mail, 
@@ -32,6 +32,8 @@ import { getPushConfig, savePushConfig } from "../../lib/idbNotifications";
 import { useAuth } from "../../contexts/AuthContext";
 
 export function Settings() {
+  const fid = useId();
+  const fId = (s: string) => `${fid}-${s}`;
   const { profile, user } = useAuth();
   const [activeTab, setActiveTab] = useState<"general" | "users" | "audit">("general");
   const [isSaving, setIsSaving] = useState(false);
@@ -584,11 +586,12 @@ export function Settings() {
           
           <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Comercial</label>
+              <label htmlFor={fId("businessName")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Comercial</label>
               <div className="relative">
                 <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input 
-                  type="text" 
+                <input
+                  id={fId("businessName")}
+                  type="text"
                   className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                   value={settings.businessName}
                   onChange={e => setSettings({...settings, businessName: e.target.value})}
@@ -597,11 +600,12 @@ export function Settings() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo de Contacto</label>
+              <label htmlFor={fId("email")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo de Contacto</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input 
-                  type="email" 
+                <input
+                  id={fId("email")}
+                  type="email"
                   className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                   value={settings.email}
                   onChange={e => setSettings({...settings, email: e.target.value})}
@@ -610,11 +614,12 @@ export function Settings() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
+              <label htmlFor={fId("phone")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
               <div className="relative">
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input 
-                  type="tel" 
+                <input
+                  id={fId("phone")}
+                  type="tel"
                   placeholder="+56 9 XXXX XXXX"
                   className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                   value={settings.phone}
@@ -624,11 +629,12 @@ export function Settings() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dirección Física</label>
+              <label htmlFor={fId("address")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dirección Física</label>
               <div className="relative">
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input 
-                  type="text" 
+                <input
+                  id={fId("address")}
+                  type="text"
                   className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                   value={settings.address}
                   onChange={e => setSettings({...settings, address: e.target.value})}
@@ -654,8 +660,9 @@ export function Settings() {
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Impresora</label>
-                <select 
+                <label htmlFor={fId("printerType")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Impresora</label>
+                <select
+                  id={fId("printerType")}
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold"
                   value={settings.printerType}
                   onChange={e => setSettings({...settings, printerType: e.target.value as any})}
@@ -667,8 +674,9 @@ export function Settings() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interfaz de Conexión</label>
-                <select 
+                <label htmlFor={fId("printerInterface")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interfaz de Conexión</label>
+                <select
+                  id={fId("printerInterface")}
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold"
                   value={settings.printerInterface}
                   onChange={e => setSettings({...settings, printerInterface: e.target.value as any})}

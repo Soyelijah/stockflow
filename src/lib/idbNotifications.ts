@@ -1,3 +1,5 @@
+import { STORAGE_KEYS, getStorageJSON, setStorageJSON } from "./storage";
+
 const NOTIFICATION_DB_NAME = "Notification_Settings_DB";
 const NOTIFICATION_DB_VERSION = 1;
 const NOTIFICATION_STORE_NAME = "push_configs";
@@ -60,12 +62,7 @@ export async function getPushConfig(): Promise<PushNotificationConfig> {
     });
   } catch (err) {
     console.warn("⚠️ IndexedDB error in getPushConfig, using defaults:", err);
-    try {
-      const cached = localStorage.getItem("push_notification_config");
-      return cached ? JSON.parse(cached) : defaultConfig;
-    } catch {
-      return defaultConfig;
-    }
+    return getStorageJSON<PushNotificationConfig>(STORAGE_KEYS.pushNotificationConfig, defaultConfig);
   }
 }
 
@@ -85,7 +82,7 @@ export async function savePushConfig(config: Partial<PushNotificationConfig>): P
       const store = transaction.objectStore(NOTIFICATION_STORE_NAME);
       const request = store.put(updated);
       request.onsuccess = () => {
-        localStorage.setItem("push_notification_config", JSON.stringify(updated));
+        setStorageJSON(STORAGE_KEYS.pushNotificationConfig, updated);
         resolve(updated);
       };
       request.onerror = () => {
@@ -94,11 +91,7 @@ export async function savePushConfig(config: Partial<PushNotificationConfig>): P
     });
   } catch (err) {
     console.warn("⚠️ IndexedDB error in savePushConfig, falling back to localStorage:", err);
-    try {
-      localStorage.setItem("push_notification_config", JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
+    setStorageJSON(STORAGE_KEYS.pushNotificationConfig, updated);
     return updated;
   }
 }

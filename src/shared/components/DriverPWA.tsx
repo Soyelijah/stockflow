@@ -303,7 +303,7 @@ export function DriverPWA() {
 
       {/* Floating alert/success notification */}
       {successMessage && (
-        <div className="fixed top-20 left-4 right-4 z-50 bg-emerald-500 text-white p-4 rounded-2xl shadow-2xl font-black text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 animate-bounce">
+        <div className="fixed top-20 left-4 right-4 z-50 bg-emerald-500 text-white p-4 rounded-2xl shadow-2xl font-black text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 animate-soft-bounce">
           <CheckCircle size={16} />
           <span>{successMessage}</span>
         </div>

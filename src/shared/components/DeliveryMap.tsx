@@ -1123,7 +1123,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 <AdvancedMarker position={simulatedVehiclePos}>
                   <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-[85%]">
                     <span className="absolute inline-flex size-8 rounded-full bg-indigo-500 opacity-40 animate-ping" />
-                    <div className="size-9 bg-slate-950 border-2 border-white rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-bounce">
+                    <div className="size-9 bg-slate-950 border-2 border-white rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-soft-bounce">
                       🚚
                     </div>
                   </div>
@@ -1137,7 +1137,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                     <AdvancedMarker key={`realtime_truck_${s.id}`} position={{ lat: s.currentLat, lng: s.currentLng }}>
                       <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-[85%]">
                         <span className="absolute inline-flex size-8 rounded-full bg-emerald-500 opacity-40 animate-ping" />
-                        <div className="size-9 bg-slate-950 border-2 border-emerald-400 rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-bounce" title={`Pedido #${s.orderId} en camino`}>
+                        <div className="size-9 bg-slate-950 border-2 border-emerald-400 rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-soft-bounce" title={`Pedido #${s.orderId} en camino`}>
                           🚚
                         </div>
                       </div>

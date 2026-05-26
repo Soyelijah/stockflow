@@ -2250,7 +2250,7 @@ export function MobilePOS() {
                           animate={{ scale: 1, opacity: 1 }}
                           className="size-16 bg-emerald-500/15 border border-emerald-500 rounded-full flex items-center justify-center text-emerald-400"
                         >
-                          <CheckCircle2 size={36} className="animate-bounce" />
+                          <CheckCircle2 size={36} className="animate-soft-bounce" />
                         </motion.div>
                       )}
                     </div>
@@ -2322,7 +2322,7 @@ export function MobilePOS() {
                           animate={{ scale: 1, opacity: 1 }}
                           className="size-16 bg-emerald-500/15 border border-emerald-500 rounded-full flex items-center justify-center text-emerald-400"
                         >
-                          <CheckCircle2 size={36} className="animate-bounce" />
+                          <CheckCircle2 size={36} className="animate-soft-bounce" />
                         </motion.div>
                       )}
                     </div>

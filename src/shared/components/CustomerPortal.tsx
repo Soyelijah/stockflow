@@ -1506,7 +1506,7 @@ export function CustomerPortal() {
             className="fixed top-6 left-4 right-4 z-[200] max-w-sm mx-auto bg-slate-900/90 backdrop-blur-md border border-slate-800 text-white rounded-3xl p-4.5 shadow-2xl flex items-start gap-x-3.5"
           >
             <div className="w-9.5 h-9.5 bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 rounded-xl flex items-center justify-center shrink-0">
-              <Bell size={18} className="animate-bounce" />
+              <Bell size={18} className="animate-soft-bounce" />
             </div>
             <div className="flex-1 text-left">
               <p className="text-[9px] font-black text-[#10b981] uppercase tracking-widest">{fcmToast.title}</p>
@@ -2171,7 +2171,7 @@ export function CustomerPortal() {
                 {cart.length > 0 && (
                   <button type="button" 
                     onClick={() => setShowCart(true)}
-                    className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[10px] font-black animate-bounce uppercase tracking-wider"
+                    className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[10px] font-black animate-soft-bounce uppercase tracking-wider"
                   >
                     {cart.reduce((a, b) => a + b.quantity, 0)} Items
                   </button>
@@ -2975,7 +2975,7 @@ export function CustomerPortal() {
                   <Wallet size={13} />
                   <span>Mis Vales</span>
                   {redemptions.filter(r => r.status === "pending").length > 0 && (
-                    <span className="absolute -top-1 -right-1 size-5 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white animate-bounce">
+                    <span className="absolute -top-1 -right-1 size-5 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white animate-soft-bounce">
                       {redemptions.filter(r => r.status === "pending").length}
                     </span>
                   )}
@@ -3291,7 +3291,7 @@ export function CustomerPortal() {
                             className={cn(
                               "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-all",
                               canClaim 
-                                ? "bg-slate-900 hover:bg-slate-850 text-white shadow-xl active:scale-95 cursor-pointer animate-bounce" 
+                                ? "bg-slate-900 hover:bg-slate-850 text-white shadow-xl active:scale-95 cursor-pointer animate-soft-bounce" 
                                 : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
                             )}
                           >
@@ -3627,7 +3627,7 @@ export function CustomerPortal() {
             >
               <div className="relative mb-8">
                 <div className="size-20 bg-indigo-50 rounded-[2.5rem] flex items-center justify-center text-indigo-600">
-                  <ShoppingBag size={32} className="animate-bounce" />
+                  <ShoppingBag size={32} className="animate-soft-bounce" />
                 </div>
                 <div className="absolute inset-0 rounded-[2.5rem] border-4 border-indigo-600 border-t-transparent animate-spin" />
               </div>

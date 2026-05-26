@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   posShiftData: "pos_shift_data",
   posModeOffline: "pos_mode_offline",
   posOfflineQueue: "pos_offline_queue",
+  pushNotificationConfig: "push_notification_config",
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

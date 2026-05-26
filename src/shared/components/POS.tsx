@@ -533,10 +533,10 @@ export function POS() {
       timestamp: order.timestamp,
       items: order.items,
       total: order.total,
-      paymentMethod: order.paymentMethod || Object.entries(order.payments || {})
-        .filter(([_, val]) => (val as number) > 0)
-        .map(([key, _]) => key)
-        .join(", ") || 'Efectivo',
+      paymentMethod: order.paymentMethod || Object.entries(order.payments || {}).reduce<string[]>((acc, [key, val]) => {
+        if ((val as number) > 0) acc.push(key);
+        return acc;
+      }, []).join(", ") || 'Efectivo',
       customerName: order.customer?.name,
       businessName: settings.businessName,
       address: settings.address,

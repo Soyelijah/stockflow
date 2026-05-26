@@ -11,6 +11,18 @@
   }
 }
 
+/* Subtle "soft bounce" — ease-out-expo with small Y movement.
+   Replaces default animate-bounce which feels dated and tacky for notification
+   chips, badges, and decorative icons. */
+@keyframes soft-bounce {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+.animate-soft-bounce {
+  animation: soft-bounce 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

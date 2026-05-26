@@ -1,3 +1,5 @@
+import { STORAGE_KEYS, getStorageJSON, setStorageJSON } from "./storage";
+
 const DB_NAME = "POS_Offline_DB";
 const DB_VERSION = 1;
 const STORE_NAME = "offline_sales";
@@ -40,12 +42,7 @@ export async function getOfflineSales(): Promise<any[]> {
     });
   } catch (err) {
     console.warn("⚠️ IndexedDB error in getOfflineSales, falling back to localStorage:", err);
-    try {
-      const cached = localStorage.getItem("pos_offline_queue");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
+    return getStorageJSON<any[]>(STORAGE_KEYS.posOfflineQueue, []);
   }
 }
 
@@ -84,11 +81,7 @@ export async function saveAllOfflineSales(sales: any[]): Promise<void> {
     });
   } catch (err) {
     console.warn("⚠️ IndexedDB error in saveAllOfflineSales, falling back to localStorage:", err);
-    try {
-      localStorage.setItem("pos_offline_queue", JSON.stringify(sales));
-    } catch (e) {
-      console.error(e);
-    }
+    setStorageJSON(STORAGE_KEYS.posOfflineQueue, sales);
   }
 }
 
@@ -104,14 +97,9 @@ export async function addOfflineSale(sale: any): Promise<void> {
     });
   } catch (err) {
     console.warn("⚠️ IndexedDB error in addOfflineSale, falling back to localStorage:", err);
-    try {
-      const cached = localStorage.getItem("pos_offline_queue");
-      const queue = cached ? JSON.parse(cached) : [];
-      queue.push(sale);
-      localStorage.setItem("pos_offline_queue", JSON.stringify(queue));
-    } catch (e) {
-      console.error(e);
-    }
+    const queue = getStorageJSON<any[]>(STORAGE_KEYS.posOfflineQueue, []);
+    queue.push(sale);
+    setStorageJSON(STORAGE_KEYS.posOfflineQueue, queue);
   }
 }
 
@@ -127,13 +115,11 @@ export async function deleteOfflineSale(orderId: string): Promise<void> {
     });
   } catch (err) {
     console.warn("⚠️ IndexedDB error in deleteOfflineSale, falling back to localStorage:", err);
-    try {
-      const cached = localStorage.getItem("pos_offline_queue");
-      const queue = cached ? JSON.parse(cached) : [];
-      const filtered = queue.filter((item: any) => item.orderId !== orderId);
-      localStorage.setItem("pos_offline_queue", JSON.stringify(filtered));
-    } catch (e) {
-      console.error(e);
+    const queue = getStorageJSON<any[]>(STORAGE_KEYS.posOfflineQueue, []);
+    const filtered: any[] = [];
+    for (const item of queue) {
+      if (item.orderId !== orderId) filtered.push(item);
     }
+    setStorageJSON(STORAGE_KEYS.posOfflineQueue, filtered);
   }
 }

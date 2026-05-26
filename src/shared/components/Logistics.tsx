@@ -1384,7 +1384,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               <div className="bg-rose-500/15 border border-rose-500 px-3 py-1.5 rounded-2xl text-right shrink-0">
                 <p className="text-[9px] font-extrabold uppercase text-rose-300">Quiebres críticos</p>
                 <div className="flex items-center gap-1.5 justify-end">
-                  <AlertTriangle size={14} className="text-rose-500 animate-bounce" />
+                  <AlertTriangle size={14} className="text-rose-500 animate-soft-bounce" />
                   <span className="text-lg font-black text-rose-400">{products.filter(p => (p.stock || 0) <= (p.minThreshold || 5)).length} SKU bajo mínimo</span>
                 </div>
               </div>
@@ -1404,8 +1404,10 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <p className="text-[11px] text-slate-400">Todos los productos se encuentran sobre el umbral de seguridad.</p>
                   </div>
                 ) : (
-                  products
-                    .filter(p => (p.stock || 0) <= (p.minThreshold || 5))
+                  products.reduce<typeof products>((acc, p) => {
+                    if ((p.stock || 0) <= (p.minThreshold || 5)) acc.push(p);
+                    return acc;
+                  }, [])
                     .map((p) => {
                       const supplierName = suppliers.find(s => s.id === p.supplierId)?.name || "Proveedor Independiente";
                       return (

@@ -40,7 +40,6 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
   const { profile } = useAuth();
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [isOpening, setIsOpening] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [initialAmount, setInitialAmount] = useState("");
   const [isClosing, setIsClosing] = useState(false);
@@ -150,7 +149,6 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
         status: "open",
         userName: profile?.name
       });
-      setIsOpening(false);
       setInitialAmount("");
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, "cashRegisters");

@@ -163,10 +163,10 @@ export function Transactions() {
         price: (item.amount || 0) / (item.quantity || 1)
       })),
       total: orderItems.reduce((acc, i) => acc + (i.amount || 0), 0),
-      paymentMethod: tx.paymentBreakdown ? Object.entries(tx.paymentBreakdown)
-        .filter(([_, val]) => (val as number) > 0)
-        .map(([key, _]) => key)
-        .join(", ") : "Manual",
+      paymentMethod: tx.paymentBreakdown ? Object.entries(tx.paymentBreakdown).reduce<string[]>((acc, [key, val]) => {
+        if ((val as number) > 0) acc.push(key);
+        return acc;
+      }, []).join(", ") : "Manual",
       customerName: tx.customerName,
       businessName: settings.businessName,
       address: settings.address,

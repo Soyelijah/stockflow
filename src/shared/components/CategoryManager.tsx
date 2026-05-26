@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { 
   collection, 
   onSnapshot, 
@@ -35,6 +35,8 @@ const COLORS = [
 ];
 
 export function CategoryManager({ onClose }: { onClose: () => void }) {
+  const fid = useId();
+  const fId = (s: string) => `${fid}-${s}`;
   const [categories, setCategories] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -170,8 +172,9 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
             <form onSubmit={handleSubmit} className="bg-slate-50 p-8 rounded-[2rem] space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre de Categoría</label>
-                  <input 
+                  <label htmlFor={fId("name")} className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre de Categoría</label>
+                  <input
+                    id={fId("name")}
                     required
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
                     value={formData.name}
@@ -180,12 +183,15 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Color Distintivo</label>
-                  <div className="flex flex-wrap gap-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Color Distintivo</span>
+                  <div role="radiogroup" aria-label="Color de la categoría" className="flex flex-wrap gap-3">
                     {COLORS.map(c => (
                       <button
                         key={c.value}
                         type="button"
+                        role="radio"
+                        aria-checked={formData.color === c.value}
+                        aria-label={`Color ${c.name}`}
                         onClick={() => setFormData({...formData, color: c.value})}
                         className={cn(
                           "size-10 rounded-full transition-all border-4",
