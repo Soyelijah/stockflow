@@ -422,7 +422,8 @@ export function CustomerPortal() {
           productId: tx.productId,
           productName: tx.productName || "Producto",
           quantity: tx.quantity || 1,
-          amount: tx.amount || 0
+          amount: tx.amount || 0,
+          branchId: tx.branchId || null
         });
       }
     });
@@ -4041,6 +4042,20 @@ export function CustomerPortal() {
                             <p className="text-[10px] font-semibold text-slate-400">
                               {qty} unidad{qty > 1 ? "s" : ""} x {formatCurrency(unitPrice)}
                             </p>
+                            {(() => {
+                              const sourceBranch = item.branchId && item.branchId !== DEFAULT_BRANCH_ID
+                                ? activeBranches.find((b: any) => b.id === item.branchId)
+                                : null;
+                              return sourceBranch && (
+                                <p
+                                  className="text-xs text-zinc-400 mt-1 flex items-center gap-x-1"
+                                  aria-label={`Despachado desde sucursal ${sourceBranch.name}`}
+                                >
+                                  <Truck size={12} aria-hidden="true" />
+                                  <span>Despachado desde {sourceBranch.name}</span>
+                                </p>
+                              );
+                            })()}
                           </div>
                           <p className="font-black text-slate-900">{formatCurrency(item.amount)}</p>
                         </div>
