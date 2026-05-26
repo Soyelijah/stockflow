@@ -1,6 +1,10 @@
-export type UserRole = "admin" | "manager" | "seller" | "logistics" | "driver" | "owner";
+export type UserRole = "admin" | "manager" | "seller" | "logistics" | "driver" | "owner" | "customer";
 
 export const ROLES_WHITELIST: UserRole[] = ["admin", "manager", "seller", "logistics", "driver", "owner"];
+
+const STAFF_ROLES: ReadonlySet<string> = new Set<string>([
+  "owner", "admin", "manager", "seller", "logistics", "driver"
+]);
 
 export function isOwner(role: string | null | undefined): boolean {
   return role === "owner";
@@ -28,4 +32,12 @@ export function isLogistics(role: string | null | undefined): boolean {
 
 export function isDriver(role: string | null | undefined): boolean {
   return role === "driver";
+}
+
+export function isCustomer(role: string | null | undefined): boolean {
+  return role === "customer";
+}
+
+export function isStaff(role: string | null | undefined): boolean {
+  return typeof role === "string" && STAFF_ROLES.has(role);
 }
