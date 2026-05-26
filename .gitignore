@@ -22,3 +22,6 @@ functions/node_modules/
 .claude/worktrees/
 .agents/
 .qwen/
+
+# react-doctor output
+doctor-report.txt
