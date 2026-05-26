@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from "react";
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  orderBy, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
   limit,
   getDocs,
   doc,
   updateDoc,
   addDoc,
+  setDoc,
   serverTimestamp
 } from "firebase/firestore";
-import { db } from "../../lib/firebase";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut,
+  type User as FirebaseUser
+} from "firebase/auth";
+import { auth, db } from "../../lib/firebase";
 import { requestFCMToken, listenToForegroundMessages } from "../../lib/fcmClient";
 import { 
   User, 
@@ -53,8 +62,14 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../../lib/utils";
+// Tier 5.A4.2: customer auth session no longer uses localStorage; Firebase Auth handles it.
+// The storage helpers below remain for the pending-order cart/payments/coupon flow that
+// survives the customer's hop to Flow.cl checkout, and for dismissedClaims UI state.
 import { STORAGE_KEYS, getStorageJSON, setStorageJSON, removeStorage } from "../../lib/storage";
-import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon, seedCustomersIfEmpty } from "../../lib/coupons";
+// Tier 5.A4.2: seedCustomersIfEmpty removed from imports — its writes (with non-uid doc IDs)
+// no longer satisfy the customers create rule, and customer creation now happens through
+// Firebase Auth registration in handleRegister.
+import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon } from "../../lib/coupons";
 import { PHYSICAL_REWARDS_CATALOGUE, PhysicalReward } from "../../lib/rewards";
 import { Branch, DEFAULT_BRANCH_ID } from "../../lib/branches";
 import { getStockForBranch } from "../../lib/productStock";
@@ -152,13 +167,21 @@ export function CustomerPortal() {
     }
   };
 
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
+  // Tier 5.A4.2: customer auth migrated from localStorage+plaintext to Firebase Auth.
+  // `authUser` is the Firebase Auth user (driver of identity); `customer` is the
+  // /customers/{uid} profile doc (loyalty data, contact info, etc.) loaded via
+  // an onSnapshot listener below.
+  const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [customer, setCustomer] = useState<any>(null);
+
+  // Form state for the login/register/recover screens.
+  const [mode, setMode] = useState<"login" | "register" | "recover">("login");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [step, setStep] = useState<"id" | "password" | "setup">("id");
-  const [tempCustomer, setTempCustomer] = useState<any>(null);
-  const [customer, setCustomer] = useState<any>(() => getStorageJSON<any>(STORAGE_KEYS.customerSession, null));
+  const [success, setSuccess] = useState<string>("");
 
   // Multi-branch (Tier 1.4b): /branches snapshot for customer-side order routing.
   // Customers can see all active branches' metadata (catalog is global within the retailer).
@@ -277,8 +300,10 @@ export function CustomerPortal() {
   const [secureToken, setSecureToken] = useState("");
   const [securePin, setSecurePin] = useState("000000");
   const [timeLeft, setTimeLeft] = useState(30);
-  const [availableCustomers, setAvailableCustomers] = useState<any[]>([]);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  // Tier 5.A4.2: removed legacy `availableCustomers` + `showDiagnostics` —
+  // the diagnostics panel that listed all customers from an unauthenticated
+  // portal was both a PII leak and a violation of the new rules
+  // (allow list: if isStaff()).
 
   // States for Claims Support (Paso 3.1)
   const [claimsList, setClaimsList] = useState<any[]>([]);
@@ -442,24 +467,6 @@ export function CustomerPortal() {
   }, [transactions]);
 
   // Seed default clients on mount to ensure test credentials always exist
-  useEffect(() => {
-    seedCustomersIfEmpty();
-  }, []);
-
-  // Sync real-time available customers list for login suggestions
-  useEffect(() => {
-    if (!customer) {
-      const q = query(collection(db, "customers"), orderBy("name"));
-      const unsub = onSnapshot(q, (snapshot) => {
-        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setAvailableCustomers(docs);
-      }, (err) => {
-        console.error("Firestore error loading active customers in portal suggestion:", err);
-      });
-      return unsub;
-    }
-  }, [customer]);
-
   // Sync real-time active coupons from Firestore
   useEffect(() => {
     const q = query(collection(db, "coupons"));
@@ -677,8 +684,9 @@ export function CustomerPortal() {
           photoURL: base64String,
           photoVerified: true
         };
+        // Tier 5.A4.2: optimistic UI update; the /customers/{uid} onSnapshot
+        // listener will reconfirm on Firestore roundtrip. No localStorage write.
         setCustomer(updated);
-        setStorageJSON(STORAGE_KEYS.customerSession, updated);
         setAlertConfig({
           isOpen: true,
           type: "success",
@@ -1078,154 +1086,171 @@ export function CustomerPortal() {
     }
   };
 
-  const checkIdentifier = async (e: React.FormEvent) => {
+  // --- Tier 5.A4.2: Firebase Auth handlers ---
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    
+    setSuccess("");
     try {
-      const q = query(
-        collection(db, "customers"),
-        where("email", "==", identifier.trim().toLowerCase())
-      );
-      const snapshot = await getDocs(q);
-      
-      let foundCustomer: any = snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-      
-      const normalizedInput = identifier.replace(/[^0-9kK]/g, "").toUpperCase();
-
-      if (!foundCustomer) {
-        const possibleTaxIds = [
-          identifier.trim().toUpperCase(),
-          formatRUT(identifier.trim()),
-          normalizedInput
-        ];
-        if (normalizedInput.length > 0) {
-          const hyphenOnly = normalizedInput.slice(0, -1) + "-" + normalizedInput.slice(-1);
-          possibleTaxIds.push(hyphenOnly);
-        }
-
-        // Search both taxId and rut fields for all possible formats
-        for (const taxIdVal of Array.from(new Set(possibleTaxIds))) {
-          if (!taxIdVal) continue;
-          
-          const qTax = query(collection(db, "customers"), where("taxId", "==", taxIdVal));
-          const snapTax = await getDocs(qTax);
-          if (!snapTax.empty) {
-            foundCustomer = { id: snapTax.docs[0].id, ...snapTax.docs[0].data() };
-            break;
-          }
-
-          const qRut = query(collection(db, "customers"), where("rut", "==", taxIdVal));
-          const snapRut = await getDocs(qRut);
-          if (!snapRut.empty) {
-            foundCustomer = { id: snapRut.docs[0].id, ...snapRut.docs[0].data() };
-            break;
-          }
-        }
-      }
-
-      // Bulletproof fallback: Fetch all registered customers and match client-side by normalized RUT/Email
-      if (!foundCustomer) {
-        const allSnapshot = await getDocs(collection(db, "customers"));
-        const inputEmail = identifier.trim().toLowerCase();
-        
-        for (const doc of allSnapshot.docs) {
-          const data = doc.data();
-          
-          // Match by email
-          if (data.email && data.email.trim().toLowerCase() === inputEmail) {
-            foundCustomer = { id: doc.id, ...data };
-            break;
-          }
-          
-          // Match by normalized taxId/RUT (ignoring dots, dashes, spaces, casing)
-          const dbTaxId = data.taxId || data.rut;
-          if (dbTaxId) {
-            const normalizedDbTaxId = dbTaxId.toString().replace(/[^0-9kK]/g, "").toUpperCase();
-            if (normalizedDbTaxId === normalizedInput && normalizedInput.length > 0) {
-              foundCustomer = { id: doc.id, ...data };
-              break;
-            }
-          }
-        }
-      }
-
-      if (!foundCustomer) {
-        setError("No encontramos un perfil con ese identificador.");
-        setLoading(false);
-        return;
-      }
-
-      setTempCustomer(foundCustomer);
-      if (!foundCustomer.password) {
-        setStep("setup");
-        if (foundCustomer.email) {
-          setEmail(foundCustomer.email);
-        } else if (identifier.includes("@")) {
-          setEmail(identifier.trim().toLowerCase());
-        }
+      const normalizedEmail = email.trim().toLowerCase();
+      await signInWithEmailAndPassword(auth, normalizedEmail, password);
+      // onAuthStateChanged listener picks up the user → loads /customers/{uid}.
+    } catch (err: any) {
+      const code = err.code;
+      if (code === "auth/invalid-credential" || code === "auth/user-not-found" || code === "auth/wrong-password") {
+        setError("Email o contraseña incorrectos.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Demasiados intentos. Espera unos minutos.");
+      } else if (code === "auth/network-request-failed") {
+        setError("Sin conexión a internet.");
       } else {
-        setStep("password");
+        setError("Error al iniciar sesión. Intenta nuevamente.");
       }
-    } catch (err) {
-      console.error("Login Error:", err);
-      setError("Error al conectar con el servidor.");
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyPassword = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (tempCustomer.password === password) {
-      const sessionData = { ...tempCustomer };
-      setCustomer(sessionData);
-      setStorageJSON(STORAGE_KEYS.customerSession, sessionData);
-      setStep("id"); // reset for next time
-    } else {
-      setError("Contraseña incorrecta.");
+    setError("");
+    setSuccess("");
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres.");
+      return;
     }
-  };
-
-  const setupPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password.length < 4) {
-      setError("La contraseña debe tener al menos 4 caracteres.");
+    if (!name.trim()) {
+      setError("Ingresa tu nombre.");
       return;
     }
     setLoading(true);
     try {
-      const type = (e.currentTarget as any).elements.customerType.value;
-      const emailValue = (e.currentTarget as any).elements.customerEmail?.value || email;
-      
-      if (!emailValue || !emailValue.includes("@")) {
-        setError("Por favor ingresa un correo electrónico válido para procesar tus pagos.");
-        setLoading(false);
-        return;
+      const normalizedEmail = email.trim().toLowerCase();
+      const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+
+      // Step 2: install the custom claim {role: "customer"} via our narrow endpoint.
+      // We do this BEFORE writing /customers/{uid} so the create rule's request.auth.token.role
+      // check passes (if/when we add that constraint in the future).
+      const idToken = await cred.user.getIdToken();
+      const claimRes = await fetch("/api/customer/claim", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        }
+      });
+      if (!claimRes.ok) {
+        const errBody = await claimRes.json().catch(() => ({}));
+        throw new Error(errBody?.error || "No se pudo completar el registro de cliente.");
       }
 
-      await updateDoc(doc(db, "customers", tempCustomer.id), {
-        password: password,
-        email: emailValue.trim().toLowerCase(),
-        type: type,
-        updatedAt: serverTimestamp()
+      // Step 3: write the profile doc. Schema matches the firestore.rules create allowlist.
+      await setDoc(doc(db, "customers", cred.user.uid), {
+        uid: cred.user.uid,
+        email: normalizedEmail,
+        name: name.trim(),
+        phone: "",
+        rut: "",
+        address: "",
+        points: 0,
+        balance: 0,
+        createdAt: new Date().toISOString()
       });
-      const updated = { ...tempCustomer, password, type, email: emailValue.trim().toLowerCase() };
-      setCustomer(updated);
-      setStorageJSON(STORAGE_KEYS.customerSession, updated);
-      setStep("id");
-    } catch (err) {
-      setError("Error al guardar la contraseña.");
+
+      // Force refresh ID token so the new claim is visible immediately.
+      await cred.user.getIdToken(true);
+
+      setSuccess("¡Cuenta creada! Bienvenido a StockFlow.");
+      // onAuthStateChanged will pick up the user; the customer listener below loads the profile.
+    } catch (err: any) {
+      const code = err.code;
+      if (code === "auth/email-already-in-use") {
+        setError("Este email ya tiene cuenta. Inicia sesión o recupera tu contraseña.");
+      } else if (code === "auth/invalid-email") {
+        setError("Email con formato inválido.");
+      } else if (code === "auth/weak-password") {
+        setError("Contraseña muy débil (mínimo 6 caracteres).");
+      } else if (code === "auth/network-request-failed") {
+        setError("Sin conexión a internet.");
+      } else {
+        setError(err?.message || "Error al crear cuenta.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    setCustomer(null);
-    removeStorage(STORAGE_KEYS.customerSession);
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    if (!email.trim()) {
+      setError("Ingresa tu email para enviarte el correo de restablecimiento.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim().toLowerCase());
+      setSuccess("Te enviamos un correo para restablecer tu contraseña.");
+      setTimeout(() => setMode("login"), 4500);
+    } catch (err: any) {
+      const code = err.code;
+      if (code === "auth/user-not-found") {
+        // For privacy, do NOT confirm the email is registered. Show the same success.
+        setSuccess("Te enviamos un correo para restablecer tu contraseña.");
+        setTimeout(() => setMode("login"), 4500);
+      } else if (code === "auth/invalid-email") {
+        setError("Email con formato inválido.");
+      } else {
+        setError("No se pudo enviar el correo. Verifica tu conexión.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+    // setAuthUser and setCustomer get cleared via onAuthStateChanged.
+  };
+
+  // Tier 5.A4.2: subscribe to Firebase Auth state — single source of truth.
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setAuthUser(u);
+      setAuthLoading(false);
+      if (!u) {
+        setCustomer(null);
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Tier 5.A4.2: subscribe to the /customers/{uid} profile when authenticated.
+  // The doc is created by handleRegister; for migrated users it exists already
+  // under their Auth uid (the migration script wrote it). Real-time updates from
+  // FlowResult (points, segment, totalSpent) flow through this listener.
+  useEffect(() => {
+    if (!authUser?.uid) return;
+    const ref = doc(db, "customers", authUser.uid);
+    const unsub = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        setCustomer({ id: snap.id, ...snap.data() });
+      } else {
+        // Auth user exists but no profile doc — edge case (e.g. claim endpoint
+        // succeeded but setDoc failed). Show a soft error in the portal header
+        // instead of locking the user out.
+        setCustomer(null);
+      }
+    });
+    return unsub;
+  }, [authUser?.uid]);
 
   useEffect(() => {
     if (customer?.id) {
@@ -1235,33 +1260,11 @@ export function CustomerPortal() {
         orderBy("timestamp", "desc"),
         limit(10)
       );
-      
+
       const unsub = onSnapshot(q, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       });
-      
-      return unsub;
-    }
-  }, [customer?.id]);
 
-  // Sync current customer document in real-time
-  useEffect(() => {
-    if (customer?.id) {
-      const unsub = onSnapshot(doc(db, "customers", customer.id), (docSnap) => {
-        if (docSnap.exists()) {
-          const updated = { id: docSnap.id, ...docSnap.data() };
-          // Only update if something actually changed to avoid unnecessary renders
-          setCustomer((prev: any) => {
-            if (!prev) return updated;
-            const changed = JSON.stringify(prev) !== JSON.stringify(updated);
-            if (changed) {
-              setStorageJSON(STORAGE_KEYS.customerSession, updated);
-              return updated;
-            }
-            return prev;
-          });
-        }
-      });
       return unsub;
     }
   }, [customer?.id]);
@@ -1308,253 +1311,310 @@ export function CustomerPortal() {
     }
   }, [customer?.id]);
 
-  if (!customer) {
+  // Tier 5.A4.2: spinner while Firebase Auth is determining the initial state.
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center" aria-label="Cargando">
+        <div className="size-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  // Not signed in (or signed in but profile doc not yet loaded) → show
+  // Login / Register / Recover screens, mode-switched.
+  if (!authUser || !customer) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm"
         >
           <div className="text-center mb-10">
             <div className="size-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-indigo-200">
-              <Smartphone size={40} />
+              <Smartphone size={40} aria-hidden="true" />
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">StockFlow <span className="text-indigo-600">CLIENTES</span></h1>
-            <p className="text-slate-500 font-medium mt-2">Accede a tus beneficios con seguridad.</p>
+            <p className="text-slate-500 font-medium mt-2">
+              {mode === "login" && "Accede a tus beneficios."}
+              {mode === "register" && "Crea tu cuenta en segundos."}
+              {mode === "recover" && "Recupera el acceso a tu cuenta."}
+            </p>
           </div>
 
           <AnimatePresence mode="wait">
-            {step === "id" && (
-              <motion.form 
-                key="id-step"
+            {mode === "login" && (
+              <motion.form
+                key="login"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                onSubmit={checkIdentifier} 
+                onSubmit={handleLogin}
                 className="space-y-4"
+                aria-label="Formulario de inicio de sesión"
               >
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email o RUT</label>
-                  <input 
+                  <label htmlFor="customer-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                  <input
+                    id="customer-email"
                     autoFocus
-                    type="text" 
-                    placeholder="ej: cliente@email.com o 12.345.678-9"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="tu@correo.cl"
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
-                    value={identifier}
-                    onChange={e => {
-                      setIdentifier(e.target.value);
-                      setError("");
-                    }}
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                    aria-label="Correo electrónico"
                   />
                 </div>
-                
-                {error && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">{error}</p>}
 
-                <button 
-                  type="submit"
-                  disabled={loading || !identifier}
-                  className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all flex items-center justify-center gap-x-2 cursor-pointer"
-                >
-                  {loading ? <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Siguiente"}
-                </button>
-              </motion.form>
-            )}
-
-            {step === "password" && (
-              <motion.form 
-                key="pass-step"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                onSubmit={verifyPassword} 
-                className="space-y-4"
-              >
-                <div className="flex items-center gap-x-3 mb-6 bg-indigo-50 p-3 rounded-2xl border border-indigo-100">
-                  <div className="size-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-black">
-                    {tempCustomer.name.charAt(0)}
-                  </div>
-                  <p className="text-xs font-bold text-slate-600 truncate">{tempCustomer.name}</p>
-                </div>
-
-                <div className="space-y-1.5 relative">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ingresa tu Contraseña</label>
+                <div className="space-y-1.5">
+                  <label htmlFor="customer-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contraseña</label>
                   <div className="relative">
-                    <input 
-                      autoFocus
-                      type={showPassword ? "text" : "password"} 
+                    <input
+                      id="customer-password"
+                      required
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
                       placeholder="••••••••"
-                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
                       value={password}
-                      onChange={e => setPassword(e.target.value)}
+                      onChange={(e) => setPassword(e.target.value)}
+                      aria-label="Contraseña"
                     />
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                     </button>
                   </div>
                 </div>
 
-                {error && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">{error}</p>}
-
-                <div className="flex flex-col space-y-3">
-                  <button 
-                    type="submit"
-                    className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-100"
-                  >
-                    Ingresar
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => { setStep("id"); setPassword(""); setError(""); }}
-                    className="w-full h-14 bg-white text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-50 transition-all"
-                  >
-                    Cambiar Usuario
-                  </button>
-                </div>
-                
-                <div className="flex flex-col space-y-4 pt-4">
-                  <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    ¿Olvidaste tu contraseña?
+                {error && (
+                  <p role="alert" className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">
+                    {error}
                   </p>
-                  <button 
+                )}
+                {success && (
+                  <p role="status" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center px-4 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
+                    {success}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || !email || !password}
+                  className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                  aria-label="Iniciar sesión"
+                >
+                  {loading ? (
+                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
+                  ) : (
+                    "Iniciar sesión"
+                  )}
+                </button>
+
+                <div className="flex flex-col gap-y-2 pt-2">
+                  <button
                     type="button"
-                    onClick={() => setAlertConfig({
-                      isOpen: true,
-                      type: "info",
-                      title: "Recuperar Acceso",
-                      message: "Por seguridad, solicita el reinicio de tu clave directamente en caja de nuestra tienda física con tu RUT. El cajero verificará tu identidad y reseteará tu PIN."
-                    })}
-                    className="w-full h-12 bg-slate-100 text-slate-600 rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-slate-200 transition-all border border-slate-200"
+                    onClick={() => { setMode("register"); setError(""); setSuccess(""); setPassword(""); }}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest"
+                    aria-label="Crear cuenta nueva"
                   >
-                    Instrucciones de Recuperación
+                    ¿No tienes cuenta? Regístrate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMode("recover"); setError(""); setSuccess(""); setPassword(""); }}
+                    className="text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest"
+                    aria-label="Recuperar contraseña"
+                  >
+                    ¿Olvidaste tu contraseña?
                   </button>
                 </div>
               </motion.form>
             )}
 
-            {step === "setup" && (
-              <motion.form 
-                key="setup-step"
+            {mode === "register" && (
+              <motion.form
+                key="register"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                onSubmit={setupPassword} 
+                onSubmit={handleRegister}
                 className="space-y-4"
+                aria-label="Formulario de registro"
               >
-                <div className="bg-amber-50 p-6 rounded-[2rem] border border-amber-100 mb-6">
-                  <div className="flex items-center gap-x-2 text-amber-600 mb-2">
-                    <Lock size={16} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Primera vez aquí</span>
+                <div className="space-y-1.5">
+                  <label htmlFor="register-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tu nombre</label>
+                  <input
+                    id="register-name"
+                    autoFocus
+                    type="text"
+                    required
+                    autoComplete="name"
+                    maxLength={100}
+                    placeholder="Nombre completo"
+                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                    value={name}
+                    onChange={(e) => { setName(e.target.value); setError(""); }}
+                    aria-label="Nombre"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="register-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                  <input
+                    id="register-email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="tu@correo.cl"
+                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                    aria-label="Correo electrónico"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="register-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contraseña (mínimo 6)</label>
+                  <div className="relative">
+                    <input
+                      id="register-password"
+                      required
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      minLength={6}
+                      placeholder="••••••••"
+                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                      aria-label="Contraseña"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                    </button>
                   </div>
-                  <p className="text-xs font-bold text-amber-900 leading-relaxed">
-                    Hola {tempCustomer.name.split(' ')[0]}, crea una contraseña para proteger tu historial y puntos.
+                </div>
+
+                {error && (
+                  <p role="alert" className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">
+                    {error}
+                  </p>
+                )}
+                {success && (
+                  <p role="status" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center px-4 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
+                    {success}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || !email || !password || !name}
+                  className="w-full h-14 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50"
+                  aria-label="Crear cuenta"
+                >
+                  {loading ? (
+                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
+                  ) : (
+                    "Crear cuenta"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setMode("login"); setError(""); setSuccess(""); setPassword(""); }}
+                  className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
+                  aria-label="Ya tengo cuenta, iniciar sesión"
+                >
+                  Ya tengo cuenta — Iniciar sesión
+                </button>
+              </motion.form>
+            )}
+
+            {mode === "recover" && (
+              <motion.form
+                key="recover"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                onSubmit={handleForgotPassword}
+                className="space-y-4"
+                aria-label="Formulario de recuperación de contraseña"
+              >
+                <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-4">
+                  <p className="text-[11px] font-bold text-indigo-900 leading-relaxed">
+                    Ingresa tu correo y te enviamos un enlace para restablecer tu contraseña.
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Cliente</label>
-                    <select 
-                      name="customerType"
-                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm appearance-none"
-                    >
-                      <option value="retail">Persona Natural (Minorista)</option>
-                      <option value="wholesale">Empresa (Mayorista)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico (para boletas)</label>
-                    <input 
-                      type="email" 
-                      name="customerEmail"
-                      placeholder="ejemplo@correo.com"
-                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Crea tu Contraseña</label>
-                    <input 
-                      autoFocus
-                      type="password" 
-                      placeholder="Mínimo 4 caracteres"
-                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                    />
-                  </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="recover-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                  <input
+                    id="recover-email"
+                    autoFocus
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="tu@correo.cl"
+                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                    aria-label="Correo electrónico"
+                  />
                 </div>
 
-                {error && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">{error}</p>}
+                {error && (
+                  <p role="alert" className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">
+                    {error}
+                  </p>
+                )}
+                {success && (
+                  <p role="status" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center px-4 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
+                    {success}
+                  </p>
+                )}
 
-                <button 
+                <button
                   type="submit"
-                  disabled={loading || password.length < 4}
-                  className="w-full h-14 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-100"
+                  disabled={loading || !email}
+                  className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                  aria-label="Enviar correo de recuperación"
                 >
-                  {loading ? <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Activar mi App"}
+                  {loading ? (
+                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
+                  ) : (
+                    "Enviar correo"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setMode("login"); setError(""); setSuccess(""); }}
+                  className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
+                  aria-label="Volver al inicio de sesión"
+                >
+                  Volver al inicio de sesión
                 </button>
               </motion.form>
             )}
           </AnimatePresence>
 
-          {/* Access Diagnostics Section */}
-          <div className="mt-8 border-t border-slate-200/60 pt-6">
-            <button
-              type="button"
-              onClick={() => setShowDiagnostics(!showDiagnostics)}
-              className="w-full flex items-center justify-between text-[11px] font-black text-indigo-600/70 hover:text-indigo-600 uppercase tracking-widest cursor-pointer transition-all"
-            >
-              <span>⚙️ Diagnóstico de Clientes Registrados</span>
-              <span className="text-sm font-black">{showDiagnostics ? "−" : "+"}</span>
-            </button>
-            
-            {showDiagnostics && (
-              <div className="mt-4 bg-slate-100/80 rounded-2xl p-4 border border-slate-200/40 text-left space-y-3">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-relaxed">
-                  Usa esta lista para ver los clientes en la base de datos activa. Haz clic en cualquiera para copiar su RUT o Correo al campo de entrada e iniciar sesión:
-                </p>
-                {availableCustomers.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 font-bold uppercase italic text-center py-2">No hay clientes registrados en la base de datos de este ambiente.</p>
-                ) : (
-                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                    {availableCustomers.map((c, idx) => (
-                      <button
-                        key={c.id || idx}
-                        type="button"
-                        onClick={() => {
-                          const val = c.taxId || c.rut || c.email || "";
-                          setIdentifier(val);
-                          setError("");
-                        }}
-                        className="w-full text-left bg-white hover:bg-indigo-50 border border-slate-250 hover:border-indigo-300 p-2.5 rounded-xl transition-all cursor-pointer flex flex-col space-y-1 block"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="text-[11px] font-extrabold text-slate-800 truncate">{c.name}</span>
-                          <span className="text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md self-start">{c.segment || 'Regular'}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[9px] font-semibold text-slate-400">
-                          <span>RUT: <strong className="text-slate-600 font-bold font-sans">{c.taxId || c.rut || "Sin RUT"}</strong></span>
-                          {c.email && <span className="truncate">{c.email}</span>}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-12">
-            StockFlow Pro • {new Date().getFullYear()}
+            Sf Shop • Dy Family • {new Date().getFullYear()}
+          </p>
+          <p className="text-center text-[9px] text-slate-300 font-medium italic mt-1">
+            Donde cada venta construye confianza.
           </p>
         </motion.div>
       </div>
@@ -1746,13 +1806,13 @@ export function CustomerPortal() {
                             email: profileEmail.trim().toLowerCase(),
                             type: profileType
                           });
-                          const updated = { 
-                            ...customer, 
-                            email: profileEmail.trim().toLowerCase(), 
-                            type: profileType 
+                          const updated = {
+                            ...customer,
+                            email: profileEmail.trim().toLowerCase(),
+                            type: profileType
                           };
+                          // Tier 5.A4.2: optimistic UI; Firestore listener reconfirms.
                           setCustomer(updated);
-                          setStorageJSON(STORAGE_KEYS.customerSession, updated);
                           setAlertConfig({
                             isOpen: true,
                             type: "success",

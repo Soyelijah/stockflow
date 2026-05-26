@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
-import { db } from "../../lib/firebase";
+import { auth, db } from "../../lib/firebase";
 import { collection, doc, getDoc, writeBatch, increment, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { useAuth } from "../../contexts/AuthContext";
-import { STORAGE_KEYS, getStorageJSON, setStorageJSON, removeStorage } from "../../lib/storage";
+import { STORAGE_KEYS, getStorageJSON, removeStorage } from "../../lib/storage";
 import { productStockRef, resolveBranchIdForStockOp } from "../../lib/productStock";
 import { DEFAULT_BRANCH_ID } from "../../lib/branches";
 
@@ -76,8 +76,20 @@ export function FlowResult() {
             : 0;
           const finalOrderTotal = Math.max(0, cartTotal - discountApplied);
 
-          // Retrieve customer from local customer_session
-          const customer: any = getStorageJSON<any>(STORAGE_KEYS.customerSession, null);
+          // Tier 5.A4.2: customer auth migrated to Firebase Auth. Read profile
+          // from /customers/{uid} using auth.currentUser, NOT localStorage.
+          let customer: any = null;
+          const authUser = auth.currentUser;
+          if (authUser?.uid) {
+            try {
+              const customerSnap = await getDoc(doc(db, "customers", authUser.uid));
+              if (customerSnap.exists()) {
+                customer = { id: customerSnap.id, ...customerSnap.data() };
+              }
+            } catch (err) {
+              console.error("Could not load customer profile:", err);
+            }
+          }
 
           cart.forEach((item: any) => {
             const productRef = doc(db, "products", item.id);
@@ -170,16 +182,9 @@ export function FlowResult() {
             }
 
             batch.update(customerRef, customerUpdates);
-
-            // Sync updated values to local session storage so they show immediately
-            const updatedSession = {
-              ...customer,
-              points: totalPoints,
-              totalSpent: (customer.totalSpent || 0) + finalOrderTotal,
-              segment: finalSegment,
-              usedCoupons: [...(customer.usedCoupons || []), coupon?.code].filter(Boolean)
-            };
-            setStorageJSON(STORAGE_KEYS.customerSession, updatedSession);
+            // Tier 5.A4.2: CustomerPortal subscribes to /customers/{uid} via onSnapshot,
+            // so the updated points/segment/totalSpent are reflected automatically on
+            // the next render. No localStorage write needed.
           }
 
           await batch.commit();

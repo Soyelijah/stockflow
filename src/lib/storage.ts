@@ -1,7 +1,9 @@
 const STORAGE_VERSION = "v1";
 
+// Tier 5.A4.2: `customerSession` key removed — customer auth now lives in Firebase Auth,
+// not localStorage. Any legacy `customer_session` key still on a returning user's device
+// is harmless garbage that the browser will GC; no migration shim needed.
 export const STORAGE_KEYS = {
-  customerSession: "customer_session",
   pendingOrderCart: "pending_order_cart",
   pendingOrderPayments: "pending_order_payments",
   pendingOrderCoupon: "pending_order_coupon",
