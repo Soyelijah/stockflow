@@ -227,7 +227,7 @@ export function Expenses() {
     try {
       const data = {
         ...formData,
-        amount: Number(formData.amount),
+        amount: Math.max(0, Math.round(Number(formData.amount) || 0)), // H-SAN-2: CLP integer-only (anti-pattern §2)
         updatedAt: Timestamp.now(),
         createdBy: user?.uid,
       };

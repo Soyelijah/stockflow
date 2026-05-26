@@ -92,11 +92,23 @@ export async function expressAuditMiddleware(req: any, res: any, next: any) {
     res.json = function (data: any) {
       res.json = originalJson;
       
+      // H-SAN-5: sanitize headers/query/params before writing to immutable audit log.
+      const safeEmail = (val: unknown, fallback: string): string => {
+        if (typeof val !== "string") return fallback;
+        const trimmed = val.trim().toLowerCase().slice(0, 254);
+        return /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/i.test(trimmed) ? trimmed : fallback;
+      };
+      const safeId = (val: unknown, fallback: string, max = 128): string => {
+        if (typeof val !== "string") return fallback;
+        const trimmed = val.trim().slice(0, max);
+        return /^[A-Za-z0-9_\-:.]+$/.test(trimmed) ? trimmed : fallback;
+      };
+
       adminDb.collection("role_audit").add({
-        operatorEmail: req.headers["x-operator-email"] || req.query.operatorEmail || "api-gateway@stockflow.com",
-        operatorUid: req.headers["x-operator-uid"] || req.query.operatorUid || "gateway-token",
+        operatorEmail: safeEmail(req.headers["x-operator-email"] || req.query.operatorEmail, "api-gateway@stockflow.com"),
+        operatorUid: safeId(req.headers["x-operator-uid"] || req.query.operatorUid, "gateway-token"),
         action: actionName,
-        targetId: req.params.id || req.body.id || "payload-body",
+        targetId: safeId(req.params.id || req.body?.id, "payload-body"),
         details: {
           method: req.method,
           path: req.originalUrl,

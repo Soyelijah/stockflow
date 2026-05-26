@@ -33,8 +33,18 @@ const FlowCreatePaymentSchema = z.object({
 });
 
 const FlowPaymentStatusSchema = z.object({
-  token: z.string().min(1, "Token de consulta de Flow requerido")
+  token: z.string().min(1, "Token de consulta de Flow requerido").max(200, "Token excede longitud máxima")
 });
+
+// H-SAN-3: MercadoPago webhook body validation (HMAC verifies signature; this validates shape after).
+const MPWebhookSchema = z.object({
+  action: z.string().min(1).max(100),
+  data: z.object({
+    id: z.union([z.string(), z.number()])
+  }).passthrough(),
+  type: z.string().optional(),
+  api_version: z.string().optional()
+}).passthrough();
 
 const EmisionManualSchema = z.object({
   orderId: z.string().min(1),
@@ -165,7 +175,8 @@ paymentsRouter.post("/mercadopago/webhook", async (req, res) => {
       console.warn("[mercadopago/webhook] Unauthorized signature attempt blocked.");
       return res.status(401).send("Unauthorized signature");
     }
-    const { action, data } = req.body;
+    // H-SAN-3: validate body shape AFTER signature check (defense-in-depth).
+    const { action, data } = MPWebhookSchema.parse(req.body);
     if (action === "payment.created" || action === "payment.updated") {
       console.log(`[Modular Webhook] Mercado Pago status push received for ID: ${data?.id}`);
       if (mpClient && data?.id) {
@@ -255,8 +266,8 @@ paymentsRouter.post("/flow/create-payment", async (req, res) => {
    ========================================== */
 paymentsRouter.post("/flow/confirm", async (req, res) => {
   try {
-    const { token } = req.body;
-    if (!token || typeof token !== "string") return res.status(400).send("No token supplied");
+    // H-SAN-4: Zod validation for Flow webhook token.
+    const { token } = FlowPaymentStatusSchema.parse(req.body);
 
     // Clean token string of unwanted characters to prevent command triggers
     const cleanToken = token.trim().replace(/[^a-zA-Z0-9_-]/g, "");

@@ -82,7 +82,8 @@ export function Login() {
     setError(null);
     setSuccess(null);
 
-    const emailToUse = formData.email.trim();
+    // H-SAN-1: lowercase for case-insensitive consistency with Customers.tsx, Suppliers.tsx, etc.
+    const emailToUse = formData.email.trim().toLowerCase();
     const passwordToUse = formData.password;
 
     try {
