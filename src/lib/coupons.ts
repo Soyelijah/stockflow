@@ -166,12 +166,12 @@ export async function seedCustomersIfEmpty() {
     
     const defaultCustomers = [
       {
-        id: "cust-elijah-solier",
-        name: "Elijah Solier",
-        taxId: "25.551.228-5",
-        rut: "25.551.228-5",
-        email: "solier.elijah@gmail.com",
-        phone: "+56 9 1234 5678",
+        id: "cust-demo-vip",
+        name: "Cliente VIP Demo",
+        taxId: "11.111.111-1",
+        rut: "11.111.111-1",
+        email: "cliente.demo@stockflow.cl",
+        phone: "+56 9 0000 0000",
         points: 2450,
         balance: 45000,
         password: "123",
