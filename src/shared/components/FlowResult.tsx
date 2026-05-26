@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { db } from "../../lib/firebase";
-import { collection, doc, writeBatch, increment, serverTimestamp, arrayUnion } from "firebase/firestore";
+import { collection, doc, getDoc, writeBatch, increment, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { useAuth } from "../../contexts/AuthContext";
 import { STORAGE_KEYS, getStorageJSON, setStorageJSON, removeStorage } from "../../lib/storage";
+import { productStockRef, resolveBranchIdForStockOp } from "../../lib/productStock";
+import { DEFAULT_BRANCH_ID } from "../../lib/branches";
 
 export function FlowResult() {
   const { profile } = useAuth();
@@ -41,7 +43,29 @@ export function FlowResult() {
             return;
           }
 
-          // 3. Update Firebase
+          // 3. Multi-branch (Tier 1.1): customer orders are fulfilled from the branch
+          // captured in the cart (set by CustomerPortal at place-order time). If absent
+          // (legacy carts), default to the "default" branch. Tier 1.2/1.4 will add
+          // auto-routing by stock+geo at order placement.
+          const orderBranchId = resolveBranchIdForStockOp(
+            (cart.length > 0 && cart[0].branchId) ? cart[0].branchId : DEFAULT_BRANCH_ID
+          );
+
+          // 3a. Pre-flight: check which product_stock docs already exist so we can
+          // batch.update (decrement) vs batch.set (first-time creation for legacy products).
+          // After migrate-products-split-stock.ts runs, this is mostly a no-op — every
+          // product has a stock doc — but we guard for the transition window.
+          const stockExistsByProductId = new Map<string, boolean>();
+          await Promise.all(cart.map(async (item: any) => {
+            try {
+              const snap = await getDoc(productStockRef(item.id, orderBranchId));
+              stockExistsByProductId.set(item.id, snap.exists());
+            } catch {
+              stockExistsByProductId.set(item.id, false);
+            }
+          }));
+
+          // 3b. Build the batch.
           const batch = writeBatch(db);
           const orderId = doc(collection(db, "transactions")).id;
           const cartTotal = cart.reduce((sumValue: number, itemValue: any) => sumValue + (itemValue.price * itemValue.quantity), 0);
@@ -58,7 +82,26 @@ export function FlowResult() {
           cart.forEach((item: any) => {
             const productRef = doc(db, "products", item.id);
             const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
-            
+            const stockRef = productStockRef(item.id, orderBranchId);
+
+            // Multi-branch (Tier 1.1): per-branch stock is authoritative.
+            if (stockExistsByProductId.get(item.id)) {
+              batch.update(stockRef, {
+                stock: increment(-item.quantity),
+                lastUpdated: serverTimestamp(),
+              });
+            } else {
+              // Legacy product (no product_stock doc yet) — seed it using the cart's snapshot.
+              const fallback = Number(item.stock || item.maxStock) || 0;
+              batch.set(stockRef, {
+                productId: item.id,
+                branchId: orderBranchId,
+                stock: fallback - item.quantity,
+                lastUpdated: serverTimestamp(),
+              });
+            }
+
+            // Dual-write mirror to /products.stock — deprecated, removed in Tier 1.5 cleanup.
             batch.update(productRef, {
               stock: increment(-item.quantity),
               updatedAt: serverTimestamp()

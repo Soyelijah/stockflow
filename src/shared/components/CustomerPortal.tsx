@@ -952,19 +952,24 @@ export function CustomerPortal() {
       const description = `Pedido de ${customer.name}${appliedCoupon ? ` (Cupón: ${appliedCoupon.code})` : ""}`;
       const baseUrl = window.location.origin;
 
-      // Populate pending order details for successful Flow confirmation
+      // Populate pending order details for successful Flow confirmation.
+      // Multi-branch (Tier 1.1): capture branchId on each cart item so FlowResult.tsx
+      // decrements stock from the right sucursal. For now this defaults to "default"
+      // (single-branch piloto); Tier 1.4 will plug in geo-routing / per-product branch
+      // selection when the customer-side branch picker lands.
       const checkoutCart = cart.map(item => {
         const p = products.find(prod => prod.id === item.id);
         const moq = p?.wholesaleMinQty || 6;
         const reachedMOQ = item.quantity >= moq;
-        const price = (reachedMOQ && p?.wholesalePrice) 
-          ? Number(p.wholesalePrice) 
+        const price = (reachedMOQ && p?.wholesalePrice)
+          ? Number(p.wholesalePrice)
           : Number(item.price);
         return {
           ...item,
           price: price,
           stock: p?.stock || 0,
-          maxStock: p?.maxStock || 100
+          maxStock: p?.maxStock || 100,
+          branchId: "default" as const,
         };
       });
 

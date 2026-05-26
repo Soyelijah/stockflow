@@ -48,6 +48,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { readProductAndStockInTx, writeStockInTx, resolveBranchIdForStockOp } from "../../lib/productStock";
 import { AUTOMATIC_POINT_COUPONS } from "../../lib/coupons";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, calculatePoints, getCustomerTier } from "../../lib/utils";
@@ -66,6 +68,7 @@ interface CartItem {
 export function MobilePOS() {
   const { profile, logout, user } = useAuth();
   const { settings } = useSettings();
+  const { selectedBranchId } = useBranch();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -387,27 +390,36 @@ export function MobilePOS() {
       for (const sale of offlineQueue) {
         const orderId = sale.orderId;
         try {
+          // Multi-branch (Tier 1.1): venta offline-sync debita de la sucursal del cajero
+          // capturada AL MOMENTO de la venta (sale.branchId si está, else current selectedBranchId).
+          const offlineSyncBranchId = resolveBranchIdForStockOp(sale.branchId || selectedBranchId);
+
           await runTransaction(db, async (transaction) => {
             const productDocs: any[] = [];
             // Validate stock first
             for (const item of sale.items) {
-              const productRef = doc(db, "products", item.id);
-              const pDoc = await transaction.get(productRef);
-              if (!pDoc.exists()) {
-                throw new Error(`Producto ${item.name} no existe.`);
+              const result = await readProductAndStockInTx(transaction, item.id, offlineSyncBranchId);
+              if (result.currentStock < item.quantity) {
+                throw new Error(`Stock insuficiente para ${item.name} (${result.currentStock} disponible en sucursal).`);
               }
-              const currentStock = pDoc.data().stock || 0;
-              if (currentStock < item.quantity) {
-                throw new Error(`Stock insuficiente para ${item.name} (${currentStock} disponible).`);
-              }
-              productDocs.push({ ref: productRef, newStock: currentStock - item.quantity });
+              productDocs.push({
+                productId: item.id,
+                productRef: result.productRef,
+                stockRef: result.stockRef,
+                isLegacyStock: result.isLegacyStock,
+                newStock: result.currentStock - item.quantity,
+              });
             }
 
-            // Update product stock
+            // Dual-write: product_stock (authoritative) + products.stock (deprecated mirror)
             for (const p of productDocs) {
-              transaction.update(p.ref, {
-                stock: p.newStock,
-                updatedAt: serverTimestamp()
+              writeStockInTx(transaction, {
+                productId: p.productId,
+                branchId: offlineSyncBranchId,
+                newStock: p.newStock,
+                productRef: p.productRef,
+                stockRef: p.stockRef,
+                isLegacyStock: p.isLegacyStock,
               });
             }
 
@@ -728,6 +740,9 @@ export function MobilePOS() {
       totalPoints: selectedCustomer ? (selectedCustomer.points || 0) + calculatePoints(finalTotal) : undefined,
       couponCode: appliedCoupon?.code || null,
       discountApplied: couponDiscount,
+      // Multi-branch (Tier 1.1): captura la sucursal al momento de la venta para que
+      // el sync offline use la branch correcta aunque el cajero cambie de sucursal después.
+      branchId: resolveBranchIdForStockOp(selectedBranchId),
     };
 
     // Update Shift Metrics (Paso 2.1) - Both client and database models
@@ -760,24 +775,24 @@ export function MobilePOS() {
         setEmailSentTo(selectedCustomer?.email ? `${selectedCustomer.email} (Pendiente de Envío)` : null);
       } else {
         // === ONLINE CHECKOUT (Standard Firebase flow) ===
+        // Multi-branch (Tier 1.1): venta debita de la sucursal del cajero.
+        const onlineSaleBranchId = resolveBranchIdForStockOp(selectedBranchId);
+
         await runTransaction(db, async (resTransaction) => {
           // 1. Perform all reads first as required by Firestore transactions
           const productSnaps: { [id: string]: any } = {};
           for (const item of cart) {
-            const productRef = doc(db, "products", item.id);
-            const snap = await resTransaction.get(productRef);
-            if (!snap.exists()) {
-              throw new Error(`El producto ${item.name} no existe en el catálogo.`);
-            }
-            const currentStock = snap.data()?.stock || 0;
-            if (currentStock < item.quantity) {
-              throw new Error(`Stock insuficiente para ${item.name} (Disponible: ${currentStock}, Solicitado: ${item.quantity})`);
+            const result = await readProductAndStockInTx(resTransaction, item.id, onlineSaleBranchId);
+            if (result.currentStock < item.quantity) {
+              throw new Error(`Stock insuficiente para ${item.name} en sucursal (Disponible: ${result.currentStock}, Solicitado: ${item.quantity})`);
             }
             productSnaps[item.id] = {
-              ref: productRef,
-              currentStock,
-              newStock: currentStock - item.quantity,
-              costPrice: snap.data()?.costPrice || 0
+              productRef: result.productRef,
+              stockRef: result.stockRef,
+              isLegacyStock: result.isLegacyStock,
+              currentStock: result.currentStock,
+              newStock: result.currentStock - item.quantity,
+              costPrice: result.productSnap.data()?.costPrice || 0,
             };
           }
 
@@ -792,10 +807,15 @@ export function MobilePOS() {
           cart.forEach(item => {
             const pData = productSnaps[item.id];
             const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
-            
-            resTransaction.update(pData.ref, {
-              stock: pData.newStock,
-              updatedAt: serverTimestamp()
+
+            // Dual-write: product_stock (authoritative) + products.stock (deprecated mirror)
+            writeStockInTx(resTransaction, {
+              productId: item.id,
+              branchId: onlineSaleBranchId,
+              newStock: pData.newStock,
+              productRef: pData.productRef,
+              stockRef: pData.stockRef,
+              isLegacyStock: pData.isLegacyStock,
             });
             
             resTransaction.set(transactionRef, {

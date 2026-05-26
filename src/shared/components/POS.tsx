@@ -42,9 +42,11 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
+import { useBranch } from "../../contexts/BranchContext";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, getCustomerTier, calculatePoints, normalizeRutForSearch, cleanEmail } from "../../lib/utils";
 import { STORAGE_KEYS, getStorageJSON, setStorageJSON } from "../../lib/storage";
+import { readProductAndStockInTx, writeStockInTx, resolveBranchIdForStockOp } from "../../lib/productStock";
 import confetti from "canvas-confetti";
 import { CashRegisterManagement } from "./CashRegister";
 import { MercadoPagoWallet } from "./MercadoPagoWallet";
@@ -70,6 +72,7 @@ interface PaymentBreakdown {
 
 export function POS() {
   const { profile, user } = useAuth();
+  const { selectedBranchId } = useBranch();
   const { settings } = useSettings();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -634,24 +637,25 @@ export function POS() {
     try {
       const orderId = doc(collection(db, "transactions")).id;
 
+      // Multi-branch (Tier 1.1): venta se debita del stock de la sucursal del cajero.
+      // Cross-branch sellers (rare) caen a "default" — UI debería forzar selección de sucursal antes.
+      const saleBranchId = resolveBranchIdForStockOp(selectedBranchId);
+
       await runTransaction(db, async (resTransaction) => {
         // 1. Perform all reads first as required by Firestore transactions
         const productSnaps: { [id: string]: any } = {};
         for (const item of cart) {
-          const productRef = doc(db, "products", item.id);
-          const snap = await resTransaction.get(productRef);
-          if (!snap.exists()) {
-            throw new Error(`El producto ${item.name} no existe en el catálogo.`);
-          }
-          const currentStock = snap.data()?.stock || 0;
-          if (currentStock < item.quantity) {
-            throw new Error(`Stock insuficiente para ${item.name} (Disponible: ${currentStock}, Solicitado: ${item.quantity})`);
+          const result = await readProductAndStockInTx(resTransaction, item.id, saleBranchId);
+          if (result.currentStock < item.quantity) {
+            throw new Error(`Stock insuficiente para ${item.name} en sucursal (Disponible: ${result.currentStock}, Solicitado: ${item.quantity})`);
           }
           productSnaps[item.id] = {
-            ref: productRef,
-            currentStock,
-            newStock: currentStock - item.quantity,
-            costPrice: snap.data()?.costPrice || 0
+            productRef: result.productRef,
+            stockRef: result.stockRef,
+            isLegacyStock: result.isLegacyStock,
+            currentStock: result.currentStock,
+            newStock: result.currentStock - item.quantity,
+            costPrice: result.productSnap.data()?.costPrice || 0,
           };
         }
 
@@ -666,10 +670,15 @@ export function POS() {
         cart.forEach(item => {
           const pData = productSnaps[item.id];
           const transactionRef = doc(db, "transactions", `${orderId}_${item.id}`);
-          
-          resTransaction.update(pData.ref, {
-            stock: pData.newStock,
-            updatedAt: serverTimestamp()
+
+          // Dual-write: product_stock (authoritative) + products.stock (deprecated mirror)
+          writeStockInTx(resTransaction, {
+            productId: item.id,
+            branchId: saleBranchId,
+            newStock: pData.newStock,
+            productRef: pData.productRef,
+            stockRef: pData.stockRef,
+            isLegacyStock: pData.isLegacyStock,
           });
           
           const moveRef = doc(collection(db, "stockMovements"));

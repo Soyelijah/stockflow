@@ -81,6 +81,22 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Multi-branch (Tier 1.1): per-branch stock.
+    // Read: any signed-in user (catalog is shared within the retailer).
+    // Write: admin/logistics (cross-branch), or seller for their own branch's stock
+    //        (POS decrement during sale). branchId on the doc MUST match the seller's claim.
+    match /product_stock/{stockId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (
+        isAdmin() || isLogistics() ||
+        (isSeller() && (
+          request.auth.token.branchId == "*" ||
+          incoming().branchId == request.auth.token.branchId
+        ))
+      );
+      allow delete: if isAdmin();
+    }
+
     match /products/{productId} {
       function isValidProduct(data) {
         return data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
