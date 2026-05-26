@@ -12,6 +12,17 @@ const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 // C-CF-1 fix: caller must be admin or owner. Previously this was unauthenticated-equivalent
 // (any signed-in user could call it and promote themselves to admin — privilege escalation).
 // C-CF-2 fix: writes audit log entry for every role assignment.
+// Tier 1.0 multi-branch: accepts optional `branchId`. Admin/owner/logistics default to "*"
+// (cross-branch). Others default to "default" sentinel. Always validates against /branches
+// collection (except for the "*" cross-branch sentinel).
+const CROSS_BRANCH_SENTINEL = "*";
+const DEFAULT_BRANCH_ID = "default";
+
+function defaultBranchForRole(role: string): string {
+  if (role === "admin" || role === "owner" || role === "logistics") return CROSS_BRANCH_SENTINEL;
+  return DEFAULT_BRANCH_ID;
+}
+
 export const setUserRole = onCall(async (request: any) => {
   // 1. Caller must be authenticated.
   if (!request.auth) {
@@ -24,7 +35,7 @@ export const setUserRole = onCall(async (request: any) => {
     throw new HttpsError("permission-denied", "Solo admin/owner pueden asignar roles.");
   }
 
-  const { userId, role } = request.data || {};
+  const { userId, role, branchId: rawBranchId } = request.data || {};
   if (!userId || !role) {
     throw new HttpsError("invalid-argument", "userId y role son requeridos.");
   }
@@ -44,26 +55,49 @@ export const setUserRole = onCall(async (request: any) => {
     throw new HttpsError("permission-denied", "No puede reasignar su propio rol.");
   }
 
+  // 5. Resolve branchId: use the value provided, or fall back to role default.
+  //    Validate format and (if not the cross-branch sentinel) verify the branch exists.
+  const branchId: string = typeof rawBranchId === "string" && rawBranchId.length > 0
+    ? rawBranchId
+    : defaultBranchForRole(role);
+
+  if (typeof branchId !== "string" || branchId.length > 128) {
+    throw new HttpsError("invalid-argument", "branchId con formato inválido.");
+  }
+  if (branchId !== CROSS_BRANCH_SENTINEL) {
+    const branchSnap = await db.collection("branches").doc(branchId).get();
+    if (!branchSnap.exists) {
+      throw new HttpsError("invalid-argument", `Sucursal '${branchId}' no existe.`);
+    }
+    const branchData = branchSnap.data();
+    if (branchData && branchData.active === false) {
+      throw new HttpsError("invalid-argument", `Sucursal '${branchId}' está inactiva.`);
+    }
+  }
+
   try {
-    await getAuth().setCustomUserClaims(userId, { role });
+    // Custom claims are the authoritative source for rules; profile is a UI mirror.
+    await getAuth().setCustomUserClaims(userId, { role, branchId });
 
     await db.collection("users").doc(userId).set({
       role: role,
+      branchId: branchId,
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
 
-    // 5. Audit log for every role assignment (matches CLAUDE.md §9 contract).
+    // 6. Audit log for every role assignment (matches CLAUDE.md §9 contract).
     await db.collection("role_audit").add({
       action: "ROLE_ASSIGNED",
       targetUserId: userId,
       newRole: role,
+      newBranchId: branchId,
       operatorUid: request.auth.uid,
       operatorEmail: request.auth.token.email || "unknown",
       operatorRole: callerRole,
       timestamp: FieldValue.serverTimestamp()
     });
 
-    return { success: true, message: `Rol ${role} asignado al usuario ${userId}.` };
+    return { success: true, message: `Rol ${role} (sucursal ${branchId}) asignado al usuario ${userId}.` };
   } catch (error: any) {
     if (error instanceof HttpsError) throw error;
     console.error("Error en setUserRole:", error);

@@ -69,8 +69,16 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isSignedIn() && request.auth.uid == userId
         && incoming().role in ['customer', 'seller']
-        && incoming().keys().hasOnly(['uid', 'email', 'role', 'name', 'createdAt']);
+        && incoming().keys().hasOnly(['uid', 'email', 'role', 'branchId', 'name', 'createdAt']);
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Multi-branch (Tier 1.0): /branches metadata.
+    // Read: any signed-in user (for branch selector + badge).
+    // Write: admin/owner only (managers cannot create or rename branches).
+    match /branches/{branchId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     match /products/{productId} {

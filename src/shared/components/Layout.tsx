@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { branchLabel } from "../../lib/branches";
 import { cn } from "../../lib/utils";
 import { STORAGE_KEYS, getStorageJSON, setStorageJSON } from "../../lib/storage";
 import { collection, query, onSnapshot, where, getDocs, limit, orderBy } from "firebase/firestore";
@@ -79,6 +81,23 @@ function playNotificationChime() {
   } catch (e) {
     console.warn("Audio Context playback blocked:", e);
   }
+}
+
+// Multi-branch (Tier 1.0): tiny badge that surfaces the user's branch in the sidebar/topbar.
+// For cross-branch users (admin/owner/logistics) it shows "Todas las sucursales".
+// For pinned users (manager/seller) it shows the branch name from /branches metadata.
+// In Tier 1.4 this gets replaced by a real dropdown for cross-branch users.
+function BranchBadge() {
+  const { branches, myBranchId, selectedBranchId, isCrossBranchUser } = useBranch();
+  // Cross-branch users see the SELECTED branch (could be "*" or a specific one).
+  // Pinned users always see their own branch.
+  const displayedId = isCrossBranchUser ? selectedBranchId : myBranchId;
+  return (
+    <p className="text-[9px] font-bold text-slate-400 mt-1 truncate">
+      <Building2 size={9} className="inline -mt-0.5 mr-1" />
+      {branchLabel(displayedId, branches)}
+    </p>
+  );
 }
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
@@ -441,6 +460,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                    profile?.role === "seller" ? "Vendedor / Cajero" :
                    profile?.role === "logistics" ? "Operaciones y Logística" : profile?.role}
                 </p>
+                <BranchBadge />
               </div>
             </div>
           )}

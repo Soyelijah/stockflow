@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { BranchProvider } from "./contexts/BranchContext";
 import { Login } from "./shared/components/Login";
 import { VerifyEmail } from "./shared/components/VerifyEmail";
 import { FlowResult } from "./shared/components/FlowResult";
@@ -87,9 +88,11 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <SettingsProvider>
-        <AppContent />
-      </SettingsProvider>
+      <BranchProvider>
+        <SettingsProvider>
+          <AppContent />
+        </SettingsProvider>
+      </BranchProvider>
     </AuthProvider>
   );
 }

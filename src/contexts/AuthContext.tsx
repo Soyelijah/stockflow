@@ -10,11 +10,16 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
+import { defaultBranchForRole } from "../lib/branches";
 
 interface UserProfile {
   uid: string;
   email: string | null;
   role: "admin" | "manager" | "seller" | "logistics" | "driver" | "owner";
+  // Multi-branch (Tier 1.0): the branch this user is pinned to, or "*" for cross-branch roles.
+  // Profile field is a mirror; the authoritative source is the Firebase custom claim `branchId`.
+  // May be missing for legacy users until migrate-users-add-branchid runs.
+  branchId?: string;
   name: string;
   photoURL?: string;
   avatarUrl?: string;
@@ -186,17 +191,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const register = async (email: string, pass: string, name: string, role: "admin" | "manager" | "seller" | "logistics" | "driver" | "owner" | "customer" = "seller") => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-    
+
     // Send verification email
     await sendEmailVerification(userCredential.user);
+
+    const safeRole = (role === "admin" || role === "owner" || role === "logistics" || role === "manager")
+      ? "customer"
+      : (role as any);
 
     const profileData: UserProfile = {
       uid: userCredential.user.uid,
       email,
-      role: (role === "admin" || role === "owner" || role === "logistics" || role === "manager") ? "customer" : role as any,
+      role: safeRole,
+      // Multi-branch: customers and sellers default to the main branch; logistics/admin/owner
+      // are cross-branch ("*"). Note: client-side write of branchId is a hint only — the
+      // authoritative claim is set server-side by setUserRole or bootstrap-admin.
+      branchId: defaultBranchForRole(safeRole),
       name
     };
-    
+
     await setDoc(doc(db, "users", userCredential.user.uid), {
       ...profileData,
       createdAt: new Date().toISOString()
