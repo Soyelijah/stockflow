@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../../lib/utils";
+import { STORAGE_KEYS, getStorageJSON, setStorageJSON, removeStorage } from "../../lib/storage";
 import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon, seedCustomersIfEmpty } from "../../lib/coupons";
 import { PHYSICAL_REWARDS_CATALOGUE, PhysicalReward } from "../../lib/rewards";
 import { ModernAlert } from "./ui/ModernAlert";
@@ -155,15 +156,7 @@ export function CustomerPortal() {
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState<"id" | "password" | "setup">("id");
   const [tempCustomer, setTempCustomer] = useState<any>(null);
-  const [customer, setCustomer] = useState<any>(() => {
-    try {
-      const saved = localStorage.getItem("customer_session");
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      console.error("Error parsing customer session", e);
-      return null;
-    }
-  });
+  const [customer, setCustomer] = useState<any>(() => getStorageJSON<any>(STORAGE_KEYS.customerSession, null));
 
   const [fcmRegistered, setFcmRegistered] = useState(false);
   const [fcmLoading, setFcmLoading] = useState(false);
@@ -269,23 +262,12 @@ export function CustomerPortal() {
 
   // States for Claims Support (Paso 3.1)
   const [claimsList, setClaimsList] = useState<any[]>([]);
-  const [dismissedClaims, setDismissedClaims] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem("dismissed_claims");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [dismissedClaims, setDismissedClaims] = useState<string[]>(() => getStorageJSON<string[]>(STORAGE_KEYS.dismissedClaims, []));
 
   const dismissClaim = (claimId: string) => {
     const updated = [...dismissedClaims, claimId];
     setDismissedClaims(updated);
-    try {
-      localStorage.setItem("dismissed_claims", JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
+    setStorageJSON(STORAGE_KEYS.dismissedClaims, updated);
   };
 
   const [activeHistorySubTab, setActiveHistorySubTab] = useState<"receipts" | "claims">("receipts");
@@ -675,7 +657,7 @@ export function CustomerPortal() {
           photoVerified: true
         };
         setCustomer(updated);
-        localStorage.setItem("customer_session", JSON.stringify(updated));
+        setStorageJSON(STORAGE_KEYS.customerSession, updated);
         setAlertConfig({
           isOpen: true,
           type: "success",
@@ -807,7 +789,7 @@ export function CustomerPortal() {
       if (data.status === 2) {
         await finalizeOrder();
       } else if (data.status === 1) {
-        setError("Pago en proceso...");
+        setError("Pago en proceso…");
       } else {
         setError("El pago no fue completado.");
       }
@@ -986,12 +968,12 @@ export function CustomerPortal() {
         };
       });
 
-      localStorage.setItem("pending_order_cart", JSON.stringify(checkoutCart));
-      localStorage.setItem("pending_order_payments", JSON.stringify([{ method: "flow", amount: finalCartTotal }]));
+      setStorageJSON(STORAGE_KEYS.pendingOrderCart, checkoutCart);
+      setStorageJSON(STORAGE_KEYS.pendingOrderPayments, [{ method: "flow", amount: finalCartTotal }]);
       if (appliedCoupon) {
-        localStorage.setItem("pending_order_coupon", JSON.stringify(appliedCoupon));
+        setStorageJSON(STORAGE_KEYS.pendingOrderCoupon, appliedCoupon);
       } else {
-        localStorage.removeItem("pending_order_coupon");
+        removeStorage(STORAGE_KEYS.pendingOrderCoupon);
       }
       
       const response = await fetch("/api/flow/create-payment", {
@@ -1130,7 +1112,7 @@ export function CustomerPortal() {
     if (tempCustomer.password === password) {
       const sessionData = { ...tempCustomer };
       setCustomer(sessionData);
-      localStorage.setItem("customer_session", JSON.stringify(sessionData));
+      setStorageJSON(STORAGE_KEYS.customerSession, sessionData);
       setStep("id"); // reset for next time
     } else {
       setError("Contraseña incorrecta.");
@@ -1162,7 +1144,7 @@ export function CustomerPortal() {
       });
       const updated = { ...tempCustomer, password, type, email: emailValue.trim().toLowerCase() };
       setCustomer(updated);
-      localStorage.setItem("customer_session", JSON.stringify(updated));
+      setStorageJSON(STORAGE_KEYS.customerSession, updated);
       setStep("id");
     } catch (err) {
       setError("Error al guardar la contraseña.");
@@ -1173,7 +1155,7 @@ export function CustomerPortal() {
 
   const logout = () => {
     setCustomer(null);
-    localStorage.removeItem("customer_session");
+    removeStorage(STORAGE_KEYS.customerSession);
   };
 
   useEffect(() => {
@@ -1204,7 +1186,7 @@ export function CustomerPortal() {
             if (!prev) return updated;
             const changed = JSON.stringify(prev) !== JSON.stringify(updated);
             if (changed) {
-              localStorage.setItem("customer_session", JSON.stringify(updated));
+              setStorageJSON(STORAGE_KEYS.customerSession, updated);
               return updated;
             }
             return prev;
@@ -1266,7 +1248,7 @@ export function CustomerPortal() {
           className="w-full max-w-sm"
         >
           <div className="text-center mb-10">
-            <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-indigo-200">
+            <div className="size-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-indigo-200">
               <Smartphone size={40} />
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">StockFlow <span className="text-indigo-600">CLIENTES</span></h1>
@@ -1305,7 +1287,7 @@ export function CustomerPortal() {
                   disabled={loading || !identifier}
                   className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all flex items-center justify-center space-x-2 cursor-pointer"
                 >
-                  {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Siguiente"}
+                  {loading ? <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Siguiente"}
                 </button>
               </motion.form>
             )}
@@ -1320,7 +1302,7 @@ export function CustomerPortal() {
                 className="space-y-4"
               >
                 <div className="flex items-center space-x-3 mb-6 bg-indigo-50 p-3 rounded-2xl border border-indigo-100">
-                  <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-black">
+                  <div className="size-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-black">
                     {tempCustomer.name.charAt(0)}
                   </div>
                   <p className="text-xs font-bold text-slate-600 truncate">{tempCustomer.name}</p>
@@ -1449,7 +1431,7 @@ export function CustomerPortal() {
                   disabled={loading || password.length < 4}
                   className="w-full h-14 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-100"
                 >
-                  {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Activar mi App"}
+                  {loading ? <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Activar mi App"}
                 </button>
               </motion.form>
             )}
@@ -1568,7 +1550,7 @@ export function CustomerPortal() {
                   <h3 className="text-sm font-black text-slate-800 tracking-tight leading-none">Mi Cuenta</h3>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configuración y Soporte</p>
                 </div>
-                <button 
+                <button type="button" 
                   onClick={() => setIsProfileSidebarOpen(false)}
                   className="p-2 bg-white hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl border border-slate-150 transition-all active:scale-95 shadow-sm"
                 >
@@ -1582,9 +1564,9 @@ export function CustomerPortal() {
                 <div className="bg-white rounded-[2rem] border border-slate-150 p-5 shadow-sm space-y-4">
                   <div className="flex items-center space-x-3.5 pb-3 border-b border-slate-50">
                     <div className="relative group shrink-0">
-                      <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg overflow-hidden relative border border-slate-100">
+                      <div className="size-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg overflow-hidden relative border border-slate-100">
                         {isUploadingPhoto ? (
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : customer.photoURL ? (
                           <img src={customer.photoURL} alt={customer.name} className="w-full h-full object-cover" />
                         ) : (
@@ -1701,7 +1683,7 @@ export function CustomerPortal() {
                             type: profileType 
                           };
                           setCustomer(updated);
-                          localStorage.setItem("customer_session", JSON.stringify(updated));
+                          setStorageJSON(STORAGE_KEYS.customerSession, updated);
                           setAlertConfig({
                             isOpen: true,
                             type: "success",
@@ -1729,7 +1711,7 @@ export function CustomerPortal() {
                       )}
                     >
                       {isSavingProfile ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : (
                         <>
                           <Star size={12} />
@@ -1744,7 +1726,7 @@ export function CustomerPortal() {
                 <div className="space-y-2.5">
                   <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">Accesos Cuenta</h4>
                   
-                  <button
+                  <button type="button"
                     onClick={() => {
                       setActiveTab("rewards");
                       setIsProfileSidebarOpen(false);
@@ -1752,7 +1734,7 @@ export function CustomerPortal() {
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
                   >
                     <div className="flex items-center space-x-3 text-slate-700 font-bold text-xs">
-                      <div className="w-8 h-8 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100 shadow-inner shrink-0">
+                      <div className="size-8 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100 shadow-inner shrink-0">
                         <Gift size={15} />
                       </div>
                       <span className="group-hover:text-amber-700 font-black">Canje de Premios</span>
@@ -1760,7 +1742,7 @@ export function CustomerPortal() {
                     <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                   </button>
 
-                  <button
+                  <button type="button"
                     onClick={() => {
                       setActiveTab("offers");
                       setIsProfileSidebarOpen(false);
@@ -1768,7 +1750,7 @@ export function CustomerPortal() {
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
                   >
                     <div className="flex items-center space-x-3 text-slate-700 font-bold text-xs">
-                      <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100 shadow-inner shrink-0">
+                      <div className="size-8 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100 shadow-inner shrink-0">
                         <Tag size={15} />
                       </div>
                       <span className="group-hover:text-indigo-750 font-black">Mis Cupones Activos</span>
@@ -1776,7 +1758,7 @@ export function CustomerPortal() {
                     <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                   </button>
 
-                  <button
+                  <button type="button"
                     onClick={() => {
                       setActiveTab("history");
                       setIsProfileSidebarOpen(false);
@@ -1784,7 +1766,7 @@ export function CustomerPortal() {
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
                   >
                     <div className="flex items-center space-x-3 text-slate-700 font-bold text-xs">
-                      <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100 shadow-inner shrink-0">
+                      <div className="size-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100 shadow-inner shrink-0">
                         <History size={15} />
                       </div>
                       <span className="group-hover:text-emerald-700 font-black">Ver Mis Boletas</span>
@@ -1808,7 +1790,7 @@ export function CustomerPortal() {
 
               {/* Drawer Footer controls */}
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-col space-y-4">
-                <button
+                <button type="button"
                   onClick={() => {
                     logout();
                     setIsProfileSidebarOpen(false);
@@ -1832,18 +1814,18 @@ export function CustomerPortal() {
 
       {/* Header */}
       <header className="bg-white p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 z-50">
-        <button 
+        <button type="button" 
           onClick={() => setIsProfileSidebarOpen(true)}
           className="flex items-center space-x-3 text-left hover:bg-slate-50/80 p-2 -m-2 rounded-2xl transition-all duration-200 active:scale-95 group focus:outline-hidden"
         >
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg overflow-hidden relative shadow-sm ring-2 ring-slate-100 group-hover:ring-indigo-100 transition-all shrink-0">
+          <div className="size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg overflow-hidden relative shadow-sm ring-2 ring-slate-100 group-hover:ring-indigo-100 transition-all shrink-0">
             {customer.photoURL ? (
               <img src={customer.photoURL} alt={customer.name} className="w-full h-full object-cover" />
             ) : (
               customer.name?.charAt(0).toUpperCase()
             )}
             {customer.photoVerified && (
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border border-white flex items-center justify-center text-[7px] text-white font-bold">✓</span>
+              <span className="absolute bottom-0 right-0 size-3 bg-emerald-500 rounded-full border border-white flex items-center justify-center text-[7px] text-white font-bold">✓</span>
             )}
           </div>
           <div className="text-left">
@@ -1856,7 +1838,7 @@ export function CustomerPortal() {
         </button>
 
         <div className="flex items-center space-x-2">
-          <button
+          <button type="button"
             onClick={() => setLang(prev => prev === "es" ? "en" : "es")}
             className="px-3.5 py-2 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 rounded-2xl transition-all active:scale-95 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-indigo-100/50 shadow-inner"
             title={lang === "es" ? "Switch to English" : "Cambiar a Español"}
@@ -1864,13 +1846,13 @@ export function CustomerPortal() {
             🌐 {lang === "es" ? "EN" : "ES"}
           </button>
           
-          <button 
+          <button type="button" 
             onClick={() => setShowNotifications(true)}
             className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-slate-600 transition-all relative active:scale-95"
           >
             <Bell size={18} />
             {hasUnread && (
-              <div className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full border-2 border-white" />
+              <div className="absolute top-3 right-3 size-2 bg-rose-500 rounded-full border-2 border-white" />
             )}
           </button>
         </div>
@@ -1900,7 +1882,7 @@ export function CustomerPortal() {
                   </button>
                   
                   <div className="flex items-start space-x-3 pr-6">
-                    <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-white">
+                    <div className="size-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-white">
                       <CheckCircle size={18} />
                     </div>
                     <div className="space-y-1">
@@ -1945,7 +1927,7 @@ export function CustomerPortal() {
             >
               {/* Point Card */}
               <div className={cn("rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl", tier.bg, tier.textColor)}>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/5 blur-3xl rounded-full -mr-16 -mt-16" />
+                <div className="absolute top-0 right-0 size-32 bg-indigo-600/5 blur-3xl rounded-full -mr-16 -mt-16" />
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-8">
                     <Star size={24} className={tier.color} />
@@ -1976,7 +1958,7 @@ export function CustomerPortal() {
               {/* FCM Push Notifications Control Card */}
               <div className="bg-gradient-to-r from-slate-900 to-[#1e1b4b] text-white p-6 rounded-[2.5rem] border border-indigo-500/10 shadow-xl flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${fcmRegistered ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse"}`}>
+                  <div className={`size-12 rounded-2xl flex items-center justify-center border transition-all ${fcmRegistered ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse"}`}>
                     <Bell size={20} className={fcmLoading ? "animate-spin" : ""} />
                   </div>
                   <div>
@@ -1991,12 +1973,12 @@ export function CustomerPortal() {
                 </div>
 
                 {!fcmRegistered ? (
-                  <button
+                  <button type="button"
                     onClick={handleActivateNotifications}
                     disabled={fcmLoading}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-[10px] font-black uppercase tracking-wider rounded-2xl transition-all cursor-pointer active:scale-95 text-white shadow-lg shadow-indigo-600/30"
                   >
-                    {fcmLoading ? "Conectando..." : "Activar"}
+                    {fcmLoading ? "Conectando…" : "Activar"}
                   </button>
                 ) : (
                   <span className="px-3.5 py-1.5 bg-emerald-500/15 text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-2xl border border-emerald-500/30 shadow-xs">
@@ -2007,20 +1989,20 @@ export function CustomerPortal() {
 
               {/* Quick Actions */}
               <div className="grid grid-cols-2 gap-4">
-                <button 
+                <button type="button" 
                   onClick={() => setActiveTab("rewards")}
                   className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center space-y-3 hover:bg-slate-50 transition-all active:scale-95"
                 >
-                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                  <div className="size-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
                     <Gift size={24} />
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Canjear</span>
                 </button>
-                <button 
+                <button type="button" 
                   onClick={() => setActiveTab("shop")}
                   className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center space-y-3 active:scale-95 transition-transform"
                 >
-                  <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                  <div className="size-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
                     <ShoppingCart size={24} />
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Comprar</span>
@@ -2031,7 +2013,7 @@ export function CustomerPortal() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Ofertas para ti</h3>
-                  <button onClick={() => setActiveTab("offers")} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Ver Todas</button>
+                  <button type="button" onClick={() => setActiveTab("offers")} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Ver Todas</button>
                 </div>
                 <div className="space-y-3">
                   {loadingCoupons ? (
@@ -2058,7 +2040,7 @@ export function CustomerPortal() {
                       <>
                         {/* Unlocked Automatic Point-Based Coupons */}
                         {unlockedAutoCoupons.map((auto) => (
-                          <button
+                          <button type="button"
                             key={auto.id}
                             onClick={() => {
                               setAlertConfig({
@@ -2079,7 +2061,7 @@ export function CustomerPortal() {
                                 </p>
                               </div>
                             </div>
-                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <div className="size-10 bg-white/20 rounded-xl flex items-center justify-center">
                               <Star size={18} className="fill-current text-white" />
                             </div>
                           </button>
@@ -2087,7 +2069,7 @@ export function CustomerPortal() {
 
                         {/* Unlocked Real Company Coupons */}
                         {eligibleRealCoupons.map((coupon) => (
-                          <button
+                          <button type="button"
                             key={coupon.id}
                             onClick={() => {
                               setAlertConfig({
@@ -2111,7 +2093,7 @@ export function CustomerPortal() {
                                 </p>
                               </div>
                             </div>
-                            <div className="w-10 h-10 bg-indigo-100/50 text-indigo-600 rounded-xl flex items-center justify-center">
+                            <div className="size-10 bg-indigo-100/50 text-indigo-600 rounded-xl flex items-center justify-center">
                               <Star size={18} className="fill-current" />
                             </div>
                           </button>
@@ -2183,11 +2165,11 @@ export function CustomerPortal() {
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-3">
-                  <button onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
+                  <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Tienda Online</h3>
                 </div>
                 {cart.length > 0 && (
-                  <button 
+                  <button type="button" 
                     onClick={() => setShowCart(true)}
                     className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[10px] font-black animate-bounce uppercase tracking-wider"
                   >
@@ -2215,7 +2197,7 @@ export function CustomerPortal() {
                   </div>
                   <input
                     type="text"
-                    placeholder="Buscar marca, nombre, SKU..."
+                    placeholder="Buscar marca, nombre, SKU…"
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
@@ -2224,7 +2206,7 @@ export function CustomerPortal() {
                     className="w-full bg-white border border-slate-100 rounded-2xl pl-10 pr-10 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition-all focus:outline-none"
                   />
                   {searchTerm && (
-                    <button
+                    <button type="button"
                       onClick={() => {
                         setSearchTerm("");
                         setVisibleCount(24);
@@ -2236,7 +2218,7 @@ export function CustomerPortal() {
                   )}
                 </div>
                 <div className="bg-slate-100 p-1 rounded-2xl flex items-center shadow-inner shrink-0">
-                  <button
+                  <button type="button"
                     onClick={() => setViewMode("grid")}
                     className={cn(
                       "p-2 rounded-xl transition-all",
@@ -2246,7 +2228,7 @@ export function CustomerPortal() {
                   >
                     <Grid size={16} />
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => setViewMode("compact")}
                     className={cn(
                       "p-2 rounded-xl transition-all",
@@ -2269,7 +2251,7 @@ export function CustomerPortal() {
                   if (count === 0 && cat !== "Todos") return null;
 
                   return (
-                    <button
+                    <button type="button"
                       key={cat}
                       onClick={() => {
                         setSelectedCategory(cat);
@@ -2312,7 +2294,7 @@ export function CustomerPortal() {
                   <div className="text-4xl text-slate-300">🔎</div>
                   <h4 className="font-bold text-sm text-slate-700">Sin coincidencias</h4>
                   <p className="text-xs text-slate-400">Prueba ajustando la búsqueda o seleccionando otra de tus categorías.</p>
-                  <button
+                  <button type="button"
                     onClick={() => {
                       setSearchTerm("");
                       setSelectedCategory("Todos");
@@ -2330,9 +2312,9 @@ export function CustomerPortal() {
                       <div key={product.id} className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col group hover:shadow-md transition-shadow">
                         <div className="aspect-square bg-slate-50 rounded-xl mb-3 flex items-center justify-center text-3xl group-hover:scale-105 transition-transform overflow-hidden relative">
                           {product.image ? (
-                            <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <img src={product.image} alt={product.name || "Producto"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
-                            <span>{product.category === "Bebidas" ? "🥤" : product.category === "Lácteos" ? "🧀" : "🍎"}</span>
+                            <span aria-label={product.name || "Producto"}>{product.category === "Bebidas" ? "🥤" : product.category === "Lácteos" ? "🧀" : "🍎"}</span>
                           )}
                           {product.stock <= 5 && (
                             <span className="absolute bottom-1 right-1 bg-amber-500 text-white px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest leading-none">
@@ -2356,7 +2338,7 @@ export function CustomerPortal() {
                             <motion.button 
                               whileTap={{ scale: 0.9 }}
                               onClick={() => updateQuantity(product.id, -1)}
-                              className="w-10 h-10 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-400 hover:text-rose-500 transition-colors"
+                              className="size-10 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-400 hover:text-rose-500 transition-colors"
                             >
                               <Minus size={14} />
                             </motion.button>
@@ -2386,13 +2368,13 @@ export function CustomerPortal() {
                                   });
                                 }
                               }}
-                              className="w-10 h-10 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-400 hover:text-indigo-600 transition-colors"
+                              className="size-10 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-400 hover:text-indigo-600 transition-colors"
                             >
                               <Plus size={14} />
                             </motion.button>
                           </div>
                         ) : (
-                          <button 
+                          <button type="button" 
                             onClick={() => addToCart(product)}
                             className="mt-auto w-full py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 transition-colors"
                           >
@@ -2411,11 +2393,11 @@ export function CustomerPortal() {
                     return (
                       <div key={product.id} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between gap-3 hover:border-indigo-100 hover:shadow-sm transition-all">
                         <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-xl shrink-0 overflow-hidden border border-slate-50">
+                          <div className="size-10 rounded-lg bg-slate-50 flex items-center justify-center text-xl shrink-0 overflow-hidden border border-slate-50">
                             {product.image ? (
-                              <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              <img src={product.image} alt={product.name || "Producto"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
-                              <span>{product.category === "Bebidas" ? "🥤" : product.category === "Lácteos" ? "🧀" : "🍎"}</span>
+                              <span aria-label={product.name || "Producto"}>{product.category === "Bebidas" ? "🥤" : product.category === "Lácteos" ? "🧀" : "🍎"}</span>
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
@@ -2438,7 +2420,7 @@ export function CustomerPortal() {
                             <motion.button 
                               whileTap={{ scale: 0.9 }}
                               onClick={() => updateQuantity(product.id, -1)}
-                              className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-400 hover:text-rose-500"
+                              className="size-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-400 hover:text-rose-500"
                             >
                               <Minus size={11} />
                             </motion.button>
@@ -2468,13 +2450,13 @@ export function CustomerPortal() {
                                   });
                                 }
                               }}
-                              className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-400 hover:text-indigo-600"
+                              className="size-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-400 hover:text-indigo-600"
                             >
                               <Plus size={11} />
                             </motion.button>
                           </div>
                         ) : (
-                          <button 
+                          <button type="button" 
                             onClick={() => addToCart(product)}
                             className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 shrink-0 transition-colors"
                           >
@@ -2490,7 +2472,7 @@ export function CustomerPortal() {
               {/* 5. Pagination / Load more CTA for performance scalability with 1000+ items */}
               {filteredAndSortedProducts.length > visibleCount && (
                 <div className="pt-2 text-center">
-                  <button
+                  <button type="button"
                     onClick={() => setVisibleCount(idx => idx + 24)}
                     className="px-6 py-3 bg-white border border-slate-100 hover:bg-slate-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5"
                   >
@@ -2511,7 +2493,7 @@ export function CustomerPortal() {
                   whileTap={{ scale: 0.98 }}
                   className="fixed bottom-24 left-6 right-6 z-50 px-0"
                 >
-                  <button 
+                  <button type="button" 
                     onClick={() => setShowCart(true)}
                     className={cn(
                       "w-full bg-slate-900 text-white p-5 rounded-[2rem] shadow-2xl flex items-center justify-between group transition-all relative overflow-hidden",
@@ -2522,16 +2504,16 @@ export function CustomerPortal() {
                     <div className="absolute inset-0 bg-indigo-500/10 animate-pulse" />
                     
                     <div className="flex items-center space-x-3 relative z-10">
-                      <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+                      <div className="size-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
                         {loading ? (
-                          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <div className="size-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
                           <ShoppingBag size={24} />
                         )}
                       </div>
                       <div className="text-left">
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 text-indigo-300">
-                          {loading ? "PROCESANDO..." : "REVISAR PEDIDO"}
+                          {loading ? "PROCESANDO…" : "REVISAR PEDIDO"}
                         </p>
                         <p className="text-lg font-black">{formatCurrency(cartTotal)}</p>
                       </div>
@@ -2555,7 +2537,7 @@ export function CustomerPortal() {
               exit={{ opacity: 0, y: 50 }}
               className="space-y-6 text-center py-6"
             >
-              <div className="w-16 h-16 bg-indigo-600 rounded-[1.75rem] flex items-center justify-center text-white mx-auto shadow-xl shadow-indigo-100">
+              <div className="size-16 bg-indigo-600 rounded-[1.75rem] flex items-center justify-center text-white mx-auto shadow-xl shadow-indigo-100">
                 <Wallet size={28} />
               </div>
               <div>
@@ -2568,7 +2550,7 @@ export function CustomerPortal() {
               <div className="bg-white p-6 rounded-[2.5rem] border-2 border-slate-900 shadow-xl relative overflow-hidden max-w-[320px] mx-auto">
                 {/* Security shield decoration */}
                 <div className="absolute top-3 right-3 bg-indigo-50 border border-indigo-100/50 rounded-full p-1.5 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+                  <div className="size-2 rounded-full bg-indigo-600 animate-pulse" />
                 </div>
                 
                 {/* Dynamically rotating secure QR Code */}
@@ -2618,7 +2600,7 @@ export function CustomerPortal() {
                        {formatCurrency(customer.balance !== undefined ? customer.balance : 25000)}
                      </h4>
                    </div>
-                   <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                   <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                      <Wallet size={18} />
                    </div>
                  </div>
@@ -2681,7 +2663,7 @@ export function CustomerPortal() {
                   <span>🛡️</span>
                   <span>Protegido contra capturas de pantalla y suplantación</span>
                 </p>
-                <button 
+                <button type="button" 
                   onClick={() => setActiveTab("home")}
                   className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors py-2"
                 >
@@ -2699,7 +2681,7 @@ export function CustomerPortal() {
               className="space-y-6 text-left"
             >
               <div className="flex items-center space-x-3 mb-4">
-                <button onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
+                <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">{t[lang].history}</h3>
               </div>
 
@@ -2729,7 +2711,7 @@ export function CustomerPortal() {
                 >
                   {t[lang].claimsForm}
                   {claimsList.length > 0 && (
-                    <span className="w-2 h-2 rounded-full bg-rose-500 border border-white" />
+                    <span className="size-2 rounded-full bg-rose-500 border border-white" />
                   )}
                 </button>
               </div>
@@ -2742,13 +2724,13 @@ export function CustomerPortal() {
                     const displayPoints = Math.floor(receipt.finalOrderTotal / 1000);
 
                     return (
-                      <button 
+                      <button type="button" 
                         key={receipt.orderId}
                         onClick={() => setSelectedReceipt(receipt)}
                         className="w-full text-left bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-100 hover:shadow-md transition-all active:scale-[0.99] duration-200"
                       >
                         <div className="flex items-center space-x-4 min-w-0 flex-1">
-                          <div className="w-12 h-12 bg-indigo-50/50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
+                          <div className="size-12 bg-indigo-50/50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
                             <Receipt size={20} />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -2806,7 +2788,7 @@ export function CustomerPortal() {
                   {/* Informational intro card */}
                   <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-950 shadow-md">
                     <div className="flex items-start space-x-3.5">
-                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-amber-400">
+                      <div className="size-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-amber-400">
                         <AlertCircle size={20} />
                       </div>
                       <div className="text-left space-y-1">
@@ -2868,7 +2850,7 @@ export function CustomerPortal() {
                           {claim.photo && (
                             <div className="space-y-1.5 text-left">
                               <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Evidencia Adjunta</p>
-                              <div className="relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-150 shadow-sm bg-slate-50 group shrink-0">
+                              <div className="relative size-24 rounded-2xl overflow-hidden border border-slate-150 shadow-sm bg-slate-50 group shrink-0">
                                 <img 
                                   src={claim.photo} 
                                   alt="Evidencia" 
@@ -2919,7 +2901,7 @@ export function CustomerPortal() {
               className="space-y-6"
             >
               <div className="flex items-center space-x-3 mb-4">
-                <button 
+                <button type="button" 
                   onClick={() => setActiveTab("home")} 
                   className="p-2.5 bg-white rounded-2xl border border-slate-150 shadow-sm active:scale-95 transition-all text-slate-600 hover:text-slate-900"
                 >
@@ -2979,7 +2961,7 @@ export function CustomerPortal() {
                   <Wallet size={13} />
                   <span>Mis Vales</span>
                   {redemptions.filter(r => r.status === "pending").length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white animate-bounce">
+                    <span className="absolute -top-1 -right-1 size-5 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white animate-bounce">
                       {redemptions.filter(r => r.status === "pending").length}
                     </span>
                   )}
@@ -3008,7 +2990,7 @@ export function CustomerPortal() {
                         ? PHYSICAL_REWARDS_CATALOGUE.length
                         : PHYSICAL_REWARDS_CATALOGUE.filter(r => r.category === cat).length;
                       return (
-                        <button
+                        <button type="button"
                           key={cat}
                           onClick={() => setRewardCategory(cat)}
                           className={cn(
@@ -3036,7 +3018,7 @@ export function CustomerPortal() {
                             className="bg-white p-5 rounded-[2.5rem] border border-slate-150 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-md"
                           >
                             <div className="flex items-center space-x-4">
-                              <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-4xl shadow-inner shrink-0 border border-slate-100">
+                              <div className="size-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-4xl shadow-inner shrink-0 border border-slate-100">
                                 {item.emoji}
                               </div>
                               <div className="text-left">
@@ -3054,7 +3036,7 @@ export function CustomerPortal() {
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PTS</span>
                               </div>
 
-                              <button
+                              <button type="button"
                                 disabled={!canRedeem || loading}
                                 onClick={() => setConfirmReward(item)}
                                 className={cn(
@@ -3078,11 +3060,11 @@ export function CustomerPortal() {
                 <div className="space-y-4">
                   {redemptions.length === 0 ? (
                     <div className="p-12 text-center bg-white rounded-[2.5rem] border border-slate-150 shadow-sm">
-                      <div className="w-14 h-14 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <div className="size-14 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-3">
                         <Gift size={24} />
                       </div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aún no tienes canjes acumulados</p>
-                      <button 
+                      <button type="button" 
                         onClick={() => setRewardViewTab("available")} 
                         className="mt-4 px-4 py-2 text-indigo-600 text-[10px] font-black uppercase tracking-widest bg-indigo-50 rounded-xl"
                       >
@@ -3104,7 +3086,7 @@ export function CustomerPortal() {
                             
                             <div className="flex items-start justify-between">
                               <div className="flex items-center space-x-3">
-                                <div className="w-12 h-12 bg-slate-50 rounded-[1.2rem] flex items-center justify-center text-2xl shadow-inner border border-slate-100 shrink-0">
+                                <div className="size-12 bg-slate-50 rounded-[1.2rem] flex items-center justify-center text-2xl shadow-inner border border-slate-100 shrink-0">
                                   {PHYSICAL_REWARDS_CATALOGUE.find(r => r.id === item.productId)?.emoji || "🎁"}
                                 </div>
                                 <div className="text-left">
@@ -3160,9 +3142,9 @@ export function CustomerPortal() {
               {rewardViewTab === "desafios" && (
                 <div className="space-y-4 text-left">
                   <div className="bg-gradient-to-br from-indigo-900 to-slate-900 p-6 rounded-[2.5rem] text-white space-y-2 shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-450/15 blur-3xl rounded-full -mr-12 -mt-12 animate-pulse" />
+                    <div className="absolute top-0 right-0 size-32 bg-amber-450/15 blur-3xl rounded-full -mr-12 -mt-12 animate-pulse" />
                     <div className="flex items-center space-x-3 relative z-10">
-                      <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-400 border border-white/10 shrink-0">
+                      <div className="size-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-400 border border-white/10 shrink-0">
                         <Trophy size={18} />
                       </div>
                       <div>
@@ -3227,7 +3209,7 @@ export function CustomerPortal() {
                         <div className="flex items-start justify-between">
                           <div className="flex items-center space-x-3.5">
                             <div className={cn(
-                              "w-12 h-12 rounded-[1.2rem] flex items-center justify-center shrink-0 border border-slate-100",
+                              "size-12 rounded-[1.2rem] flex items-center justify-center shrink-0 border border-slate-100",
                               ch.style === "indigo" ? "bg-indigo-50 text-indigo-600" :
                               ch.style === "emerald" ? "bg-emerald-50 text-emerald-600" :
                               ch.style === "amber" ? "bg-amber-50 text-amber-600" :
@@ -3321,7 +3303,7 @@ export function CustomerPortal() {
                     >
                       <div className="flex items-center justify-between">
                         <h4 className="text-lg font-black text-slate-800 tracking-tight">Confirmar Canje de Regalo</h4>
-                        <button 
+                        <button type="button" 
                           onClick={() => setConfirmReward(null)}
                           className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-full transition-all"
                         >
@@ -3330,7 +3312,7 @@ export function CustomerPortal() {
                       </div>
 
                       <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center space-x-4">
-                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border border-slate-200 shadow-sm text-4xl shrink-0">
+                        <div className="size-16 bg-white rounded-2xl flex items-center justify-center border border-slate-200 shadow-sm text-4xl shrink-0">
                           {confirmReward.emoji}
                         </div>
                         <div className="text-left">
@@ -3354,13 +3336,13 @@ export function CustomerPortal() {
                       </div>
 
                       <div className="flex gap-4">
-                        <button 
+                        <button type="button" 
                           onClick={() => setConfirmReward(null)}
                           className="flex-1 py-4 bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
                         >
                           Cancelar
                         </button>
-                        <button 
+                        <button type="button" 
                           onClick={() => handleRedeemReward(confirmReward)}
                           className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2"
                         >
@@ -3384,7 +3366,7 @@ export function CustomerPortal() {
               className="space-y-8"
             >
               <div className="flex items-center space-x-3 mb-6">
-                <button onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
+                <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Mis Beneficios y Cupones</h3>
               </div>
 
@@ -3407,7 +3389,7 @@ export function CustomerPortal() {
                       const isUsed = customer?.usedCoupons && customer.usedCoupons.includes(offer.code);
                       
                       return (
-                        <button 
+                        <button type="button" 
                           key={offer.id || idx} 
                           disabled={!isEligible || isUsed}
                           onClick={() => {
@@ -3502,7 +3484,7 @@ export function CustomerPortal() {
                     const isUsed = customer?.usedCoupons && customer.usedCoupons.includes(offer.code);
                     
                     return (
-                      <button 
+                      <button type="button" 
                         key={offer.id} 
                         disabled={!isEligible || isUsed}
                         onClick={() => {
@@ -3559,7 +3541,7 @@ export function CustomerPortal() {
               className="space-y-6 pb-24"
             >
               <div className="bg-indigo-600 text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full" />
+                <div className="absolute top-0 right-0 size-32 bg-white/10 blur-3xl rounded-full" />
                 <h3 className="text-xl font-black">🚚 Seguimiento de Despachos</h3>
                 <p className="text-xs font-medium text-indigo-100 mt-2 leading-relaxed">
                   Monitorea tus encomiendas y despachos georreferenciados en tiempo real. 
@@ -3577,27 +3559,27 @@ export function CustomerPortal() {
 
       {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 py-4 flex items-center justify-between z-50 gap-1">
-        <button 
+        <button type="button" 
           onClick={() => setActiveTab("home")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "home" ? "text-indigo-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Star size={18} />
           <span className="text-[7.5px] font-black uppercase tracking-wider">Inicio</span>
         </button>
-        <button 
+        <button type="button" 
           onClick={() => setActiveTab("history")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "history" ? "text-indigo-600 scale-110 font-bold" : "text-slate-400")}
         >
           <History size={18} />
           <span className="text-[7.5px] font-black uppercase tracking-wider">Boletas</span>
         </button>
-        <button 
+        <button type="button" 
           onClick={() => setActiveTab("wallet")}
-          className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white -mt-8 shadow-md transition-all shrink-0", activeTab === "wallet" ? "bg-indigo-600 scale-110" : "bg-slate-900 shadow-slate-200")}
+          className={cn("size-10 rounded-xl flex items-center justify-center text-white -mt-8 shadow-md transition-all shrink-0", activeTab === "wallet" ? "bg-indigo-600 scale-110" : "bg-slate-900 shadow-slate-200")}
         >
            <Wallet size={18} />
         </button>
-        <button 
+        <button type="button" 
           onClick={() => setActiveTab("offers")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "offers" ? "text-indigo-600 scale-110 font-bold" : "text-slate-400")}
         >
@@ -3605,7 +3587,7 @@ export function CustomerPortal() {
           <span className="text-[7.5px] font-black uppercase tracking-wider">Cupones</span>
         </button>
         {settings.deliveryEnabled !== false && (
-          <button 
+          <button type="button" 
             onClick={() => setActiveTab("delivery")}
             className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "delivery" ? "text-indigo-600 scale-110 font-bold" : "text-slate-400")}
           >
@@ -3630,7 +3612,7 @@ export function CustomerPortal() {
               className="bg-white rounded-[3rem] p-10 shadow-2xl flex flex-col items-center max-w-sm w-full"
             >
               <div className="relative mb-8">
-                <div className="w-20 h-20 bg-indigo-50 rounded-[2.5rem] flex items-center justify-center text-indigo-600">
+                <div className="size-20 bg-indigo-50 rounded-[2.5rem] flex items-center justify-center text-indigo-600">
                   <ShoppingBag size={32} className="animate-bounce" />
                 </div>
                 <div className="absolute inset-0 rounded-[2.5rem] border-4 border-indigo-600 border-t-transparent animate-spin" />
@@ -3671,12 +3653,12 @@ export function CustomerPortal() {
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                  <div className="size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
                     <ShoppingCart size={20} />
                   </div>
                   <h3 className="text-xl font-black text-slate-800">Tu Pedido</h3>
                 </div>
-                <button onClick={() => setShowCart(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">
+                <button type="button" onClick={() => setShowCart(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">
                   <ArrowLeft size={18} className="-rotate-90" />
                 </button>
               </div>
@@ -3695,11 +3677,11 @@ export function CustomerPortal() {
                     
                     return (
                       <div key={item.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm overflow-hidden">
+                        <div className="size-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm overflow-hidden">
                           {product?.image ? (
-                            <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <img src={product.image} alt={product.name || "Producto"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
-                            <span>{product?.category === "Bebidas" ? "🥤" : product?.category === "Lácteos" ? "🧀" : "🍎"}</span>
+                            <span aria-label={product?.name || "Producto"}>{product?.category === "Bebidas" ? "🥤" : product?.category === "Lácteos" ? "🧀" : "🍎"}</span>
                           )}
                         </div>
                         <div className="flex-1">
@@ -3710,9 +3692,9 @@ export function CustomerPortal() {
                           )}
                         </div>
                         <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5">
-                           <button 
+                           <button type="button" 
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-500"
+                            className="size-6 flex items-center justify-center text-slate-400 hover:text-rose-500"
                            >
                             <Minus size={10} />
                            </button>
@@ -3727,14 +3709,14 @@ export function CustomerPortal() {
                              }}
                              className="w-8 text-center bg-transparent border-none text-[10px] font-black text-slate-800 focus:ring-0 p-0"
                            />
-                           <button 
+                           <button type="button" 
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-indigo-600"
+                            className="size-6 flex items-center justify-center text-slate-400 hover:text-indigo-600"
                            >
                             <Plus size={10} />
                            </button>
                         </div>
-                        <button 
+                        <button type="button" 
                           onClick={() => removeFromCart(item.id)}
                           className="p-1 text-slate-300 hover:text-rose-500 transition-colors"
                         >
@@ -3763,7 +3745,7 @@ export function CustomerPortal() {
                             <p className="text-[9px] text-indigo-600 font-bold">{appliedCoupon.desc}</p>
                           </div>
                         </div>
-                        <button 
+                        <button type="button" 
                           onClick={() => setAppliedCoupon(null)}
                           className="text-slate-400 hover:text-rose-500 font-black text-xs px-2 py-1"
                         >
@@ -3780,7 +3762,7 @@ export function CustomerPortal() {
                             onChange={(e) => setCouponInput(e.target.value)}
                             className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-black focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 uppercase"
                           />
-                          <button 
+                          <button type="button" 
                             onClick={() => handleApplyCoupon(couponInput)}
                             className="bg-indigo-600 text-white uppercase tracking-widest text-[9px] font-black px-4 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shrink-0"
                           >
@@ -3813,7 +3795,7 @@ export function CustomerPortal() {
                     </div>
                   </div>
 
-                  <button 
+                  <button type="button" 
                     onClick={() => {
                       setShowCart(false);
                       setAlertConfig({
@@ -3852,7 +3834,7 @@ export function CustomerPortal() {
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-black text-slate-800">Notificaciones</h3>
-                <button onClick={() => setShowNotifications(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">
+                <button type="button" onClick={() => setShowNotifications(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">
                   <ArrowLeft size={18} className="-rotate-90" />
                 </button>
               </div>
@@ -3875,7 +3857,7 @@ export function CustomerPortal() {
                 )}
               </div>
               
-              <button 
+              <button type="button" 
                 onClick={() => setShowNotifications(false)}
                 className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px]"
               >
@@ -3902,13 +3884,13 @@ export function CustomerPortal() {
             >
               {/* Header section with brand accent */}
               <div className="bg-slate-900 text-white p-6 pb-8 text-center relative shrink-0">
-                <button 
+                <button type="button" 
                   onClick={() => setSelectedReceipt(null)} 
                   className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full text-white/80 transition-colors"
                 >
                   <ArrowLeft size={18} className="-rotate-90" />
                 </button>
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <div className="size-12 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <Receipt size={24} className="text-emerald-400" />
                 </div>
                 <h3 className="text-lg font-black tracking-tight">{settings.businessName || "Nuestra Tienda"}</h3>
@@ -3990,8 +3972,8 @@ export function CustomerPortal() {
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t-2 border-dashed border-slate-200" />
                   </div>
-                  <div className="absolute left-[-2rem] top-1/2 -translate-y-1/2 w-4 h-4 bg-slate-900/60 rounded-full" />
-                  <div className="absolute right-[-2rem] top-1/2 -translate-y-1/2 w-4 h-4 bg-slate-900/60 rounded-full" />
+                  <div className="absolute left-[-2rem] top-1/2 -translate-y-1/2 size-4 bg-slate-900/60 rounded-full" />
+                  <div className="absolute right-[-2rem] top-1/2 -translate-y-1/2 size-4 bg-slate-900/60 rounded-full" />
                 </div>
 
                 {/* Financial breakdown & summary */}
@@ -4021,7 +4003,7 @@ export function CustomerPortal() {
                 {/* Fidelidad / Puntos rewarded section */}
                 <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-between text-xs text-emerald-800">
                   <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600">
+                    <div className="size-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600">
                       <Star size={16} className="fill-current text-emerald-600" />
                     </div>
                     <div>
@@ -4107,7 +4089,7 @@ export function CustomerPortal() {
                         value={selectedReceipt.orderId} 
                         size={80}
                         level="M"
-                        className="w-16 h-16 opacity-80"
+                        className="size-16 opacity-80"
                       />
                     </div>
                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Código de Verificación</span>
@@ -4136,7 +4118,7 @@ export function CustomerPortal() {
                   Iniciar Reclamo / Soporte
                 </button>
                 <div className="flex space-x-3 w-full">
-                  <button
+                  <button type="button"
                     onClick={() => {
                       // Create a style-trimmed receipt plain print format
                       const itemLines = selectedReceipt.items.map((item: any) => 
@@ -4197,7 +4179,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                     <Printer size={14} />
                     Imprimir
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => setSelectedReceipt(null)}
                     className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white transition-colors rounded-xl font-black uppercase tracking-widest text-[10px]"
                   >
@@ -4222,13 +4204,13 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
               className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] border border-slate-100"
             >
               <div className="bg-rose-600 text-white p-6 text-center relative shrink-0">
-                <button 
+                <button type="button" 
                   onClick={() => setShowClaimModal(false)} 
                   className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full text-white/80 transition-colors"
                 >
                   <ArrowLeft size={18} className="-rotate-90" />
                 </button>
-                <div className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <div className="size-12 bg-white/15 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <AlertCircle size={24} className="text-white" />
                 </div>
                 <h3 className="text-lg font-black tracking-tight">{lang === "es" ? "Iniciar Reclamo / Soporte" : "File Support Ticket / Claim"}</h3>
@@ -4275,7 +4257,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                     type="text"
                     value={claimOrderId}
                     onChange={(e) => setClaimOrderId(e.target.value)}
-                    placeholder="e.g. pos_171457..."
+                    placeholder="e.g. pos_171457…"
                     className="w-full h-12 bg-white border border-slate-250 rounded-xl px-4 text-xs font-bold focus:outline-hidden focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all shadow-sm"
                   />
                 </div>
@@ -4302,7 +4284,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                     {lang === "es" ? "Detalle del Problema" : "Problem Details"}
                   </label>
                   <textarea 
-                    placeholder={lang === "es" ? "Explica detalladamente qué sucedió con tu producto o pedido..." : "Please describe in detail what happened to your product or order..."}
+                    placeholder={lang === "es" ? "Explica detalladamente qué sucedió con tu producto o pedido…" : "Please describe in detail what happened to your product or order…"}
                     rows={4}
                     value={claimDescription}
                     onChange={(e) => setClaimDescription(e.target.value)}
@@ -4346,14 +4328,14 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                         const el = document.getElementById("claim-photo-input");
                         if (el) el.click();
                       }}
-                      className="w-16 h-16 bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 hover:border-rose-300 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-rose-500 transition-all active:scale-95 shadow-sm"
+                      className="size-16 bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 hover:border-rose-300 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-rose-500 transition-all active:scale-95 shadow-sm"
                     >
                       <Camera size={20} />
                       <span className="text-[8px] font-black mt-1 uppercase tracking-wider">{lang === "es" ? "CÁMARA" : "CAMERA"}</span>
                     </button>
 
                     {claimPhoto ? (
-                      <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-slate-150 shadow-sm shrink-0 bg-slate-100">
+                      <div className="relative size-16 rounded-2xl overflow-hidden border border-slate-150 shadow-sm shrink-0 bg-slate-100">
                         <img src={claimPhoto} alt="Previsualización" className="w-full h-full object-cover" />
                         <button
                           type="button"
@@ -4443,7 +4425,7 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                   )}
                 >
                   {isSubmittingClaim ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
                       <span>{lang === "es" ? "Enviar Caso" : "Submit Case"}</span>

@@ -1,6 +1,7 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import {BrowserRouter} from 'react-router-dom';
+import {MotionConfig} from 'motion/react';
 import App from './App.tsx';
 import './index.css';
 
@@ -58,7 +59,9 @@ if (typeof window !== 'undefined' && (import.meta as any).env?.DEV) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <MotionConfig reducedMotion="user">
+        <App />
+      </MotionConfig>
     </BrowserRouter>
   </StrictMode>,
 );

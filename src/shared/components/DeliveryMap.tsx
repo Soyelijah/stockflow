@@ -240,7 +240,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
     setIsSimulating(true);
     setSimulationStopIndex(-1);
     setSimulatedVehiclePos(WAREHOUSE_COORDS);
-    setSimulatedLogs(["🚀 [FCM Simulator] Inicializando despacho desde Bodega Principal..."]);
+    setSimulatedLogs(["🚀 [FCM Simulator] Inicializando despacho desde Bodega Principal…"]);
 
     const pathPoints = [WAREHOUSE_COORDS, ...stopSequence.map(s => ({ lat: s.lat, lng: s.lng }))];
     if (returnToWarehouse) {
@@ -495,7 +495,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
     return (
       <div className="flex items-center justify-center min-h-[500px] bg-slate-50 p-8 rounded-[2.5rem]">
         <div className="text-center max-w-xl bg-white p-10 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
-          <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto shadow-sm">
+          <div className="size-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto shadow-sm">
             <MapIcon size={32} />
           </div>
           <h2 className="text-xl font-black text-slate-800">Se requiere API Key de Google Maps Platform</h2>
@@ -530,7 +530,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Despachos En Ruta</h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Monitoreo de logística real</p>
           </div>
-          <button
+          <button type="button"
             onClick={() => setShowAddForm(!showAddForm)}
             className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-colors"
             title="Crear guía despacho real"
@@ -671,7 +671,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                     setReturnToWarehouse(e.target.checked);
                     setOptimizedIndices([]); // Re-compute necessary
                   }}
-                  className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                  className="rounded text-indigo-600 focus:ring-indigo-500 size-4"
                 />
                 <label htmlFor="return_wh" className="text-[10px] font-black text-slate-600 uppercase tracking-wider cursor-pointer select-none">
                   Retornar a bodega al terminar
@@ -749,7 +749,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                       ⚓ Centro de Simulación Push
                     </span>
                     {isSimulating && (
-                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                      <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
                     )}
                   </div>
 
@@ -789,7 +789,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   
                   {/* Origin */}
                   <div className="p-2 bg-slate-50 rounded-xl border border-dashed text-xs font-bold text-slate-500 flex items-center space-x-2">
-                    <span className="w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">🏢</span>
+                    <span className="size-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">🏢</span>
                     <span className="truncate">Bodega Principal (Partida)</span>
                   </div>
 
@@ -803,7 +803,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                     >
                       <div className="flex items-center space-x-2.5 min-w-0">
                         <span className={cn(
-                          "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black shrink-0 shadow-sm",
+                          "size-5 flex items-center justify-center rounded-full text-[10px] font-black shrink-0 shadow-sm",
                           simulationStopIndex === index ? "bg-emerald-600 text-white" : "bg-emerald-500 text-white"
                         )}>
                           {index + 1}
@@ -822,7 +822,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   {/* Return optionally */}
                   {returnToWarehouse && (
                     <div className="p-2 bg-slate-50 rounded-xl border border-dashed text-xs font-bold text-slate-500 flex items-center space-x-2">
-                      <span className="w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">🏢</span>
+                      <span className="size-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">🏢</span>
                       <span className="truncate">Bodega Principal (Retorno)</span>
                     </div>
                   )}
@@ -841,7 +841,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   )}
                 >
                   <Save size={12} />
-                  {saveStatus === "saving" && "Guardando Secuencia..."}
+                  {saveStatus === "saving" && "Guardando Secuencia…"}
                   {saveStatus === "success" && "¡Guardado con Éxito!"}
                   {saveStatus === "error" && "Error al Guardar"}
                   {saveStatus === "idle" && "Publicar Ruta para Chofer"}
@@ -873,7 +873,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 )}
               >
                 {selectedShipment?.id === s.id && (
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-2xl rounded-full" />
+                  <div className="absolute top-0 right-0 size-24 bg-indigo-500/10 blur-2xl rounded-full" />
                 )}
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[9px] font-black tracking-widest px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 uppercase font-sans">
@@ -928,7 +928,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
         {isOptimizedMode ? (
           <div className="p-4 bg-slate-900 text-white rounded-t-3xl border-b border-white/5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center space-x-3 text-left font-sans">
-              <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
+              <div className="size-10 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
                 <Sparkles size={18} />
               </div>
               <div>
@@ -959,7 +959,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   disabled={saveStatus === "saving"}
                   className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all"
                 >
-                  {saveStatus === "saving" ? "Guardando..." : "Confirmar Recorrido"}
+                  {saveStatus === "saving" ? "Guardando…" : "Confirmar Recorrido"}
                 </button>
               </div>
             )}
@@ -1001,7 +1001,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
             ) : (
               <div className="flex items-center space-x-2 shrink-0 font-sans">
                 <span className="text-xs font-black text-white/40 uppercase tracking-widest mr-2">Control Logístico:</span>
-                <button
+                <button type="button"
                   onClick={() => handleUpdateStatus(selectedShipment.id, "prepared")}
                   className={cn(
                     "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
@@ -1010,7 +1010,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 >
                   Preparado
                 </button>
-                <button
+                <button type="button"
                   onClick={() => handleUpdateStatus(selectedShipment.id, "in_route")}
                   className={cn(
                     "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
@@ -1019,7 +1019,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                 >
                   En Camino
                 </button>
-                <button
+                <button type="button"
                   onClick={() => handleUpdateStatus(selectedShipment.id, "delivered")}
                   className={cn(
                     "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
@@ -1091,7 +1091,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                       scale={isSelected ? 1.25 : 1.0}
                     >
                       {isOptimizedStop ? (
-                        <div className="text-[11px] font-black text-white h-5 w-5 flex items-center justify-center font-sans">
+                        <div className="text-[11px] font-black text-white size-5 flex items-center justify-center font-sans">
                           {stopIndex + 1}
                         </div>
                       ) : (
@@ -1114,8 +1114,8 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
               {isSimulating && simulatedVehiclePos && (
                 <AdvancedMarker position={simulatedVehiclePos}>
                   <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-[85%]">
-                    <span className="absolute inline-flex h-8 w-8 rounded-full bg-indigo-500 opacity-40 animate-ping" />
-                    <div className="w-9 h-9 bg-slate-950 border-2 border-white rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-bounce">
+                    <span className="absolute inline-flex size-8 rounded-full bg-indigo-500 opacity-40 animate-ping" />
+                    <div className="size-9 bg-slate-950 border-2 border-white rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-bounce">
                       🚚
                     </div>
                   </div>
@@ -1128,8 +1128,8 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   return (
                     <AdvancedMarker key={`realtime_truck_${s.id}`} position={{ lat: s.currentLat, lng: s.currentLng }}>
                       <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-[85%]">
-                        <span className="absolute inline-flex h-8 w-8 rounded-full bg-emerald-500 opacity-40 animate-ping" />
-                        <div className="w-9 h-9 bg-slate-950 border-2 border-emerald-400 rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-bounce" title={`Pedido #${s.orderId} en camino`}>
+                        <span className="absolute inline-flex size-8 rounded-full bg-emerald-500 opacity-40 animate-ping" />
+                        <div className="size-9 bg-slate-950 border-2 border-emerald-400 rounded-full flex items-center justify-center shadow-2xl text-sm relative z-10 animate-bounce" title={`Pedido #${s.orderId} en camino`}>
                           🚚
                         </div>
                       </div>

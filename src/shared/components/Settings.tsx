@@ -197,7 +197,7 @@ export function Settings() {
         throw new Error(data.error || "Fallo inesperado");
       }
     } catch (err: any) {
-      console.warn("Fallo al cargar registros en el backend, intentando snapshot directo...", err);
+      console.warn("Fallo al cargar registros en el backend, intentando snapshot directo…", err);
       try {
         const auditCol = collection(db, "role_audit");
         const qDocs = query(auditCol, orderBy("timestamp", "desc"), limit(auditPageSize));
@@ -693,7 +693,7 @@ export function Settings() {
                   onClick={() => setSettings({...settings, autoPrintInvoice: !settings.autoPrintInvoice})}
                 >
                   <div className={cn(
-                    "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all",
+                    "absolute top-0.5 size-4 bg-white rounded-full transition-all",
                     settings.autoPrintInvoice ? "left-5.5" : "left-0.5"
                   )} />
                 </div>
@@ -723,7 +723,7 @@ export function Settings() {
                 settings.aiEnabled ? "bg-indigo-600" : "bg-slate-200"
               )}>
                 <div className={cn(
-                  "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                  "absolute top-1 size-4 bg-white rounded-full transition-all",
                   settings.aiEnabled ? "left-7" : "left-1"
                 )} />
               </div>
@@ -784,7 +784,7 @@ export function Settings() {
                 settings.deliveryEnabled ? "bg-indigo-600" : "bg-slate-200"
               )}>
                 <div className={cn(
-                  "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                  "absolute top-1 size-4 bg-white rounded-full transition-all",
                   settings.deliveryEnabled ? "left-7" : "left-1"
                 )} />
               </div>
@@ -819,7 +819,7 @@ export function Settings() {
                   pushConfig.criticalStockAlerts ? "bg-indigo-600" : "bg-slate-200"
                 )}>
                   <div className={cn(
-                    "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                    "absolute top-1 size-4 bg-white rounded-full transition-all",
                     pushConfig.criticalStockAlerts ? "left-7" : "left-1"
                   )} />
                 </div>
@@ -839,7 +839,7 @@ export function Settings() {
                   pushConfig.orderAlerts ? "bg-indigo-600" : "bg-slate-200"
                 )}>
                   <div className={cn(
-                    "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                    "absolute top-1 size-4 bg-white rounded-full transition-all",
                     pushConfig.orderAlerts ? "left-7" : "left-1"
                   )} />
                 </div>
@@ -897,7 +897,7 @@ export function Settings() {
                 className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center space-x-1 transition-colors outline-none cursor-pointer border-none"
               >
                 <RefreshCw size={12} className={cn(isGatewayLoading && "animate-spin")} />
-                <span>{isGatewayLoading ? "Ping..." : "Probar Conexión"}</span>
+                <span>{isGatewayLoading ? "Ping…" : "Probar Conexión"}</span>
               </button>
             </div>
 
@@ -907,11 +907,11 @@ export function Settings() {
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gateway Status</span>
                 <div className="flex items-center space-x-2">
                   <span className={cn(
-                    "w-3 h-3 rounded-full animate-pulse",
+                    "size-3 rounded-full animate-pulse",
                     gatewayStatus?.status === "online" ? "bg-emerald-500" : gatewayStatus?.status === "degraded" ? "bg-amber-500" : "bg-rose-500"
                   )} />
                   <span className="text-sm font-extrabold uppercase tracking-wider text-slate-800">
-                    {gatewayStatus?.status === "online" ? "Operativo" : gatewayStatus?.status === "degraded" ? "Degradado" : gatewayStatus?.status === "offline" ? "Sin Conexión" : "Verificando..."}
+                    {gatewayStatus?.status === "online" ? "Operativo" : gatewayStatus?.status === "degraded" ? "Degradado" : gatewayStatus?.status === "offline" ? "Sin Conexión" : "Verificando…"}
                   </span>
                 </div>
               </div>
@@ -989,7 +989,7 @@ export function Settings() {
                       </div>
                       <div className="flex items-center space-x-1.5 mt-2 pt-2 border-t border-slate-200/50">
                         <span className={cn(
-                          "w-2 h-2 rounded-full",
+                          "size-2 rounded-full",
                           mod.status === "online" ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
                         )} />
                         <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">
@@ -1204,7 +1204,7 @@ export function Settings() {
             <div className="pl-4">
               <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Estado de Guardado</p>
               <p className="text-xs font-black text-white">
-                {showSuccess ? "✓ Cambios Guardados" : isSaving ? "Guardando..." : "Cambios pendientes"}
+                {showSuccess ? "✓ Cambios Guardados" : isSaving ? "Guardando…" : "Cambios pendientes"}
               </p>
             </div>
             <button 
@@ -1238,7 +1238,7 @@ export function Settings() {
               <div className="flex items-center space-x-2">
                 <input 
                   type="text"
-                  placeholder="Buscar por email o nombre..."
+                  placeholder="Buscar por email o nombre…"
                   value={searchEmail}
                   onChange={(e) => {
                     setSearchEmail(e.target.value);
@@ -1258,7 +1258,7 @@ export function Settings() {
                   disabled={isSearching}
                   className="h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center transition-colors disabled:opacity-50"
                 >
-                  {isSearching ? "Buscando..." : "Buscar"}
+                  {isSearching ? "Buscando…" : "Buscar"}
                 </button>
               </div>
             </div>
@@ -1268,7 +1268,7 @@ export function Settings() {
                 {(searchResult !== null ? searchResult : users).map((u) => (
                   <div key={u.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between group hover:bg-white hover:border-indigo-100 transition-all">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 font-black text-lg shadow-sm border border-slate-50 uppercase">
+                      <div className="size-12 bg-white rounded-xl flex items-center justify-center text-slate-400 font-black text-lg shadow-sm border border-slate-50 uppercase">
                         {u.name?.charAt(0) || u.email?.charAt(0)}
                       </div>
                       <div>
@@ -1288,7 +1288,7 @@ export function Settings() {
                         <option value="logistics">Logística / Bodega</option>
                       </select>
                       <div className={cn(
-                        "w-2 h-2 rounded-full",
+                        "size-2 rounded-full",
                         u.role === "admin" ? "bg-indigo-600" : u.role === "manager" ? "bg-emerald-500" : u.role === "logistics" ? "bg-amber-500" : "bg-slate-300"
                       )} title={u.role} />
                     </div>
@@ -1336,7 +1336,7 @@ export function Settings() {
           {/* emergency button panel (Botonera de Emergencia) */}
           <div className="bg-rose-50 border border-rose-200 p-8 rounded-[3rem] shadow-sm flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center space-x-6">
-              <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center text-rose-600 shadow-sm border border-rose-100">
+              <div className="size-16 bg-white rounded-[1.5rem] flex items-center justify-center text-rose-600 shadow-sm border border-rose-100">
                 <AlertCircle size={32} />
               </div>
               <div>
@@ -1354,7 +1354,7 @@ export function Settings() {
                 className="w-full md:w-auto bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-rose-100 transition-all flex items-center justify-center space-x-2 text-xs uppercase tracking-widest cursor-pointer border-none outline-none"
               >
                 <RefreshCw size={16} className={cn(emergencyCloseLoading && "animate-spin")} />
-                <span>{emergencyCloseLoading ? "Cerrando Cajas..." : "Forzar Cierre de Cajas Abiertas"}</span>
+                <span>{emergencyCloseLoading ? "Cerrando Cajas…" : "Forzar Cierre de Cajas Abiertas"}</span>
               </button>
               {emergencyCloseSuccess && (
                 <p className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">
@@ -1403,7 +1403,7 @@ export function Settings() {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Email del Operador</label>
                 <input
                   type="text"
-                  placeholder="Filtrar por email..."
+                  placeholder="Filtrar por email…"
                   value={operatorEmailFilter}
                   onChange={(e) => setOperatorEmailFilter(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -1413,7 +1413,7 @@ export function Settings() {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Acción / Evento</label>
                 <input
                   type="text"
-                  placeholder="Ej: ROLE_CHANGE, EXP_DELETED..."
+                  placeholder="Ej: ROLE_CHANGE, EXP_DELETED…"
                   value={actionFilter}
                   onChange={(e) => setActionFilter(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"

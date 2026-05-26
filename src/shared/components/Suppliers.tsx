@@ -227,7 +227,7 @@ export function Suppliers() {
           <h1 className="text-4xl font-black text-slate-800 tracking-tight">Proveedores</h1>
           <p className="text-slate-500 font-medium">Gestiona tus contactos comerciales y fuentes de abastecimiento.</p>
         </div>
-        <button 
+        <button type="button" 
           onClick={() => {
             setEditingSupplier(null);
             // L-SAN-1: blank phone (was "+56 " placeholder that could persist if user submits without typing).
@@ -247,7 +247,7 @@ export function Suppliers() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar por nombre, contacto o rubro..."
+            placeholder="Buscar por nombre, contacto o rubro…"
             className="w-full bg-slate-50 border-none rounded-xl py-3 pl-12 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -267,11 +267,11 @@ export function Suppliers() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-indigo-100/50 transition-colors" />
+              <div className="absolute top-0 right-0 size-32 bg-indigo-50/50 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-indigo-100/50 transition-colors" />
               
               <div className="flex justify-between items-start mb-6 relative z-10">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-100">
+                  <div className="size-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-100">
                     {supplier.name.charAt(0)}
                   </div>
                   <div>
@@ -282,10 +282,10 @@ export function Suppliers() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleEdit(supplier)} className="p-2 hover:bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors">
+                  <button type="button" onClick={() => handleEdit(supplier)} className="p-2 hover:bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors">
                     <Edit2 size={16} />
                   </button>
-                  <button 
+                  <button type="button" 
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(supplier.id, supplier.name);
@@ -299,7 +299,7 @@ export function Suppliers() {
 
               <div className="space-y-4 relative z-10">
                 <div className="flex items-center space-x-3 text-slate-500">
-                  <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center">
+                  <div className="size-8 bg-slate-50 rounded-xl flex items-center justify-center">
                     <Users size={14} />
                   </div>
                   <span className="text-xs font-bold">{supplier.contactName || "Sin contacto directo"}</span>
@@ -307,13 +307,13 @@ export function Suppliers() {
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center space-x-3 text-slate-500">
-                    <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center">
+                    <div className="size-8 bg-slate-50 rounded-xl flex items-center justify-center">
                       <Phone size={14} />
                     </div>
                     <span className="text-[10px] font-black">{formatChileanPhone(supplier.phone || "") || "N/A"}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-slate-500">
-                    <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center">
+                    <div className="size-8 bg-slate-50 rounded-xl flex items-center justify-center">
                       <Mail size={14} />
                     </div>
                     <span className="text-[10px] font-black truncate">{supplier.email || "N/A"}</span>
@@ -321,7 +321,7 @@ export function Suppliers() {
                 </div>
 
                 <div className="flex items-start space-x-3 text-slate-500">
-                  <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center mt-0.5">
+                  <div className="size-8 bg-slate-50 rounded-xl flex items-center justify-center mt-0.5">
                     <MapPin size={14} />
                   </div>
                   <span className="text-[10px] font-bold leading-relaxed">{supplier.address || "Sin dirección registrada"}</span>
@@ -368,7 +368,7 @@ export function Suppliers() {
       {/* Empty State */}
       {filteredSuppliers.length === 0 && (
         <div className="bg-white rounded-[3rem] p-20 text-center border-2 border-dashed border-slate-100">
-          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+          <div className="size-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
             <Users size={40} />
           </div>
           <h3 className="text-xl font-black text-slate-800 mb-2">No tienes proveedores registrados</h3>
@@ -398,7 +398,7 @@ export function Suppliers() {
                   <h2 className="text-xl md:text-2xl font-black text-slate-800">{editingSupplier ? "Editar Proveedor" : "Nuevo Proveedor"}</h2>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Completa los detalles</p>
                 </div>
-                <button 
+                <button type="button" 
                   onClick={() => setIsModalOpen(false)}
                   className="p-2.5 hover:bg-slate-100 rounded-2xl transition-all"
                 >
@@ -496,7 +496,7 @@ export function Suppliers() {
                     className="w-full sm:flex-[2] h-14 md:h-16 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all flex items-center justify-center space-x-2 cursor-pointer"
                   >
                     {isSubmitting ? (
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                      <div className="size-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
                     ) : (
                       <>
                         <Plus size={16} />

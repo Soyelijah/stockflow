@@ -429,7 +429,7 @@ export function ShrinkageReport() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-            <div className="w-10 h-10 bg-rose-100 rounded-2xl flex items-center justify-center">
+            <div className="size-10 bg-rose-100 rounded-2xl flex items-center justify-center">
               <TrendingDown size={22} className="text-rose-600" />
             </div>
             Reportería de Mermas
@@ -439,7 +439,7 @@ export function ShrinkageReport() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button
+          <button type="button"
             onClick={handleExportCSV}
             disabled={filteredMovements.length === 0}
             className="bg-white border border-slate-200 text-slate-700 font-bold px-5 py-2.5 rounded-2xl shadow-sm hover:bg-slate-50 hover:-translate-y-0.5 transition-all flex items-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -447,7 +447,7 @@ export function ShrinkageReport() {
             <Download size={16} className="text-emerald-600" />
             <span>CSV</span>
           </button>
-          <button
+          <button type="button"
             onClick={handleExportPDF}
             disabled={filteredMovements.length === 0}
             className="bg-rose-600 text-white font-bold px-5 py-2.5 rounded-2xl shadow-xl shadow-rose-200 hover:bg-rose-500 hover:-translate-y-0.5 transition-all flex items-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -462,7 +462,7 @@ export function ShrinkageReport() {
       <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 items-center">
         <div className="flex bg-slate-100 p-1 rounded-2xl overflow-x-auto scrollbar-none whitespace-nowrap gap-1">
           {periods.map((p) => (
-            <button
+            <button type="button"
               key={p.key}
               onClick={() => setPeriod(p.key)}
               className={cn(
@@ -540,13 +540,13 @@ export function ShrinkageReport() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input
               type="text"
-              placeholder="Buscar producto o motivo..."
+              placeholder="Buscar producto o motivo…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-8 text-xs font-medium focus:ring-2 focus:ring-indigo-200 transition-all placeholder:text-slate-400 text-slate-700"
             />
             {searchTerm && (
-              <button
+              <button type="button"
                 onClick={() => setSearchTerm("")}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
@@ -560,7 +560,7 @@ export function ShrinkageReport() {
       {/* ═══════ KPI CARDS ═══════ */}
       {loading ? (
         <div className="flex justify-center py-20">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-200 border-t-rose-600 shadow-md" />
+          <div className="size-10 animate-spin rounded-full border-4 border-rose-200 border-t-rose-600 shadow-md" />
         </div>
       ) : (
         <>
@@ -579,7 +579,7 @@ export function ShrinkageReport() {
                   {filteredMovements.length} eventos registrados
                 </p>
               </div>
-              <div className="absolute -right-3 -bottom-3 w-20 h-20 bg-white/5 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
+              <div className="absolute -right-3 -bottom-3 size-20 bg-white/5 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
                 <Package size={40} className="text-white/10" />
               </div>
             </motion.div>
@@ -598,7 +598,7 @@ export function ShrinkageReport() {
                   Valorizado a costo unitario
                 </p>
               </div>
-              <div className="absolute -right-3 -bottom-3 w-20 h-20 bg-white/5 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
+              <div className="absolute -right-3 -bottom-3 size-20 bg-white/5 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
                 <DollarSign size={40} className="text-white/10" />
               </div>
             </motion.div>
@@ -617,7 +617,7 @@ export function ShrinkageReport() {
                   {topProduct.qty > 0 ? `${topProduct.qty} unidades perdidas` : "Sin mermas"}
                 </p>
               </div>
-              <div className="absolute -right-3 -bottom-3 w-20 h-20 bg-rose-50 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
+              <div className="absolute -right-3 -bottom-3 size-20 bg-rose-50 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
                 <AlertTriangle size={32} className="text-rose-200" />
               </div>
             </motion.div>
@@ -648,7 +648,7 @@ export function ShrinkageReport() {
                   </p>
                 </div>
               </div>
-              <div className="absolute -right-3 -bottom-3 w-20 h-20 bg-indigo-50 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
+              <div className="absolute -right-3 -bottom-3 size-20 bg-indigo-50 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
                 <Activity size={32} className="text-indigo-200" />
               </div>
             </motion.div>
@@ -720,7 +720,7 @@ export function ShrinkageReport() {
                 </ResponsiveContainer>
               ) : (
                 <div className="h-[260px] flex items-center justify-center text-slate-400 text-sm">
-                  {dailyTrend.length === 0 ? "Sin datos en este periodo" : "Generando gráfico..."}
+                  {dailyTrend.length === 0 ? "Sin datos en este periodo" : "Generando gráfico…"}
                 </div>
               )}
             </motion.div>
@@ -832,7 +832,7 @@ export function ShrinkageReport() {
                   {motiveDistribution.map((item, index) => (
                     <div key={index} className="flex items-center gap-3 bg-slate-50 rounded-2xl px-4 py-3">
                       <div
-                        className="w-3 h-3 rounded-full shrink-0"
+                        className="size-3 rounded-full shrink-0"
                         style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
                       />
                       <div className="flex-1 min-w-0">
@@ -939,7 +939,7 @@ export function ShrinkageReport() {
 
               {filteredMovements.length === 0 && (
                 <div className="p-16 text-center">
-                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mx-auto mb-4">
+                  <div className="size-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mx-auto mb-4">
                     <TrendingDown size={32} />
                   </div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -960,14 +960,14 @@ export function ShrinkageReport() {
                   <span className="font-bold text-slate-700">{totalPages}</span>
                 </span>
                 <div className="flex items-center space-x-2">
-                  <button
+                  <button type="button"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
                   >
                     <ChevronLeft size={16} />
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"

@@ -44,6 +44,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { cn, formatCurrency, formatRUT, formatChileanPhone, formatNumber, getCustomerTier, calculatePoints, normalizeRutForSearch, cleanEmail } from "../../lib/utils";
+import { STORAGE_KEYS, getStorageJSON, setStorageJSON } from "../../lib/storage";
 import confetti from "canvas-confetti";
 import { CashRegisterManagement } from "./CashRegister";
 import { MercadoPagoWallet } from "./MercadoPagoWallet";
@@ -74,14 +75,9 @@ export function POS() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("pos_active_cart_standard");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [cart, setCart] = useState<CartItem[]>(() =>
+    getStorageJSON<CartItem[]>(STORAGE_KEYS.posActiveCartStandard, [])
+  );
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
@@ -226,7 +222,7 @@ export function POS() {
   });
 
   useEffect(() => {
-    localStorage.setItem("pos_active_cart_standard", JSON.stringify(cart));
+    setStorageJSON(STORAGE_KEYS.posActiveCartStandard, cart);
   }, [cart]);
 
   useEffect(() => {
@@ -295,11 +291,18 @@ export function POS() {
     return Number(p.stock) > 0 && (nameMatch || skuMatch || barcodeMatch) && categoryMatch;
   }), [products, searchTerm, selectedCategory]);
 
-  const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    // M-SAN-2: normalize both sides — "12.345.678-9" matches stored "123456789"
-    normalizeRutForSearch(c.taxId || "").includes(normalizeRutForSearch(customerSearch))
-  ).slice(0, 5);
+  // M-SAN-2: normalize both sides — "12.345.678-9" matches stored "123456789"
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim();
+    if (!q) return customers.slice(0, 5);
+    const qLower = q.toLowerCase();
+    const qRut = normalizeRutForSearch(q);
+    return customers.filter(c => {
+      const nameMatch = c.name?.toLowerCase().includes(qLower);
+      const rutMatch = qRut.length > 0 && normalizeRutForSearch(c.taxId || "").includes(qRut);
+      return nameMatch || rutMatch;
+    }).slice(0, 5);
+  }, [customers, customerSearch]);
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -746,10 +749,10 @@ export function POS() {
 
       const cleanCustomer = selectedCustomer ? {
         id: selectedCustomer.id || "",
-        name: selectedCustomer.name || "",
-        taxId: selectedCustomer.taxId || "",
+        name: (selectedCustomer.name || "").trim(),
+        taxId: (selectedCustomer.taxId || "").trim(),
         email: cleanEmail(selectedCustomer.email), // M-SAN-3: defense-in-depth
-        phone: selectedCustomer.phone || ""
+        phone: (selectedCustomer.phone || "").trim()
       } : null;
 
       const orderData = {
@@ -835,14 +838,14 @@ export function POS() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Buscar producto o SKU..."
+              placeholder="Buscar producto o SKU…"
               className="w-full sm:w-72 bg-white border-none rounded-2xl py-3 pl-12 pr-12 text-sm font-bold shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all text-slate-700"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button 
+            <button type="button" 
               onClick={() => setIsScanning(true)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors shadow-sm"
+              className="absolute right-3 top-1/2 -translate-y-1/2 size-8 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors shadow-sm"
               title="Escaneo Móvil/Webcam"
             >
               <Camera size={14} />
@@ -872,7 +875,7 @@ export function POS() {
         {/* Category Rail */}
         <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
           {categories.map((cat) => (
-            <button
+            <button type="button"
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={cn(
@@ -916,9 +919,9 @@ export function POS() {
               >
                 <div className="flex flex-col items-center w-full">
                   {/* Product Icon/Image */}
-                  <div className="w-14 h-14 sm:w-20 sm:h-20 bg-slate-50 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-all mb-3 sm:mb-4 relative overflow-hidden capitalize font-black text-2xl sm:text-3xl">
+                  <div className="size-14 sm:w-20 sm:h-20 bg-slate-50 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-all mb-3 sm:mb-4 relative overflow-hidden capitalize font-black text-2xl sm:text-3xl">
                      {product.image ? (
-                       <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                       <img src={product.image} alt={product.name || "Producto"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                      ) : (
                        product.name.charAt(0)
                      )}
@@ -980,7 +983,7 @@ export function POS() {
               <ShoppingCart size={20} />
               <h2 className="text-xl font-black tracking-tight">Checkout</h2>
             </div>
-            <button 
+            <button type="button" 
               onClick={() => setCart([])}
               className="text-[10px] font-bold text-rose-500 border border-rose-100 px-3 py-1 rounded-full uppercase tracking-widest hover:bg-rose-50 transition-colors"
             >
@@ -990,7 +993,7 @@ export function POS() {
 
           {/* Type of Document */}
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <button 
+            <button type="button" 
               onClick={() => setDocumentType("boleta")}
               className={cn(
                 "flex items-center justify-center space-x-2 py-3 rounded-2xl border transition-all",
@@ -1000,7 +1003,7 @@ export function POS() {
               <Ticket size={16} />
               <span className="text-[10px] font-black uppercase tracking-widest">Boleta / Ticket</span>
             </button>
-            <button 
+            <button type="button" 
               onClick={() => setDocumentType("factura")}
               className={cn(
                 "flex items-center justify-center space-x-2 py-3 rounded-2xl border transition-all",
@@ -1013,7 +1016,7 @@ export function POS() {
           </div>
 
           {/* Customer Selection */}
-          <button 
+          <button type="button" 
             onClick={() => setShowCustomerModal(true)}
             className={cn(
               "mb-6 p-4 rounded-2xl border flex items-center justify-between transition-all group",
@@ -1021,7 +1024,7 @@ export function POS() {
             )}
           >
             <div className="flex items-center space-x-3">
-              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", selectedCustomer ? "bg-white text-indigo-600" : "bg-slate-50 text-slate-300")}>
+              <div className={cn("size-10 rounded-xl flex items-center justify-center transition-colors", selectedCustomer ? "bg-white text-indigo-600" : "bg-slate-50 text-slate-300")}>
                 <Users size={20} />
               </div>
               <div className="text-left">
@@ -1058,9 +1061,9 @@ export function POS() {
             {cart.map((item) => (
               <div key={item.id} className="flex items-center justify-between group bg-slate-50 p-3 rounded-2xl">
                 <div className="flex items-center flex-1 min-w-0 pr-4">
-                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-300 mr-3 border border-slate-100 overflow-hidden shrink-0">
+                  <div className="size-8 bg-white rounded-lg flex items-center justify-center text-slate-300 mr-3 border border-slate-100 overflow-hidden shrink-0">
                     {item.image ? (
-                      <img src={item.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={item.image} alt={item.name || "Producto en carrito"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       <Package size={14} />
                     )}
@@ -1073,7 +1076,7 @@ export function POS() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <button onClick={() => updateQuantity(item.id, -1)} className="p-1 rounded-lg bg-white shadow-sm border border-slate-100"><Minus size={12}/></button>
+                  <button type="button" onClick={() => updateQuantity(item.id, -1)} className="p-1 rounded-lg bg-white shadow-sm border border-slate-100"><Minus size={12}/></button>
                   <input 
                     type="number"
                     className="w-8 text-center bg-transparent border-none text-[10px] font-black text-slate-800 focus:ring-0 p-0 italic"
@@ -1085,8 +1088,8 @@ export function POS() {
                       }
                     }}
                   />
-                  <button onClick={() => updateQuantity(item.id, 1)} disabled={item.quantity >= item.maxStock} className="p-1 rounded-lg bg-white shadow-sm border border-slate-100 disabled:opacity-30"><Plus size={12}/></button>
-                  <button onClick={() => removeFromCart(item.id)} className="ml-2 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
+                  <button type="button" onClick={() => updateQuantity(item.id, 1)} disabled={item.quantity >= item.maxStock} className="p-1 rounded-lg bg-white shadow-sm border border-slate-100 disabled:opacity-30"><Plus size={12}/></button>
+                  <button type="button" onClick={() => removeFromCart(item.id)} className="ml-2 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
                 </div>
               </div>
             ))}
@@ -1167,7 +1170,7 @@ export function POS() {
                         <m.icon size={12} className={m.color} />
                         <span>{m.label}</span>
                       </div>
-                      <button 
+                      <button type="button" 
                         onClick={() => {
                           const pValues = Object.values(payments) as number[];
                           const balance = cartTotal - pValues.reduce((a, b) => a + (b || 0), 0);
@@ -1189,7 +1192,7 @@ export function POS() {
                         onChange={(e) => handlePaymentChange(m.id as keyof PaymentBreakdown, e.target.value)}
                       />
                       {currentVal > 0 && (
-                        <button 
+                        <button type="button" 
                           onClick={() => handlePaymentChange(m.id as keyof PaymentBreakdown, "0")}
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500"
                         >
@@ -1204,7 +1207,7 @@ export function POS() {
 
             {/* Change Calculator & Numpad */}
             <div className="bg-slate-900 rounded-3xl p-4 sm:p-6 text-white space-y-6 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
+              <div className="absolute top-0 right-0 size-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
               
               <div className="bg-slate-950/50 p-4 rounded-2xl border border-white/5 space-y-3 relative z-10">
                 <div className="flex items-center justify-between">
@@ -1228,7 +1231,7 @@ export function POS() {
               {/* Touch Numpad */}
               <div className="grid grid-cols-3 gap-2 relative z-10">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map((btn) => (
-                  <button
+                  <button type="button"
                     key={btn}
                     onClick={() => handleNumpadClick(btn)}
                     className="h-12 bg-white/5 hover:bg-white/10 rounded-xl font-black text-sm transition-all active:scale-95"
@@ -1236,7 +1239,7 @@ export function POS() {
                     {btn}
                   </button>
                 ))}
-                <button
+                <button type="button"
                   onClick={() => handleNumpadClick("C")}
                   className="col-span-3 h-10 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
                 >
@@ -1256,7 +1259,7 @@ export function POS() {
                         <p className="text-[10px] text-white/60">{appliedCoupon.desc}</p>
                       </div>
                     </div>
-                    <button 
+                    <button type="button" 
                       onClick={() => setAppliedCoupon(null)} 
                       className="text-[10px] font-black text-rose-400 hover:text-rose-300 uppercase tracking-widest"
                     >
@@ -1273,7 +1276,7 @@ export function POS() {
                         onChange={(e) => setPromoCode(e.target.value)}
                         className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-black text-white uppercase placeholder-white/20 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                       />
-                      <button 
+                      <button type="button" 
                         onClick={handleApplyCoupon}
                         className="bg-white/10 hover:bg-white/25 text-white text-xs font-black px-3 sm:px-4 py-2 rounded-xl transition-all shrink-0 whitespace-nowrap"
                       >
@@ -1312,7 +1315,7 @@ export function POS() {
                 </div>
               </div>
 
-              <button
+              <button type="button"
                 onClick={handleCheckout}
                 disabled={isProcessing || cart.length === 0 || remaining > 0 || (documentType === "factura" && !selectedCustomer) || !isCashRegisterOpen}
                 className={cn(
@@ -1346,20 +1349,20 @@ export function POS() {
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-white/95 backdrop-blur-sm z-[20] flex flex-col items-center justify-center p-8 text-center"
               >
-                <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
+                <div className="size-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
                   <CheckCircle2 size={40} />
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">Venta Procesada</h3>
                 <p className="text-slate-500 text-sm font-medium mb-8">Stock actualizado y transacción registrada exitosamente.</p>
                 
                 <div className="flex flex-col w-full gap-3">
-                  <button 
+                  <button type="button" 
                     onClick={() => handlePrint(lastOrder)}
                     className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-200"
                   >
                     Imprimir Comprobante
                   </button>
-                  <button 
+                  <button type="button" 
                     onClick={() => setShowSuccess(false)}
                     className="w-full py-4 text-slate-400 font-bold hover:text-slate-600 transition-colors uppercase tracking-widest text-[10px]"
                   >
@@ -1386,14 +1389,14 @@ export function POS() {
               animate={{ y: 0, opacity: 1 }}
               className="bg-white rounded-[3rem] shadow-2xl max-w-md w-full p-10 flex flex-col items-center text-center relative"
             >
-              <button 
+              <button type="button" 
                 onClick={() => setShowNFCSim(false)}
                 className="absolute top-8 right-8 p-2 text-slate-300 hover:text-slate-900"
               >
                 <X size={24} />
               </button>
 
-              <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-[2rem] flex items-center justify-center mb-8">
+              <div className="size-20 bg-indigo-50 text-indigo-500 rounded-[2rem] flex items-center justify-center mb-8">
                 <Cpu size={40} className="animate-pulse" />
               </div>
               
@@ -1420,7 +1423,7 @@ export function POS() {
               />
 
               <div className="mt-8 pt-8 border-t border-slate-50 w-full">
-                <button 
+                <button type="button" 
                   onClick={startFlowQR}
                   className="w-full h-14 bg-slate-50 text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center space-x-2 border border-indigo-100 hover:bg-slate-100 transition-all"
                 >
@@ -1447,7 +1450,7 @@ export function POS() {
               animate={{ scale: 1, opacity: 1 }}
               className="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 flex flex-col items-center text-center relative overflow-hidden"
             >
-              <button 
+              <button type="button" 
                 onClick={() => {
                   if (flowStatus !== "success") setShowFlowModal(false);
                   else { setShowSuccess(true); setShowFlowModal(false); }
@@ -1460,7 +1463,7 @@ export function POS() {
 
               {flowStatus === "pending" && (
                 <>
-                  <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mb-6">
+                  <div className="size-16 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mb-6">
                     <Smartphone size={32} />
                   </div>
                   <h3 className="text-xl font-black text-slate-800 mb-2">Pago por QR</h3>
@@ -1484,12 +1487,12 @@ export function POS() {
 
               {flowStatus === "success" && (
                 <>
-                  <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
+                  <div className="size-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
                     <CheckCircle2 size={40} />
                   </div>
                   <h3 className="text-2xl font-black text-slate-800 mb-2">¡Pago Recibido!</h3>
                   <p className="text-slate-500 mb-8 font-medium">La transacción ha sido aprobada por Flow.</p>
-                  <button 
+                  <button type="button" 
                     onClick={() => {
                       setShowFlowModal(false);
                       setShowSuccess(true);
@@ -1503,12 +1506,12 @@ export function POS() {
 
               {flowStatus === "error" && (
                 <>
-                  <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6">
+                  <div className="size-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6">
                     <X size={40} />
                   </div>
                   <h3 className="text-2xl font-black text-slate-800 mb-2">Pago Cancelado</h3>
                   <p className="text-slate-500 mb-8 font-medium">No se pudo confirmar o el tiempo expiró.</p>
-                  <button 
+                  <button type="button" 
                     onClick={() => setShowFlowModal(false)}
                     className="w-full py-4 bg-slate-100 text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs"
                   >
@@ -1540,7 +1543,7 @@ export function POS() {
             >
               <div className="p-10 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-indigo-600">
+                  <div className="size-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-indigo-600">
                     <Users size={28} />
                   </div>
                   <div>
@@ -1548,7 +1551,7 @@ export function POS() {
                     <p className="text-[10px] font-black uppercase tracking-widest mt-2 text-slate-400">Selección para venta y facturación</p>
                   </div>
                 </div>
-                <button 
+                <button type="button" 
                   onClick={() => setIsNewCustomerMode(!isNewCustomerMode)}
                   className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors"
                 >
@@ -1603,7 +1606,7 @@ export function POS() {
                         />
                       </div>
                     </div>
-                    <button className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs mt-4 shadow-xl">
+                    <button type="button" className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs mt-4 shadow-xl">
                       Registrar y Seleccionar
                     </button>
                   </form>
@@ -1613,14 +1616,14 @@ export function POS() {
                       <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
                       <input 
                         type="text"
-                        placeholder="Buscar por nombre, RUT, o escriba PIN OTP de 6 dígitos..."
+                        placeholder="Buscar por nombre, RUT, o escriba PIN OTP de 6 dígitos…"
                         className="w-full h-16 bg-slate-50 border border-slate-100 rounded-3xl pl-16 pr-20 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
                         value={customerSearch}
                         onChange={e => setCustomerSearch(e.target.value)}
                       />
-                      <button 
+                      <button type="button" 
                         onClick={() => setIsScanningCustomer(true)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 size-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
                         title="Escaneo Webcam - Código QR de Cliente"
                       >
                         <Camera size={18} />
@@ -1645,13 +1648,13 @@ export function POS() {
                     </AnimatePresence>
                     <div className="space-y-3">
                       {filteredCustomers.map(c => (
-                        <button 
+                        <button type="button" 
                           key={c.id}
                           onClick={() => { setSelectedCustomer(c); setShowCustomerModal(false); }}
                           className="w-full p-6 bg-white border border-slate-100 rounded-[2rem] flex items-center justify-between hover:border-indigo-200 hover:bg-indigo-50/30 transition-all"
                         >
                           <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+                            <div className="size-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
                               <Store size={24} />
                             </div>
                             <div className="text-left">

@@ -86,7 +86,7 @@ export function ModernAlert({
                   >
                     {getIcon()}
                   </motion.div>
-                  <button 
+                  <button type="button" 
                     onClick={onClose}
                     className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-colors"
                   >
@@ -103,7 +103,7 @@ export function ModernAlert({
 
                 <div className="flex flex-col sm:flex-row gap-3 mt-10 w-full">
                   {onConfirm && (
-                    <button
+                    <button type="button"
                       onClick={() => {
                         onConfirm();
                         onClose();
@@ -116,7 +116,7 @@ export function ModernAlert({
                       {confirmText}
                     </button>
                   )}
-                  <button
+                  <button type="button"
                     onClick={onClose}
                     className={cn(
                       "w-full sm:flex-1 min-h-[3.25rem] md:min-h-[3.5rem] py-3.5 px-6 rounded-2xl text-slate-500 text-sm font-bold uppercase tracking-wider hover:bg-slate-100 transition-all order-2 sm:order-1 flex items-center justify-center cursor-pointer",

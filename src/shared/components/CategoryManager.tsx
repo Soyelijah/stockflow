@@ -160,7 +160,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-0.5">Organización de Catálogo</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+          <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
             <X size={24} />
           </button>
         </div>
@@ -176,7 +176,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
-                    placeholder="Ej: Bebidas, Snacks..."
+                    placeholder="Ej: Bebidas, Snacks…"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -188,7 +188,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
                         type="button"
                         onClick={() => setFormData({...formData, color: c.value})}
                         className={cn(
-                          "w-10 h-10 rounded-full transition-all border-4",
+                          "size-10 rounded-full transition-all border-4",
                           c.value,
                           formData.color === c.value ? "border-slate-800 scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100"
                         )}
@@ -215,7 +215,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
               </div>
             </form>
           ) : (
-            <button 
+            <button type="button" 
               onClick={() => {
                 setEditingId(null);
                 setFormData({ name: "", description: "", color: COLORS[0].value });
@@ -232,7 +232,7 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
             {categories.map(cat => (
               <div key={cat.id} className="bg-white border border-slate-100 p-5 rounded-3xl flex items-center justify-between group hover:shadow-lg transition-all hover:-translate-y-1">
                 <div className="flex items-center space-x-4">
-                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-inner", cat.color || "bg-slate-500")}>
+                  <div className={cn("size-12 rounded-2xl flex items-center justify-center text-white shadow-inner", cat.color || "bg-slate-500")}>
                     <Tag size={20} />
                   </div>
                   <div>
@@ -241,10 +241,10 @@ export function CategoryManager({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
                 <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleEdit(cat)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                  <button type="button" onClick={() => handleEdit(cat)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
                     <Edit2 size={16} />
                   </button>
-                  <button 
+                  <button type="button" 
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(cat.id, cat.name);

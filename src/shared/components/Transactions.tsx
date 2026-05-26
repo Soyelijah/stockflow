@@ -237,7 +237,7 @@ export function Transactions() {
         {isAdmin && (
           <div className="flex items-center space-x-2">
             {isOnlyAdmin && (
-              <button 
+              <button type="button" 
                 onClick={exportToCSV}
                 className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center space-x-2 text-sm"
               >
@@ -273,7 +273,7 @@ export function Transactions() {
               <span>Sincronizado</span>
             </div>
           </div>
-          <div className="w-24 h-24 bg-white/10 rounded-[2.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
+          <div className="size-24 bg-white/10 rounded-[2.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
             <TrendingUp size={48} className="text-white/20" />
           </div>
         </motion.div>
@@ -290,7 +290,7 @@ export function Transactions() {
               <h3 className="text-4xl font-black text-slate-800">{formatCurrency(stats.totalSales)}</h3>
               <p className="text-slate-400 text-xs font-medium mt-2">Últimos 100 movimientos</p>
             </div>
-            <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
+            <div className="size-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
               <ShoppingCart size={48} className="text-slate-200" />
             </div>
           </motion.div>
@@ -303,7 +303,7 @@ export function Transactions() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text" 
-            placeholder="Buscar por producto, cajero o ID de orden..."
+            placeholder="Buscar por producto, cajero o ID de orden…"
             className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all text-slate-700"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -359,7 +359,7 @@ export function Transactions() {
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 skeleton-bg bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
+                        <div className="size-8 skeleton-bg bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
                           <Tag size={16} />
                         </div>
                         <div className="flex flex-col">
@@ -376,22 +376,22 @@ export function Transactions() {
                       {tx.type === 'sale' ? (
                         <div className="flex items-center space-x-2">
                           {tx.paymentBreakdown?.efectivo > 0 && (
-                            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-100" title="Efectivo">
+                            <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-100" title="Efectivo">
                               <Banknote size={14} />
                             </div>
                           )}
                           {tx.paymentBreakdown?.tarjeta > 0 && (
-                            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm border border-blue-100" title="Tarjeta">
+                            <div className="size-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm border border-blue-100" title="Tarjeta">
                               <CreditCard size={14} />
                             </div>
                           )}
                           {(tx.paymentBreakdown?.transferencia > 0 || tx.paymentMethod === 'transferencia') && (
-                            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm border border-purple-100" title="Transferencia">
+                            <div className="size-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm border border-purple-100" title="Transferencia">
                               <ArrowRightLeft size={14} />
                             </div>
                           )}
                           {tx.paymentBreakdown?.digital > 0 && (
-                            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm border border-amber-100" title="Pago Digital">
+                            <div className="size-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm border border-amber-100" title="Pago Digital">
                               <Smartphone size={14} />
                             </div>
                           )}
@@ -406,7 +406,7 @@ export function Transactions() {
                     {isAdmin && (
                       <td className="px-8 py-5">
                         <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
+                          <div className="size-6 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
                             <UserIcon size={12} />
                           </div>
                           <span className="text-xs font-bold text-slate-600">{tx.userName || "Sistema"}</span>
@@ -425,7 +425,7 @@ export function Transactions() {
                           {tx.note && <span className="text-[9px] text-slate-400 font-medium italic mt-0.5 truncate max-w-[120px]">{tx.note}</span>}
                         </div>
                         {tx.type === 'sale' && (
-                          <button 
+                          <button type="button" 
                             onClick={() => handlePrint(tx)}
                             className="p-2 hover:bg-indigo-50 rounded-xl text-slate-300 hover:text-indigo-600 transition-all shadow-sm border border-slate-50 flex items-center justify-center"
                             title="Reimprimir Ticket"
@@ -443,14 +443,14 @@ export function Transactions() {
 
           {loading && (
             <div className="py-20 flex flex-col items-center justify-center">
-              <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+              <div className="size-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Sincronizando Historial...</p>
             </div>
           )}
 
           {!loading && filteredTransactions.length === 0 && (
             <div className="py-24 text-center">
-              <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-slate-200 mx-auto mb-6">
+              <div className="size-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-slate-200 mx-auto mb-6">
                 <History size={40} />
               </div>
               <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sin registros que mostrar</p>
@@ -464,7 +464,7 @@ export function Transactions() {
                 Página <span className="font-bold text-slate-700">{currentPage}</span>
               </span>
               <div className="flex items-center space-x-2">
-                <button
+                <button type="button"
                   onClick={() => fetchTransactions("prev")}
                   disabled={currentPage === 1 || loading}
                   className={cn(
@@ -474,7 +474,7 @@ export function Transactions() {
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <button
+                <button type="button"
                   onClick={() => fetchTransactions("next")}
                   disabled={!hasMore || loading}
                   className={cn(

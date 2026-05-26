@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { db } from "../../lib/firebase";
 import { collection, doc, writeBatch, increment, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { useAuth } from "../../contexts/AuthContext";
+import { STORAGE_KEYS, getStorageJSON, setStorageJSON, removeStorage } from "../../lib/storage";
 
 export function FlowResult() {
   const { profile } = useAuth();
@@ -29,20 +30,16 @@ export function FlowResult() {
         // status 2 = Aceptado
         if (flowData.status === 2 || flowData.status === "2") {
           // 2. Recover cart and transaction details from storage
-          const cartRaw = localStorage.getItem("pending_order_cart");
-          const paymentsRaw = localStorage.getItem("pending_order_payments");
-          const couponRaw = localStorage.getItem("pending_order_coupon");
-          
-          if (!cartRaw || !paymentsRaw) {
+          const cart = getStorageJSON<any[] | null>(STORAGE_KEYS.pendingOrderCart, null);
+          const payments = getStorageJSON<any[] | null>(STORAGE_KEYS.pendingOrderPayments, null);
+          const coupon = getStorageJSON<any | null>(STORAGE_KEYS.pendingOrderCoupon, null);
+
+          if (!cart || !payments) {
             console.error("No pending order data found in storage");
             setStatus("success"); // Still success because money was taken, but log error
             setMessage("Pago exitoso pero hubo un problema recuperando la orden. Por favor contacte a soporte.");
             return;
           }
-
-          const cart = JSON.parse(cartRaw);
-          const payments = JSON.parse(paymentsRaw);
-          const coupon = couponRaw ? JSON.parse(couponRaw) : null;
 
           // 3. Update Firebase
           const batch = writeBatch(db);
@@ -56,15 +53,7 @@ export function FlowResult() {
           const finalOrderTotal = Math.max(0, cartTotal - discountApplied);
 
           // Retrieve customer from local customer_session
-          const customerSessionRaw = localStorage.getItem("customer_session");
-          let customer: any = null;
-          if (customerSessionRaw) {
-            try {
-              customer = JSON.parse(customerSessionRaw);
-            } catch (e) {
-              console.error("Error parsing customer session in FlowResult:", e);
-            }
-          }
+          const customer: any = getStorageJSON<any>(STORAGE_KEYS.customerSession, null);
 
           cart.forEach((item: any) => {
             const productRef = doc(db, "products", item.id);
@@ -145,15 +134,15 @@ export function FlowResult() {
               segment: finalSegment,
               usedCoupons: [...(customer.usedCoupons || []), coupon?.code].filter(Boolean)
             };
-            localStorage.setItem("customer_session", JSON.stringify(updatedSession));
+            setStorageJSON(STORAGE_KEYS.customerSession, updatedSession);
           }
 
           await batch.commit();
 
           // 4. Clear storage
-          localStorage.removeItem("pending_order_cart");
-          localStorage.removeItem("pending_order_payments");
-          localStorage.removeItem("pending_order_coupon");
+          removeStorage(STORAGE_KEYS.pendingOrderCart);
+          removeStorage(STORAGE_KEYS.pendingOrderPayments);
+          removeStorage(STORAGE_KEYS.pendingOrderCoupon);
 
           setStatus("success");
         } else {
@@ -191,7 +180,7 @@ export function FlowResult() {
 
         {status === "success" && (
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
+            <div className="size-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
               <CheckCircle2 size={40} />
             </div>
             <h2 className="text-2xl font-black mb-2">¡Pago Exitoso!</h2>
@@ -199,7 +188,7 @@ export function FlowResult() {
             {message && <p className="text-amber-600 text-xs font-bold mb-8">{message}</p>}
             {!message && <p className="text-slate-500 mb-8">Stock actualizado y orden registrada.</p>}
             
-            <button 
+            <button type="button" 
               onClick={goBack}
               className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-2"
             >
@@ -211,12 +200,12 @@ export function FlowResult() {
 
         {status === "error" && (
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6">
+            <div className="size-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6">
               <XCircle size={40} />
             </div>
             <h2 className="text-2xl font-black mb-2">No se pudo procesar</h2>
             <p className="text-slate-500 mb-4">{message || "No pudimos confirmar tu pago o la transacción fue cancelada."}</p>
-            <button 
+            <button type="button" 
               onClick={goBack}
               className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs"
             >

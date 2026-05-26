@@ -30,7 +30,7 @@ import {
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
-import { cn, formatCurrency } from "../../lib/utils";
+import { cn, formatCurrency, INPUT_MAX } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { ModernAlert } from "./ui/ModernAlert";
 
@@ -309,7 +309,7 @@ export function Expenses() {
             Lleva el control de los costos operativos de tu negocio.
           </p>
         </div>
-        <button
+        <button type="button"
           onClick={() => {
             setEditingExpense(null);
             setFormData({
@@ -338,7 +338,7 @@ export function Expenses() {
               {formatCurrency(totalExpenses)}
             </h3>
           </div>
-          <div className="w-16 h-16 bg-rose-50 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
+          <div className="size-16 bg-rose-50 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
             <CreditCard size={32} className="text-rose-200" />
           </div>
         </div>
@@ -352,7 +352,7 @@ export function Expenses() {
               {filteredExpenses.length}
             </h3>
           </div>
-          <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
+          <div className="size-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform">
             <RefreshCw size={32} className="text-slate-200" />
           </div>
         </div>
@@ -366,7 +366,7 @@ export function Expenses() {
               {topCategory}
             </h3>
           </div>
-          <div className="w-16 h-16 bg-white/5 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
+          <div className="size-16 bg-white/5 rounded-[1.5rem] flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
             <PieChartIcon size={32} className="text-white/20" />
           </div>
         </div>
@@ -381,14 +381,14 @@ export function Expenses() {
           />
           <input
             type="text"
-            placeholder="Buscar por descripción..."
+            placeholder="Buscar por descripción…"
             className="w-full bg-slate-50 border-none rounded-xl py-3 pl-12 focus:ring-2 focus:ring-slate-400 transition-all text-sm font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="flex items-center space-x-2 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
-          <button
+          <button type="button"
             onClick={() => setSelectedCategory("Todos")}
             className={cn(
               "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all",
@@ -400,7 +400,7 @@ export function Expenses() {
             Todos
           </button>
           {CATEGORIES.slice(0, 4).map((cat) => (
-            <button
+            <button type="button"
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={cn(
@@ -471,13 +471,13 @@ export function Expenses() {
                   </td>
                   <td className="px-8 py-5 text-right">
                     <div className="flex items-center justify-end space-x-2">
-                      <button
+                      <button type="button"
                         onClick={() => handleEdit(exp)}
                         className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-all"
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button
+                      <button type="button"
                         onClick={() => handleDelete(exp.id, exp.description)}
                         className="p-2 hover:bg-rose-100 rounded-xl text-rose-400 hover:text-rose-600 transition-all"
                       >
@@ -492,7 +492,7 @@ export function Expenses() {
         </div>
         {filteredExpenses.length === 0 && (
           <div className="py-20 text-center">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="size-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <CreditCard size={32} className="text-slate-200" />
             </div>
             <p className="text-slate-400 font-bold">
@@ -508,7 +508,7 @@ export function Expenses() {
               Página <span className="font-bold text-slate-700">{currentPage}</span>
             </span>
             <div className="flex items-center space-x-2">
-              <button
+              <button type="button"
                 onClick={() => fetchExpenses("prev")}
                 disabled={currentPage === 1 || loading}
                 className={cn(
@@ -518,7 +518,7 @@ export function Expenses() {
               >
                 <ChevronLeft size={16} />
               </button>
-              <button
+              <button type="button"
                 onClick={() => fetchExpenses("next")}
                 disabled={!hasMore || loading}
                 className={cn(
@@ -559,7 +559,7 @@ export function Expenses() {
                     Egresos operativos
                   </p>
                 </div>
-                <button
+                <button type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="p-2.5 hover:bg-slate-100 rounded-2xl transition-all"
                 >
@@ -578,6 +578,7 @@ export function Expenses() {
                   <input
                     required
                     type="text"
+                    maxLength={INPUT_MAX.NAME}
                     className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-slate-500/10 focus:border-slate-500 focus:bg-white transition-all text-slate-800"
                     placeholder="Ej: Pago de Luz local 4"
                     value={formData.description}
@@ -600,7 +601,9 @@ export function Expenses() {
                       <input
                         required
                         type="number"
-                        min="1"
+                        min={1}
+                        max={999_999_999}
+                        step={1}
                         className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-5 text-sm font-bold focus:ring-4 focus:ring-slate-500/10 focus:border-slate-500 focus:bg-white transition-all text-slate-800"
                         value={formData.amount}
                         onChange={(e) =>
@@ -658,7 +661,7 @@ export function Expenses() {
                     className="w-full sm:flex-[2] h-14 md:h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 shadow-xl transition-all flex items-center justify-center space-x-2"
                   >
                     {isSubmitting ? (
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                      <div className="size-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
                     ) : (
                       <>
                         <RefreshCw size={16} />

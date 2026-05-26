@@ -29,6 +29,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
 import { cn } from "../../lib/utils";
+import { STORAGE_KEYS, getStorageJSON, setStorageJSON } from "../../lib/storage";
 import { collection, query, onSnapshot, where, getDocs, limit, orderBy } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
@@ -95,21 +96,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     link?: string;
   } | null>(null);
 
-  const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("read_notification_ids") || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const [readNotifIds, setReadNotifIds] = useState<string[]>(() =>
+    getStorageJSON<string[]>(STORAGE_KEYS.readNotificationIds, [])
+  );
 
-  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("dismissed_notification_ids") || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() =>
+    getStorageJSON<string[]>(STORAGE_KEYS.dismissedNotificationIds, [])
+  );
 
   const activeNotifications = useMemo(() => {
     return notifications
@@ -136,7 +129,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               newIds.push(n.id);
             }
           });
-          localStorage.setItem("read_notification_ids", JSON.stringify(newIds));
+          setStorageJSON(STORAGE_KEYS.readNotificationIds, newIds);
           return newIds;
         });
       }
@@ -152,7 +145,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       }
     });
     setDismissedNotifIds(newDismissed);
-    localStorage.setItem("dismissed_notification_ids", JSON.stringify(newDismissed));
+    setStorageJSON(STORAGE_KEYS.dismissedNotificationIds, newDismissed);
   };
 
   useEffect(() => {
@@ -389,7 +382,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         <div className="p-6 flex items-center justify-between">
           {!isSidebarCollapsed && (
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
+              <div className="size-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
                 <Zap size={18} className="text-white fill-white" />
               </div>
               <span className="font-black text-slate-800 text-xl tracking-tight truncate max-w-[140px]">
@@ -398,7 +391,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </div>
           )}
           {isSidebarCollapsed && (
-            <div className="mx-auto w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
+            <div className="mx-auto size-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
               <Zap size={18} className="text-white fill-white" />
             </div>
           )}
@@ -406,7 +399,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
         <nav className="flex-1 px-4 py-4 space-y-1">
           {filteredNavItems.map((item) => (
-            <button
+            <button type="button"
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={cn(
@@ -433,7 +426,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         <div className="p-4 border-t border-slate-100">
           {!isSidebarCollapsed && (
             <div className="bg-slate-50 rounded-2xl p-3 mb-4 flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold overflow-hidden shrink-0">
+              <div className="size-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold overflow-hidden shrink-0">
                 {profile?.avatarUrl || profile?.photoURL ? (
                   <img src={profile.avatarUrl || profile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -451,7 +444,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               </div>
             </div>
           )}
-          <button
+          <button type="button"
             onClick={logout}
             className={cn(
               "w-full flex items-center p-3 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all",
@@ -462,7 +455,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             {!isSidebarCollapsed && <span className="font-semibold text-sm">Cerrar Sesión</span>}
           </button>
           
-          <button
+          <button type="button"
             onClick={() => window.open("/mobile", "_blank")}
             className={cn(
               "w-full flex items-center p-3 mt-2 rounded-xl text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all",
@@ -473,7 +466,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             {!isSidebarCollapsed && <span className="font-semibold text-sm">App Vendedores</span>}
           </button>
 
-          <button
+          <button type="button"
             onClick={() => window.open("/cliente", "_blank")}
             className={cn(
               "w-full flex items-center p-3 mt-1 rounded-xl text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all",
@@ -486,7 +479,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </div>
         
         {/* Collapse Toggle */}
-        <button 
+        <button type="button" 
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           className="absolute -right-3 top-20 bg-white border border-slate-200 rounded-full p-1 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm z-50 transition-colors"
         >
@@ -497,7 +490,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       {/* Mobile Nav */}
       <header className="md:hidden bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-[100]">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <div className="size-8 bg-indigo-600 rounded-lg flex items-center justify-center">
             <Zap size={18} className="text-white fill-white" />
           </div>
           <span className="font-black text-slate-800 text-xl tracking-tight truncate max-w-[180px]">
@@ -505,18 +498,18 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           </span>
         </div>
         <div className="flex items-center space-x-2">
-          <button 
+          <button type="button" 
             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
             className="p-2 bg-slate-50 rounded-xl text-slate-600 relative"
           >
             <Bell size={20} />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+              <span className="absolute top-1.5 right-1.5 size-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
                 {unreadCount}
               </span>
             )}
           </button>
-          <button 
+          <button type="button" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="p-2 bg-slate-50 rounded-xl text-slate-600"
           >
@@ -546,7 +539,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                   <h3 className="font-bold text-slate-800">Notificaciones</h3>
                   {activeNotifications.length > 0 && (
-                    <button 
+                    <button type="button" 
                       onClick={handleClearAll}
                       className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider"
                     >
@@ -558,14 +551,14 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 <div className="max-h-[60vh] md:max-h-[400px] overflow-y-auto">
                   {activeNotifications.length === 0 ? (
                     <div className="p-10 text-center">
-                      <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <div className="size-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                         <Bell size={20} className="text-slate-300" />
                       </div>
                       <p className="text-slate-400 text-xs font-medium">No tienes notificaciones por ahora</p>
                     </div>
                   ) : (
                     activeNotifications.map((notif) => (
-                      <button
+                      <button type="button"
                         key={notif.id}
                         onClick={() => {
                           if (notif.link) onNavigate(notif.link);
@@ -577,7 +570,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                         )}
                       >
                         <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                          "size-8 rounded-lg flex items-center justify-center shrink-0",
                           notif.type === 'warning' ? "bg-amber-50 text-amber-600" :
                           notif.type === 'alert' ? "bg-red-50 text-red-600" :
                           notif.type === 'success' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
@@ -603,7 +596,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 
                 {activeNotifications.length > 0 && (
                   <div className="p-3 bg-slate-50 text-center">
-                    <button 
+                    <button type="button" 
                       onClick={() => {
                         onNavigate('transactions');
                         setIsNotificationsOpen(false);
@@ -626,7 +619,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input 
                 type="text" 
-                placeholder="Busqueda rápida..." 
+                placeholder="Busqueda rápida…" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-slate-50 border-none rounded-full py-2 pl-10 pr-4 text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 w-64 transition-all"
@@ -650,13 +643,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                       </div>
                       <div className="max-h-80 overflow-y-auto">
                         {searchResults.map((result) => (
-                          <button
+                          <button type="button"
                             key={`${result.type}-${result.id}`}
                             onClick={() => handleResultClick(result)}
                             className="w-full p-4 flex items-center space-x-3 hover:bg-indigo-50 transition-colors text-left border-b border-slate-50 last:border-b-0 group"
                           >
                             <div className={cn(
-                              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                              "size-8 rounded-lg flex items-center justify-center shrink-0",
                               result.type === 'product' ? "bg-emerald-50 text-emerald-600" : 
                               result.type === 'customer' ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"
                             )}>
@@ -677,7 +670,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               </AnimatePresence>
             </div>
             <div className="relative">
-              <button 
+              <button type="button" 
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className={cn(
                   "p-2 rounded-xl transition-all relative",
@@ -686,7 +679,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                  <span className="absolute top-1.5 right-1.5 size-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
                     {unreadCount}
                   </span>
                 )}
@@ -710,7 +703,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           <div className="fixed inset-y-0 left-0 w-72 bg-white z-[70] shadow-2xl p-6 flex flex-col md:hidden animate-in slide-in-from-left duration-300">
             <div className="flex items-center justify-between mb-8">
               <span className="font-black text-slate-800 text-2xl tracking-tight">StockFlow</span>
-              <button 
+              <button type="button" 
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-2 text-slate-400"
               >
@@ -720,7 +713,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             
             <nav className="flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-none">
               {filteredNavItems.map((item) => (
-                <button
+                <button type="button"
                   key={item.id}
                   onClick={() => {
                     onNavigate(item.id);
@@ -740,7 +733,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </nav>
             
             <div className="mt-auto pt-6 border-t border-slate-100">
-               <button
+               <button type="button"
                 onClick={logout}
                 className="w-full flex items-center p-4 rounded-2xl text-red-600 hover:bg-red-50 transition-all font-bold"
               >
@@ -766,7 +759,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <div className="relative shrink-0 flex items-center justify-center">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-20 animate-ping" />
                 <div className={cn(
-                  "w-10 h-10 rounded-2xl flex items-center justify-center border text-white relative z-10 shadow-lg",
+                  "size-10 rounded-2xl flex items-center justify-center border text-white relative z-10 shadow-lg",
                   activeToast.type === 'warning' ? "bg-amber-600 border-amber-500 shadow-amber-900/40" :
                   activeToast.type === 'alert' ? "bg-rose-600 border-rose-500 shadow-rose-900/40" :
                   activeToast.type === 'success' ? "bg-emerald-600 border-emerald-500 shadow-emerald-950/40" : "bg-indigo-600 border-indigo-500 shadow-indigo-950/40"
@@ -782,7 +775,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                   <span className="text-[9px] font-black tracking-widest text-[#10b981] uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/10 active-pulse">
                     🔔 FCM PUSH LIVE
                   </span>
-                  <button
+                  <button type="button"
                     onClick={() => setActiveToast(null)}
                     className="text-slate-400 hover:text-white transition-colors p-0.5 rounded-lg hover:bg-white/5"
                   >

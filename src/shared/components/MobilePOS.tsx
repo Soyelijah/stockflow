@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
 import { getOfflineSales, saveAllOfflineSales } from "../../lib/idbQueue";
+import { STORAGE_KEYS, getStorageJSON, getStorageString, setStorageJSON, setStorageString } from "../../lib/storage";
 import { 
   Search, 
   ShoppingCart, 
@@ -69,14 +70,9 @@ export function MobilePOS() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("pos_active_cart");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [cart, setCart] = useState<CartItem[]>(() =>
+    getStorageJSON<CartItem[]>(STORAGE_KEYS.posActiveCart, [])
+  );
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [emailSentTo, setEmailSentTo] = useState<string | null>(null);
@@ -94,12 +90,11 @@ export function MobilePOS() {
 
   // === FASE 2: ESTADOS DE CONTROL DE CAJA, OFFLINE Y COMISIONES ===
   // 1. Estados de Control de Caja (Paso 2.1)
-  const [registerOpen, setRegisterOpen] = useState<boolean>(() => {
-    return localStorage.getItem("pos_register_open") === "true";
-  });
-  const [shiftData, setShiftData] = useState<any>(() => {
-    const data = localStorage.getItem("pos_shift_data");
-    return data ? JSON.parse(data) : {
+  const [registerOpen, setRegisterOpen] = useState<boolean>(() =>
+    getStorageString(STORAGE_KEYS.posRegisterOpen) === "true"
+  );
+  const [shiftData, setShiftData] = useState<any>(() =>
+    getStorageJSON<any>(STORAGE_KEYS.posShiftData, {
       efectivoInicial: 100000,
       openedAt: "",
       vendedorName: "",
@@ -108,8 +103,8 @@ export function MobilePOS() {
       salesTotal: 0,
       salesByMethod: { efectivo: 0, tarjeta: 0, transferencia: 0, digital: 0 },
       retiros: []
-    };
-  });
+    })
+  );
   const [openingCashInput, setOpeningCashInput] = useState("100000");
   const [showRetiroModal, setShowRetiroModal] = useState(false);
   const [retiroAmountInput, setRetiroAmountInput] = useState("");
@@ -118,13 +113,12 @@ export function MobilePOS() {
   const [countedCashInput, setCountedCashInput] = useState("");
 
   // 2. Estados de Sincronización Offline (Paso 2.2)
-  const [isOffline, setIsOffline] = useState<boolean>(() => {
-    return localStorage.getItem("pos_mode_offline") === "true";
-  });
-  const [offlineQueue, setOfflineQueue] = useState<any[]>(() => {
-    const queue = localStorage.getItem("pos_offline_queue");
-    return queue ? JSON.parse(queue) : [];
-  });
+  const [isOffline, setIsOffline] = useState<boolean>(() =>
+    getStorageString(STORAGE_KEYS.posModeOffline) === "true"
+  );
+  const [offlineQueue, setOfflineQueue] = useState<any[]>(() =>
+    getStorageJSON<any[]>(STORAGE_KEYS.posOfflineQueue, [])
+  );
   const [isSyncingOfflineSales, setIsSyncingOfflineSales] = useState(false);
 
   // === ESTADOS DE SIMULACIÓN DE PAGO DIGITAL Y TARJETA CON EXPLICACIÓN REALISTA ===
@@ -139,15 +133,15 @@ export function MobilePOS() {
 
   // Watchers to persist shift states locally
   useEffect(() => {
-    localStorage.setItem("pos_register_open", String(registerOpen));
+    setStorageString(STORAGE_KEYS.posRegisterOpen, String(registerOpen));
   }, [registerOpen]);
 
   useEffect(() => {
-    localStorage.setItem("pos_shift_data", JSON.stringify(shiftData));
+    setStorageJSON(STORAGE_KEYS.posShiftData, shiftData);
   }, [shiftData]);
 
   useEffect(() => {
-    localStorage.setItem("pos_mode_offline", String(isOffline));
+    setStorageString(STORAGE_KEYS.posModeOffline, String(isOffline));
   }, [isOffline]);
 
   // Load initial offline queue from IndexedDB on mount
@@ -170,14 +164,14 @@ export function MobilePOS() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("pos_offline_queue", JSON.stringify(offlineQueue));
+    setStorageJSON(STORAGE_KEYS.posOfflineQueue, offlineQueue);
     saveAllOfflineSales(offlineQueue).catch(err => {
       console.error("Failed to save offline sales to IndexedDB:", err);
     });
   }, [offlineQueue]);
 
   useEffect(() => {
-    localStorage.setItem("pos_active_cart", JSON.stringify(cart));
+    setStorageJSON(STORAGE_KEYS.posActiveCart, cart);
   }, [cart]);
 
   // Handle Online/Offline browser changes automatically
@@ -330,8 +324,8 @@ export function MobilePOS() {
       setSimulationState("idle");
       setSimulationStepText(
         paymentMethod === "tarjeta" 
-          ? "Listo: Acerque o inserte tarjeta de débito/crédito..." 
-          : "Listo: Esperando escaneo de código QR de billetera virtual..."
+          ? "Listo: Acerque o inserte tarjeta de débito/crédito…" 
+          : "Listo: Esperando escaneo de código QR de billetera virtual…"
       );
       setSimulatedTxId(`TX-${Math.floor(100000000 + Math.random() * 900000000)}`);
     } else {
@@ -354,12 +348,12 @@ export function MobilePOS() {
   const triggerSimulationFlow = () => {
     setSimulationState("processing");
     playTerminalSound("beep");
-    setSimulationStepText("💳 Lectura NFC correcta. Obteniendo credenciales del chip...");
+    setSimulationStepText("💳 Lectura NFC correcta. Obteniendo credenciales del chip…");
     
     setTimeout(() => {
-      setSimulationStepText("🔒 Cifrando transacción con clave de sesión única (Tokenización)...");
+      setSimulationStepText("🔒 Cifrando transacción con clave de sesión única (Tokenización)…");
       setTimeout(() => {
-        setSimulationStepText("🌐 Solicitando autorización con red bancaria (Transbank/Redbanc)...");
+        setSimulationStepText("🌐 Solicitando autorización con red bancaria (Transbank/Redbanc)…");
         setTimeout(() => {
           completeSimulatedPayment();
         }, 1100);
@@ -370,12 +364,12 @@ export function MobilePOS() {
   const triggerDigitalSimulationFlow = () => {
     setSimulationState("processing");
     playTerminalSound("beep");
-    setSimulationStepText("📱 ¡Código QR Escaneado! Cargando datos de billetera virtual...");
+    setSimulationStepText("📱 ¡Código QR Escaneado! Cargando datos de billetera virtual…");
     
     setTimeout(() => {
-      setSimulationStepText("🔌 Conectando con API de billetera digital para verificar balance...");
+      setSimulationStepText("🔌 Conectando con API de billetera digital para verificar balance…");
       setTimeout(() => {
-        setSimulationStepText("🛡️ Liquidando monto y confirmando transferencia a cuenta comercio...");
+        setSimulationStepText("🛡️ Liquidando monto y confirmando transferencia a cuenta comercio…");
         setTimeout(() => {
           completeSimulatedPayment();
         }, 1100);
@@ -897,7 +891,7 @@ export function MobilePOS() {
         
         {/* Notch on desktop mockups */}
         <div className="hidden md:flex absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 bg-slate-800 rounded-b-2xl z-50 items-center justify-center">
-          <div className="w-3 h-3 bg-black rounded-full mr-2" />
+          <div className="size-3 bg-black rounded-full mr-2" />
           <div className="w-16 h-1.5 bg-slate-900 rounded-full" />
         </div>
 
@@ -906,10 +900,10 @@ export function MobilePOS() {
           {/* Mobile Header */}
           <header className="bg-white px-6 pt-4 pb-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="relative w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+              <div className="relative size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
                 <Store size={20} />
                 {offlineQueue.length > 0 && (
-                  <div className="absolute -top-1.5 -right-1.5 bg-amber-500 border-2 border-white text-white font-mono text-[9px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                  <div className="absolute -top-1.5 -right-1.5 bg-amber-500 border-2 border-white text-white font-mono text-[9px] font-extrabold size-5 rounded-full flex items-center justify-center shadow-md">
                     {offlineQueue.length}
                   </div>
                 )}
@@ -934,7 +928,7 @@ export function MobilePOS() {
             {/* Dynamic Connectivity Controls (Paso 2.2) */}
             <div className="flex items-center space-x-2">
               {offlineQueue.length > 0 && (
-                <button 
+                <button type="button" 
                   onClick={handleSyncOfflineSales}
                   disabled={isSyncingOfflineSales}
                   className="px-2 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition animate-pulse"
@@ -944,7 +938,7 @@ export function MobilePOS() {
                   <span>Sync ({offlineQueue.length})</span>
                 </button>
               )}
-              <button
+              <button type="button"
                 onClick={() => {
                   const newVal = !isOffline;
                   setIsOffline(newVal);
@@ -997,9 +991,9 @@ export function MobilePOS() {
             >
               {/* Buscador Optimizado para Móvil */}
               <div className="flex items-center space-x-2">
-                <button 
+                <button type="button" 
                   onClick={() => setIsScanning(true)}
-                  className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 active:bg-indigo-50 active:text-indigo-600 transition-all shrink-0 shadow-sm"
+                  className="size-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 active:bg-indigo-50 active:text-indigo-600 transition-all shrink-0 shadow-sm"
                   title="Escanear Código de Barras"
                 >
                   <Camera size={20} />
@@ -1008,7 +1002,7 @@ export function MobilePOS() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                   <input 
                     type="text"
-                    placeholder="Buscar por nombre, SKU o código de barras..."
+                    placeholder="Buscar por nombre, SKU o código de barras…"
                     className="w-full h-12 bg-white border border-slate-100 rounded-2xl pl-12 pr-10 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
                     value={searchTerm}
                     onChange={(e) => {
@@ -1017,7 +1011,7 @@ export function MobilePOS() {
                     }}
                   />
                   {searchTerm && (
-                    <button 
+                    <button type="button" 
                       onClick={() => {
                         setSearchTerm("");
                         setVisibleCount(16);
@@ -1033,7 +1027,7 @@ export function MobilePOS() {
               {/* Category Slider */}
               <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-2">
                 {categories.map(cat => (
-                  <button
+                  <button type="button"
                     key={cat}
                     onClick={() => {
                       setSelectedCategory(cat);
@@ -1080,7 +1074,7 @@ export function MobilePOS() {
                       <div className="flex items-center space-x-4 min-w-0 flex-1 mr-2">
                         {/* Interactive dynamic category visual dot */}
                         <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center transition-all shrink-0 font-bold text-sm",
+                          "size-12 rounded-xl flex items-center justify-center transition-all shrink-0 font-bold text-sm",
                           cartItem 
                             ? "bg-indigo-600 text-white ring-4 ring-indigo-50" 
                             : isOutOfStock 
@@ -1138,7 +1132,7 @@ export function MobilePOS() {
                                   setCart(prev => prev.map(i => i.id === p.id ? { ...i, quantity: i.quantity - 1 } : i));
                                 }
                               }}
-                              className="w-7 h-7 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-90 transition-all font-bold"
+                              className="size-7 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-90 transition-all font-bold"
                             >
                               <Minus size={12} />
                             </button>
@@ -1153,7 +1147,7 @@ export function MobilePOS() {
                                   setCart(prev => prev.map(i => i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
                                 }
                               }}
-                              className="w-7 h-7 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-90 transition-all font-bold"
+                              className="size-7 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-90 transition-all font-bold"
                             >
                               <Plus size={12} />
                             </button>
@@ -1204,12 +1198,12 @@ export function MobilePOS() {
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-black text-slate-800 tracking-tight">Tu Carrito</h2>
-                <button onClick={() => setCart([])} className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Vaciar</button>
+                <button type="button" onClick={() => setCart([])} className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Vaciar</button>
               </div>
 
               {/* Document Type Selection */}
               <div className="grid grid-cols-2 gap-2">
-                <button 
+                <button type="button" 
                   onClick={() => setDocumentType("boleta")}
                   className={cn(
                     "flex flex-col items-center p-3 rounded-2xl border transition-all",
@@ -1219,7 +1213,7 @@ export function MobilePOS() {
                   <Ticket size={20} className="mb-1" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Boleta</span>
                 </button>
-                <button 
+                <button type="button" 
                   onClick={() => setDocumentType("factura")}
                   className={cn(
                     "flex flex-col items-center p-3 rounded-2xl border transition-all",
@@ -1232,7 +1226,7 @@ export function MobilePOS() {
               </div>
 
               {/* Customer Selection */}
-              <button 
+              <button type="button" 
                 onClick={() => setIsCustomerModalOpen(true)}
                 className={cn(
                   "w-full p-4 rounded-2xl border flex items-center justify-between text-left transition-all",
@@ -1240,7 +1234,7 @@ export function MobilePOS() {
                 )}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", selectedCustomer ? "bg-white text-indigo-600" : "bg-slate-50 text-slate-300")}>
+                  <div className={cn("size-10 rounded-xl flex items-center justify-center", selectedCustomer ? "bg-white text-indigo-600" : "bg-slate-50 text-slate-300")}>
                     <Users size={18} />
                   </div>
                   <div>
@@ -1257,7 +1251,7 @@ export function MobilePOS() {
 
               {/* Payment Method Selection */}
               <div className="grid grid-cols-2 gap-2">
-                <button 
+                <button type="button" 
                   onClick={() => setPaymentMethod("efectivo")}
                   className={cn(
                     "flex flex-col items-center p-3 rounded-2xl border transition-all",
@@ -1267,7 +1261,7 @@ export function MobilePOS() {
                   <Banknote size={20} className="mb-1" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Efectivo</span>
                 </button>
-                <button 
+                <button type="button" 
                   onClick={() => setPaymentMethod("tarjeta")}
                   className={cn(
                     "flex flex-col items-center p-3 rounded-2xl border transition-all",
@@ -1277,7 +1271,7 @@ export function MobilePOS() {
                   <CreditCard size={20} className="mb-1" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Tarjeta</span>
                 </button>
-                <button 
+                <button type="button" 
                   onClick={() => setPaymentMethod("transferencia")}
                   className={cn(
                     "flex flex-col items-center p-3 rounded-2xl border transition-all",
@@ -1287,7 +1281,7 @@ export function MobilePOS() {
                   <RefreshCw size={20} className="mb-1" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Transf.</span>
                 </button>
-                <button 
+                <button type="button" 
                   onClick={() => setPaymentMethod("digital")}
                   className={cn(
                     "flex flex-col items-center p-3 rounded-2xl border transition-all",
@@ -1307,7 +1301,7 @@ export function MobilePOS() {
                       <p className="text-[10px] font-bold text-slate-400">{formatCurrency(item.price)} ea.</p>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <button 
+                      <button type="button" 
                         onClick={() => {
                           if (item.quantity === 1) {
                             setCart(prev => prev.filter(i => i.id !== item.id));
@@ -1315,18 +1309,18 @@ export function MobilePOS() {
                             setCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity - 1 } : i));
                           }
                         }}
-                        className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400"
+                        className="size-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400"
                       >
                         <Minus size={14} />
                       </button>
                       <span className="font-black text-slate-800">{item.quantity}</span>
-                      <button 
+                      <button type="button" 
                         onClick={() => setCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.min(Number(i.maxStock) || 9999, i.quantity + 1) } : i))}
-                        className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400"
+                        className="size-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400"
                       >
                         <Plus size={14} />
                       </button>
-                      <button 
+                      <button type="button" 
                         onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))}
                         className="ml-2 text-rose-300"
                       >
@@ -1346,7 +1340,7 @@ export function MobilePOS() {
                {cart.length > 0 && (
                 <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
                   <div className="flex items-center space-x-2 text-indigo-950">
-                    <Ticket className="w-5 h-5 text-indigo-600" />
+                    <Ticket className="size-5 text-indigo-600" />
                     <span className="text-xs font-black uppercase tracking-wider">¿Tienes un cupón?</span>
                   </div>
                   
@@ -1363,7 +1357,7 @@ export function MobilePOS() {
                         className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 pr-8 text-xs font-bold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 placeholder:text-slate-300"
                       />
                       {promoCode && (
-                        <button 
+                        <button type="button" 
                           onClick={() => { setPromoCode(""); setCouponError(""); }}
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
                         >
@@ -1405,7 +1399,7 @@ export function MobilePOS() {
                           </p>
                         </div>
                       </div>
-                      <button 
+                      <button type="button" 
                         onClick={() => { setAppliedCoupon(null); setPromoCode(""); }}
                         className="text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100 p-1 rounded-lg transition-colors"
                       >
@@ -1424,7 +1418,7 @@ export function MobilePOS() {
                           const alreadyUsed = selectedCustomer.usedCoupons && selectedCustomer.usedCoupons.includes(ac.code);
                           if (alreadyUsed) return null;
                           return (
-                            <button
+                            <button type="button"
                               key={ac.code}
                               onClick={() => {
                                 if (eligible) {
@@ -1478,7 +1472,7 @@ export function MobilePOS() {
                     <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Monto Total</span>
                     <span className="text-2xl font-black text-white">{formatCurrency(finalTotal)}</span>
                   </div>
-                  <button 
+                  <button type="button" 
                     disabled={isProcessing || (documentType === "factura" && !selectedCustomer)}
                     onClick={initiatePayment}
                     className={cn(
@@ -1507,7 +1501,7 @@ export function MobilePOS() {
               {/* VENDEDOR BANNER & TARGETS */}
               <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-[2.2rem] p-6 text-white shadow-xl flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center font-black text-lg border border-white/10">
+                  <div className="size-12 bg-white/10 text-white rounded-xl flex items-center justify-center font-black text-lg border border-white/10">
                     {profile?.name?.charAt(0)}
                   </div>
                   <div>
@@ -1517,7 +1511,7 @@ export function MobilePOS() {
                     </p>
                   </div>
                 </div>
-                <button 
+                <button type="button" 
                   onClick={logout} 
                   className="p-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-xl transition"
                   title="Cerrar Siniestro"
@@ -1533,7 +1527,7 @@ export function MobilePOS() {
                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Rendimiento Diario</h3>
                     <p className="text-[10px] font-black text-slate-400 capitalize">Comisiones y cuotas en tiempo real</p>
                   </div>
-                  <TrendingUp className="text-indigo-500 w-5 h-5 animate-pulse" />
+                  <TrendingUp className="text-indigo-500 size-5 animate-pulse" />
                 </div>
 
                 {/* Progress bar towards target */}
@@ -1559,7 +1553,7 @@ export function MobilePOS() {
                 {/* Lifetime Commission feedback box */}
                 <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                    <div className="size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
                       <Coins size={18} />
                     </div>
                     <div>
@@ -1586,7 +1580,7 @@ export function MobilePOS() {
                   className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-4"
                 >
                   <div className="text-center py-4 space-y-2">
-                    <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+                    <div className="size-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
                       <Lock size={20} />
                     </div>
                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Caja Cerrada / Sin Turno</h3>
@@ -1735,7 +1729,7 @@ export function MobilePOS() {
               <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-3">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1 leading-none">Accesos de Plataforma Empresarial</p>
                 {profile?.role !== "seller" && (
-                  <button 
+                  <button type="button" 
                     onClick={() => window.location.href = "/"}
                     className="flex items-center justify-center space-x-3 w-full py-4 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-100 shadow-inner"
                   >
@@ -1762,7 +1756,7 @@ export function MobilePOS() {
             <motion.div 
               initial={{ scale: 0.5, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
-              className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-8"
+              className="size-24 bg-white/20 rounded-full flex items-center justify-center mb-8"
             >
               <CheckCircle2 size={48} />
             </motion.div>
@@ -1771,7 +1765,7 @@ export function MobilePOS() {
               El stock ha sido actualizado.
               {emailSentTo && ` El recibo ha sido enviado a: ${emailSentTo}`}
             </p>
-            <button 
+            <button type="button" 
               onClick={() => {
                 if (lastOrder) {
                   printReceipt({
@@ -1794,7 +1788,7 @@ export function MobilePOS() {
               <Ticket size={18} />
               <span>Imprimir Ticket</span>
             </button>
-            <button 
+            <button type="button" 
               onClick={() => { setShowSuccess(false); setActiveTab("shop"); }}
               className="w-full h-16 bg-white text-emerald-600 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-emerald-800/20"
             >
@@ -1806,7 +1800,7 @@ export function MobilePOS() {
 
       {/* Bottom Navigation */}
       <nav className="bg-white border-t border-slate-100 px-6 pt-4 pb-10 flex items-center justify-around fixed bottom-0 left-0 right-0 z-50">
-        <button 
+        <button type="button" 
           onClick={() => setActiveTab("shop")}
           className={cn(
             "flex flex-col items-center space-y-1 transition-all",
@@ -1817,7 +1811,7 @@ export function MobilePOS() {
           <span className="text-[10px] font-black uppercase tracking-tight">Tienda</span>
         </button>
         
-        <button 
+        <button type="button" 
           onClick={() => setActiveTab("cart")}
           className={cn(
             "flex flex-col items-center space-y-1 transition-all relative",
@@ -1827,13 +1821,13 @@ export function MobilePOS() {
           <ShoppingCart size={24} />
           <span className="text-[10px] font-black uppercase tracking-tight">Carrito</span>
           {cartCount > 0 && (
-            <span className="absolute -top-1 -right-2 bg-rose-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">
+            <span className="absolute -top-1 -right-2 bg-rose-500 text-white text-[10px] font-black size-5 rounded-full flex items-center justify-center border-2 border-white">
               {cartCount}
             </span>
           )}
         </button>
 
-        <button 
+        <button type="button" 
           onClick={() => setActiveTab("profile")}
           className={cn(
             "flex flex-col items-center space-y-1 transition-all",
@@ -1867,7 +1861,7 @@ export function MobilePOS() {
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Seleccionar Cliente</h3>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Para Facturación</p>
                 </div>
-                <button 
+                <button type="button" 
                   onClick={() => setIsNewCustomerMode(!isNewCustomerMode)}
                   className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest"
                 >
@@ -1917,7 +1911,7 @@ export function MobilePOS() {
                       onChange={e => setNewCustomer({...newCustomer, phone: formatChileanPhone(e.target.value)})}
                     />
                   </div>
-                  <button className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs mt-4">
+                  <button type="button" className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs mt-4">
                     Guardar y Seleccionar
                   </button>
                 </form>
@@ -1927,14 +1921,14 @@ export function MobilePOS() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                     <input 
                       type="text"
-                      placeholder="Nombre, RUT o escriba PIN OTP de 6 dígitos..."
+                      placeholder="Nombre, RUT o escriba PIN OTP de 6 dígitos…"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-16 text-sm font-bold shadow-inner"
                       value={customerSearch}
                       onChange={e => setCustomerSearch(e.target.value)}
                     />
-                    <button 
+                    <button type="button" 
                       onClick={() => setIsScanningCustomer(true)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white border border-slate-100 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 size-8 bg-white border border-slate-100 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
                       title="Escaneo Webcam - Código QR de Cliente"
                     >
                       <Camera size={14} />
@@ -1959,7 +1953,7 @@ export function MobilePOS() {
                   </AnimatePresence>
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                     {filteredCustomers.map(c => (
-                      <button 
+                      <button type="button" 
                         key={c.id}
                         onClick={() => { setSelectedCustomer(c); setIsCustomerModalOpen(false); }}
                         className="w-full p-4 bg-slate-50 rounded-2xl flex items-center justify-between text-left active:bg-indigo-50 transition-colors"
@@ -2175,7 +2169,7 @@ export function MobilePOS() {
                   <div className="w-2.5 h-2.5 bg-indigo-550 rounded-full animate-ping bg-indigo-500" />
                   <span className="text-[10px] font-black tracking-widest uppercase text-indigo-400">STOCKFLOW LINK™</span>
                 </div>
-                <button 
+                <button type="button" 
                   onClick={() => setActivePaymentSimulation(null)}
                   disabled={simulationState === "processing"}
                   className="p-1 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[9px] font-black uppercase transition-colors"
@@ -2229,7 +2223,7 @@ export function MobilePOS() {
 
                       {simulationState === "processing" && (
                         <div className="flex flex-col items-center space-y-4">
-                          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                          <Loader2 className="size-10 text-indigo-500 animate-spin" />
                           <div className="h-1.5 w-32 bg-slate-800 rounded-full overflow-hidden">
                             <motion.div 
                               initial={{ width: 0 }}
@@ -2245,7 +2239,7 @@ export function MobilePOS() {
                         <motion.div 
                           initial={{ scale: 0.3, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          className="w-16 h-16 bg-emerald-500/15 border border-emerald-500 rounded-full flex items-center justify-center text-emerald-400"
+                          className="size-16 bg-emerald-500/15 border border-emerald-500 rounded-full flex items-center justify-center text-emerald-400"
                         >
                           <CheckCircle2 size={36} className="animate-bounce" />
                         </motion.div>
@@ -2265,7 +2259,7 @@ export function MobilePOS() {
                     </div>
 
                     {simulationState === "idle" && (
-                      <button 
+                      <button type="button" 
                         onClick={triggerSimulationFlow}
                         className="w-full h-14 bg-white hover:bg-slate-50 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all text-center"
                       >
@@ -2280,7 +2274,7 @@ export function MobilePOS() {
                   <div className="w-full space-y-6 relative flex flex-col items-center">
                     
                     {/* QR Code Graphic Frame */}
-                    <div className="relative p-4 bg-white rounded-3xl border border-slate-800 flex items-center justify-center shadow-2xl shrink-0 h-36 w-36 select-none overflow-hidden">
+                    <div className="relative p-4 bg-white rounded-3xl border border-slate-800 flex items-center justify-center shadow-2xl shrink-0 size-36 select-none overflow-hidden">
                       {simulationState === "idle" && (
                         <>
                           {/* Simulated Scanning Laser Line */}
@@ -2309,7 +2303,7 @@ export function MobilePOS() {
 
                       {simulationState === "processing" && (
                         <div className="flex flex-col items-center justify-center w-full h-full">
-                          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                          <Loader2 className="size-10 text-indigo-500 animate-spin" />
                         </div>
                       )}
 
@@ -2317,7 +2311,7 @@ export function MobilePOS() {
                         <motion.div 
                           initial={{ scale: 0.3, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          className="w-16 h-16 bg-emerald-500/15 border border-emerald-500 rounded-full flex items-center justify-center text-emerald-400"
+                          className="size-16 bg-emerald-500/15 border border-emerald-500 rounded-full flex items-center justify-center text-emerald-400"
                         >
                           <CheckCircle2 size={36} className="animate-bounce" />
                         </motion.div>
@@ -2352,7 +2346,7 @@ export function MobilePOS() {
                     </div>
 
                     {simulationState === "idle" && (
-                      <button 
+                      <button type="button" 
                         onClick={triggerDigitalSimulationFlow}
                         className="w-full h-14 bg-white hover:bg-slate-50 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all text-center"
                       >

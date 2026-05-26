@@ -334,7 +334,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
               animate={{ scale: 1, y: 0 }}
               className="bg-white max-w-sm sm:max-w-md w-full rounded-3xl sm:rounded-[2.5rem] shadow-2xl p-6 sm:p-10 text-center relative max-h-[92vh] overflow-y-auto mx-4"
             >
-              <button 
+              <button type="button" 
                 onClick={() => setIsMinimized(true)}
                 className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600 transition-colors"
                 title="Explorar sistema (solo lectura)"
@@ -342,7 +342,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                 <X size={20} />
               </button>
 
-              <div className="w-14 h-14 sm:w-20 sm:h-20 bg-rose-50 text-rose-500 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-8 shadow-inner">
+              <div className="size-14 sm:w-20 sm:h-20 bg-rose-50 text-rose-500 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-8 shadow-inner">
                 <Lock className="sm:hidden" size={28} />
                 <Lock className="hidden sm:block" size={40} />
               </div>
@@ -366,7 +366,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
               </div>
 
               <div className="space-y-3 sm:space-y-4">
-                <button 
+                <button type="button" 
                   onClick={handleOpenRegister}
                   disabled={!initialAmount || loading}
                   className="w-full h-12 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-xs sm:text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-2 disabled:opacity-30"
@@ -375,7 +375,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                   <span>Abrir Caja y Comenzar</span>
                 </button>
 
-                <button 
+                <button type="button" 
                   onClick={() => setIsMinimized(true)}
                   className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors block mx-auto py-1"
                 >
@@ -394,11 +394,11 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
             animate={{ y: 0, opacity: 1 }}
             className="fixed bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 z-50 animate-bounce-slow w-full max-w-[90vw] sm:w-auto px-4 sm:px-0 flex justify-center"
           >
-            <button 
+            <button type="button" 
               onClick={() => setIsMinimized(false)}
               className="bg-rose-600 text-white px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-full font-black uppercase tracking-widest text-[9px] sm:text-[10px] shadow-2xl shadow-rose-200 flex items-center space-x-2 sm:space-x-3 group justify-center text-center"
             >
-              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform shrink-0">
+              <div className="size-6 sm:w-8 sm:h-8 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform shrink-0">
                 <Lock size={12} className="sm:w-[14px] sm:h-[14px]" />
               </div>
               <span className="hidden sm:inline">Modo Lectura - Haz clic para Abrir Caja</span>
@@ -411,7 +411,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
       {/* Floating Close Button in POS */}
       {session && (
         <div className="fixed bottom-4 right-4 sm:bottom-10 sm:right-10 z-30">
-          <button 
+          <button type="button" 
             onClick={() => {
               fetchSessionStats(session);
               setIsClosing(true);
@@ -444,7 +444,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                     <p className="text-[9px] md:text-xs font-black text-rose-200 uppercase tracking-widest mt-0.5">Finalización de Turno</p>
                   </div>
                 </div>
-                <button onClick={() => setIsClosing(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                <button type="button" onClick={() => setIsClosing(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
                   <X size={20} md:size={24} />
                 </button>
               </div>
@@ -462,7 +462,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                 </div>
 
                 <div className="bg-slate-900 text-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full" />
+                  <div className="absolute top-0 right-0 size-32 bg-indigo-500/10 blur-3xl rounded-full" />
                   <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-2">Efectivo que DEBERÍA haber</p>
                   <p className="text-2xl md:text-4xl font-black">{formatCurrency(session?.initialAmount + sessionStats.cash)}</p>
                 </div>
@@ -473,7 +473,7 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
                     <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} md:size={24} />
                     <input 
                       type="number" 
-                      placeholder="Ingrese monto contado..."
+                      placeholder="Ingrese monto contado…"
                       className="w-full bg-slate-50 border-2 border-transparent rounded-2xl md:rounded-[2rem] py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-lg md:text-2xl font-black text-slate-800 focus:ring-0 focus:border-rose-500/30 transition-all shadow-inner"
                       value={finalCash}
                       onChange={(e) => setFinalCash(e.target.value)}
@@ -507,13 +507,13 @@ export function CashRegisterManagement({ onStatusChange }: CashRegisterProps) {
               </div>
 
               <div className="p-6 md:p-8 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-3 md:gap-4 shrink-0">
-                <button 
+                <button type="button" 
                   onClick={() => setIsClosing(false)}
                   className="w-full sm:flex-1 py-4 md:py-5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button type="button" 
                   onClick={handleCloseRegister}
                   disabled={!finalCash || loading}
                   className="w-full sm:flex-[2] py-4 md:py-5 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-700 transition-all shadow-xl shadow-rose-100 disabled:opacity-30"

@@ -409,7 +409,7 @@ export function Customers() {
             Gestiona tu base de datos y programas de lealtad.
           </p>
         </div>
-        <button
+        <button type="button"
           onClick={() => openModal()}
           className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all flex items-center space-x-2"
         >
@@ -429,7 +429,7 @@ export function Customers() {
               {stats.total}
             </h3>
           </div>
-          <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 group-hover:scale-110 transition-transform rotate-12 group-hover:rotate-0">
+          <div className="size-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 group-hover:scale-110 transition-transform rotate-12 group-hover:rotate-0">
             <Users size={32} />
           </div>
         </div>
@@ -443,7 +443,7 @@ export function Customers() {
               {stats.vips}
             </h3>
           </div>
-          <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform -rotate-12 group-hover:rotate-0">
+          <div className="size-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform -rotate-12 group-hover:rotate-0">
             <Star size={32} />
           </div>
         </div>
@@ -457,7 +457,7 @@ export function Customers() {
               {formatNumber(stats.totalPoints)}
             </h3>
           </div>
-          <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform rotate-6 group-hover:rotate-0">
+          <div className="size-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform rotate-6 group-hover:rotate-0">
             <Target size={32} />
           </div>
         </div>
@@ -474,7 +474,7 @@ export function Customers() {
               />
               <input
                 type="text"
-                placeholder="Buscar por nombre, email o identificación..."
+                placeholder="Buscar por nombre, email o identificación…"
                 className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500/10 transition-all text-slate-700"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -499,7 +499,7 @@ export function Customers() {
                   <div className="flex items-center space-x-4">
                     <div
                       className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-base shadow-sm",
+                        "size-12 rounded-2xl flex items-center justify-center font-black text-base shadow-sm",
                         selectedCustomerId === c.id
                           ? "bg-white/20"
                           : "bg-slate-100 text-slate-500",
@@ -568,7 +568,7 @@ export function Customers() {
                   Página <span className="font-bold text-slate-700">{currentPage}</span>
                 </span>
                 <div className="flex items-center space-x-2">
-                  <button
+                  <button type="button"
                     onClick={() => fetchCustomers("prev")}
                     disabled={currentPage === 1 || loading}
                     className={cn(
@@ -578,7 +578,7 @@ export function Customers() {
                   >
                     <ChevronLeft size={16} />
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => fetchCustomers("next")}
                     disabled={!hasMore || loading}
                     className={cn(
@@ -609,7 +609,7 @@ export function Customers() {
                 <div className="bg-slate-900 p-8 text-white">
                   <div className="flex items-start justify-between mb-8">
                     <div className="flex items-center space-x-4">
-                      <div className="w-16 h-16 bg-white/10 rounded-[1.5rem] flex items-center justify-center text-white border border-white/10 shadow-inner">
+                      <div className="size-16 bg-white/10 rounded-[1.5rem] flex items-center justify-center text-white border border-white/10 shadow-inner">
                         <Users size={32} />
                       </div>
                       <div>
@@ -629,7 +629,7 @@ export function Customers() {
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <button
+                      <button type="button"
                         onClick={() =>
                           openModal(
                             customers.find((c) => c.id === selectedCustomerId),
@@ -639,7 +639,7 @@ export function Customers() {
                       >
                         <Edit2 size={18} />
                       </button>
-                      <button
+                      <button type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           const currentCustomer = customers.find(
@@ -749,7 +749,7 @@ export function Customers() {
                         incentivo hoy.
                       </p>
                       <div className="flex gap-2 w-full">
-                        <button
+                        <button type="button"
                           onClick={() => {
                             const newPass = prompt(
                               `Establecer nueva contraseña para ${customers.find((c) => c.id === selectedCustomerId)?.name}:`,
@@ -784,7 +784,7 @@ export function Customers() {
                           <Lock size={14} />
                           <span>Reset Clave</span>
                         </button>
-                        <button
+                        <button type="button"
                           onClick={() =>
                             setAlertConfig({
                               isOpen: true,
@@ -914,7 +914,7 @@ export function Customers() {
                           className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-[2rem] hover:border-amber-250 hover:bg-white hover:shadow-sm transition-all gap-4"
                         >
                           <div className="flex items-center space-x-3 text-left">
-                            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-bold text-lg border border-amber-100 shadow-inner shrink-0">
+                            <div className="size-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-bold text-lg border border-amber-100 shadow-inner shrink-0">
                               🎁
                             </div>
                             <div className="text-left">
@@ -931,7 +931,7 @@ export function Customers() {
                                         item.timestamp || 0,
                                       ).toLocaleDateString("es-CL")}
                                 </span>
-                                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                <span className="size-1 rounded-full bg-slate-300" />
                                 <span className="text-[9px] font-black text-amber-700 bg-amber-50 rounded px-1.5 py-0.2 tracking-tight">
                                   Costó {item.pointsCost} PTS
                                 </span>
@@ -948,7 +948,7 @@ export function Customers() {
 
                             <div>
                               {item.status === "pending" ? (
-                                <button
+                                <button type="button"
                                   onClick={() =>
                                     handleDeliverPhysicalReward(
                                       item.id,
@@ -993,7 +993,7 @@ export function Customers() {
                           className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-indigo-100 transition-all group"
                         >
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 font-bold text-xs">
+                            <div className="size-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 font-bold text-xs">
                               #{tx.id.slice(-4)}
                             </div>
                             <div>
@@ -1026,7 +1026,7 @@ export function Customers() {
               </motion.div>
             ) : (
               <div className="bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200 h-[600px] flex flex-col items-center justify-center p-12 text-center">
-                <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center text-slate-200 mb-6 shadow-sm">
+                <div className="size-24 bg-white rounded-[2rem] flex items-center justify-center text-slate-200 mb-6 shadow-sm">
                   <Target size={48} />
                 </div>
                 <h3 className="text-xl font-black text-slate-400 tracking-tight">
@@ -1067,7 +1067,7 @@ export function Customers() {
                     {editingCustomer ? "Editar Perfil" : "Nuevo Registro"}
                   </h3>
                 </div>
-                <button
+                <button type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"
                 >
@@ -1101,8 +1101,8 @@ export function Customers() {
                     </label>
                     <input
                       type="text"
-                      maxLength={INPUT_MAX.RUT}
                       placeholder="11.111.111-K"
+                      maxLength={INPUT_MAX.RUT}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.taxId}
                       onChange={(e) =>
@@ -1120,6 +1120,7 @@ export function Customers() {
                     <input
                       type="text"
                       placeholder="PIN o Clave de acceso"
+                      maxLength={INPUT_MAX.PASSWORD}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.password}
                       onChange={(e) =>
@@ -1133,12 +1134,14 @@ export function Customers() {
                     </label>
                     <input
                       type="number"
+                      min={0}
+                      max={10_000_000}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.points}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          points: Number(e.target.value),
+                          points: Math.max(0, Math.round(Number(e.target.value) || 0)),
                         })
                       }
                     />
@@ -1163,8 +1166,8 @@ export function Customers() {
                     </label>
                     <input
                       type="tel"
-                      maxLength={INPUT_MAX.PHONE}
                       placeholder="+56 9 XXXX XXXX"
+                      maxLength={INPUT_MAX.PHONE}
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
                       value={formData.phone}
                       onChange={(e) =>

@@ -338,7 +338,7 @@ export function Login() {
               className="w-full bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/15 text-white font-black py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center space-x-2 text-xs uppercase tracking-widest"
             >
               {loading ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
               ) : (
                 <>
                   <span>{mode === "login" ? "Ingresar al Workspace" : "Recuperar Acceso"}</span>

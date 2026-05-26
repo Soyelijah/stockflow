@@ -48,7 +48,7 @@ export function VerifyEmail() {
         <div className="bg-[#111114]/80 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-10 shadow-2xl overflow-hidden text-center relative">
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
           
-          <div className="w-20 h-20 bg-indigo-600/20 rounded-3xl flex items-center justify-center mx-auto mb-8 text-indigo-500">
+          <div className="size-20 bg-indigo-600/20 rounded-3xl flex items-center justify-center mx-auto mb-8 text-indigo-500">
             <Mail size={40} />
           </div>
 
@@ -59,7 +59,7 @@ export function VerifyEmail() {
           </p>
 
           <div className="space-y-4">
-            <button
+            <button type="button"
               onClick={handleRefresh}
               disabled={refreshing}
               className="w-full bg-white text-slate-900 font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-50"
@@ -74,13 +74,13 @@ export function VerifyEmail() {
               )}
             </button>
 
-            <button
+            <button type="button"
               onClick={handleResend}
               disabled={sending}
               className="w-full bg-white/5 border border-white/10 text-white font-bold py-4 rounded-2xl transition-all hover:bg-white/10 flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               {sending ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                <div className="size-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
               ) : (
                 <span className="uppercase tracking-widest text-xs">Reenviar correo</span>
               )}
@@ -102,7 +102,7 @@ export function VerifyEmail() {
           )}
 
           <div className="mt-10 pt-8 border-t border-white/5">
-            <button 
+            <button type="button" 
               onClick={() => logout()}
               className="inline-flex items-center space-x-2 text-gray-500 hover:text-white transition-colors uppercase tracking-widest text-[10px] font-black"
             >

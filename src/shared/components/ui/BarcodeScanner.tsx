@@ -86,7 +86,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
         {/* Header UI */}
         <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-10">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+            <div className="size-10 bg-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
               <Zap size={20} />
             </div>
             <div>
@@ -94,9 +94,9 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
               <p className="text-indigo-400 text-[9px] font-black tracking-tighter">MODO INTELIGENTE ACTIVO</p>
             </div>
           </div>
-          <button 
+          <button type="button" 
             onClick={onClose}
-            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-all active:scale-90"
+            className="size-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-all active:scale-90"
           >
             <X size={20} />
           </button>
@@ -118,10 +118,10 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
             {/* Focus Corners */}
             <div className="absolute inset-0 border-[40px] border-black/40" />
             <div className="w-[70%] h-[42%] border-2 border-white/30 rounded-2xl relative">
-               <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-lg" />
-               <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-lg" />
-               <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-indigo-400 rounded-bl-lg" />
-               <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-indigo-400 rounded-br-lg" />
+               <div className="absolute -top-1 -left-1 size-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-lg" />
+               <div className="absolute -top-1 -right-1 size-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-lg" />
+               <div className="absolute -bottom-1 -left-1 size-6 border-b-4 border-l-4 border-indigo-400 rounded-bl-lg" />
+               <div className="absolute -bottom-1 -right-1 size-6 border-b-4 border-r-4 border-indigo-400 rounded-br-lg" />
             </div>
           </div>
 
@@ -134,7 +134,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-8 text-center"
               >
-                <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-6" />
+                <div className="size-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-6" />
                 <h4 className="text-white font-bold">Iniciando Cámara</h4>
                 <p className="text-slate-400 text-xs mt-2">Por favor conceda permisos si se solicita</p>
               </motion.div>
@@ -146,14 +146,14 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
                 animate={{ scale: 1, opacity: 1 }}
                 className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-12 text-center"
               >
-                <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-[2rem] flex items-center justify-center mb-6">
+                <div className="size-20 bg-rose-500/10 text-rose-500 rounded-[2rem] flex items-center justify-center mb-6">
                   <ShieldCheck size={40} />
                 </div>
                 <h4 className="text-white font-bold text-xl">Acceso Denegado</h4>
                 <p className="text-slate-400 text-sm mt-3 leading-relaxed">
                   No pudimos acceder a la cámara. Verifique los permisos de su navegador o dispositivo.
                 </p>
-                <button 
+                <button type="button" 
                    onClick={onClose}
                    className="mt-8 px-8 py-4 bg-white rounded-2xl text-slate-900 font-black uppercase tracking-widest text-[10px]"
                 >

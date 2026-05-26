@@ -224,7 +224,7 @@ export function SignatureModal({
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Orden #{orderId.slice(0, 8).toUpperCase()}</p>
             </div>
           </div>
-          <button
+          <button type="button"
             onClick={onClose}
             className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-colors cursor-pointer"
           >
@@ -319,7 +319,7 @@ export function SignatureModal({
             {/* Micro secure tracing active tags */}
             <div className="flex items-center justify-between px-1 text-[8px] text-slate-400 font-bold uppercase tracking-wider">
               <span className="flex items-center gap-1">
-                🛡️ GPS: {gpsCoords.latitude && gpsCoords.longitude ? "Enlazado" : "Obteniendo ubicación..."}
+                🛡️ GPS: {gpsCoords.latitude && gpsCoords.longitude ? "Enlazado" : "Obteniendo ubicación…"}
               </span>
               <span>
                 ⏱️ Marca de Tiempo Activa

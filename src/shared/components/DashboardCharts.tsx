@@ -126,7 +126,7 @@ export function DashboardPieChart({ expenseChartData, isMounted }: DashboardPieC
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-6">
               {payload?.map((entry: any, index: number) => (
                 <div key={index} className="flex items-center space-x-1.5">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                  <div className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter truncate max-w-[80px]">
                     {entry.value}
                   </span>

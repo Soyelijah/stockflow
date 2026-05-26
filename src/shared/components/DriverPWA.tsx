@@ -282,7 +282,7 @@ export function DriverPWA() {
       {/* Mobile Top App Bar */}
       <header className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center">
+          <div className="size-10 bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center">
             <Truck size={20} />
           </div>
           <div>
@@ -292,7 +292,7 @@ export function DriverPWA() {
             </p>
           </div>
         </div>
-        <button 
+        <button type="button" 
           onClick={() => logout()}
           className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full transition-colors font-bold text-white/80 active:scale-95 flex items-center"
           title="Cerrar Sesión"
@@ -329,7 +329,7 @@ export function DriverPWA() {
       <section className="px-4 pb-4">
         <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 text-white p-4 rounded-3xl border border-indigo-500/20 shadow-lg flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${fcmRegistered ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30"}`}>
+            <div className={`size-9 rounded-xl flex items-center justify-center border transition-colors ${fcmRegistered ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30"}`}>
               <Bell size={16} className={fcmLoading ? "animate-pulse" : ""} />
             </div>
             <div>
@@ -340,12 +340,12 @@ export function DriverPWA() {
             </div>
           </div>
           {!fcmRegistered ? (
-            <button
+            <button type="button"
               onClick={handleActivateNotifications}
               disabled={fcmLoading}
               className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer active:scale-95 text-white"
             >
-              {fcmLoading ? "Inicializando..." : "Activar"}
+              {fcmLoading ? "Inicializando…" : "Activar"}
             </button>
           ) : (
             <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-xl border border-emerald-500/30">
@@ -388,8 +388,8 @@ export function DriverPWA() {
                   {activeNextStop.status === "in_route" && activeNextStop.currentLat && (
                     <AdvancedMarker position={{ lat: activeNextStop.currentLat, lng: activeNextStop.currentLng }}>
                       <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
-                        <span className="absolute inline-flex h-7 w-7 rounded-full bg-red-400 opacity-40 animate-ping" />
-                        <div className="w-8 h-8 bg-slate-950 border-2 border-white rounded-full flex items-center justify-center shadow-lg text-xs relative z-10">
+                        <span className="absolute inline-flex size-7 rounded-full bg-red-400 opacity-40 animate-ping" />
+                        <div className="size-8 bg-slate-950 border-2 border-white rounded-full flex items-center justify-center shadow-lg text-xs relative z-10">
                           🚚
                         </div>
                       </div>
@@ -408,7 +408,7 @@ export function DriverPWA() {
           <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-xl space-y-5 text-left">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 font-bold font-mono text-sm shadow-sm">
+                <div className="size-9 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 font-bold font-mono text-sm shadow-sm">
                   {completedStopsCount + 1}
                 </div>
                 <div>
@@ -473,7 +473,7 @@ export function DriverPWA() {
             {/* Tactical Control Actions buttons */}
             <div className="flex flex-col gap-3 pt-1">
               {activeNextStop.status !== "in_route" ? (
-                <button
+                <button type="button"
                   onClick={() => handleStartTransit(activeNextStop.id)}
                   className="w-full py-4 bg-red-500 hover:bg-red-600 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg shadow-red-200"
                 >
@@ -482,7 +482,7 @@ export function DriverPWA() {
                 </button>
               ) : (
                 <div className="flex flex-col gap-2.5">
-                  <button
+                  <button type="button"
                     onClick={() => setIsScanning(true)}
                     className="w-full py-4 bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-xl"
                   >
@@ -494,7 +494,7 @@ export function DriverPWA() {
                     <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest">O de forma manual táctil:</span>
                   </div>
 
-                  <button
+                  <button type="button"
                     onClick={() => {
                       setPendingDeliverStopId(activeNextStop.id);
                       setIsSignatureOpen(true);
@@ -510,7 +510,7 @@ export function DriverPWA() {
           </div>
         ) : (
           <div className="bg-gradient-to-br from-indigo-900 to-slate-950 text-white rounded-[2.5rem] p-8 shadow-2xl text-center space-y-6">
-            <div className="w-20 h-20 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
+            <div className="size-20 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
               <Award size={40} className="animate-wiggle" />
             </div>
               
@@ -550,7 +550,7 @@ export function DriverPWA() {
                 >
                   <div className="flex items-center space-x-2.5 min-w-0">
                     <span className={cn(
-                      "w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] font-mono shrink-0",
+                      "size-6 rounded-full flex items-center justify-center font-bold text-[10px] font-mono shrink-0",
                       isCurrent 
                         ? "bg-rose-500 text-white" 
                         : isDelivered 

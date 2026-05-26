@@ -134,7 +134,7 @@ export function StockLedger() {
       <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap gap-2 items-center">
-            <button 
+            <button type="button" 
               onClick={() => setFilterType("all")}
               className={cn(
                 "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
@@ -144,7 +144,7 @@ export function StockLedger() {
               Todos
             </button>
             {["purchase", "sale", "adjustment", "loss", "return"].map(type => (
-              <button 
+              <button type="button" 
                 key={type}
                 onClick={() => setFilterType(type)}
                 className={cn(
@@ -179,7 +179,7 @@ export function StockLedger() {
             </div>
 
             {(startDate || endDate) && (
-              <button 
+              <button type="button" 
                 onClick={() => { setStartDate(""); setEndDate(""); }}
                 className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-2 rounded-xl transition-colors"
               >
@@ -194,7 +194,7 @@ export function StockLedger() {
         <div className="overflow-x-auto">
           {loading ? (
             <div className="p-20 text-center flex flex-col items-center justify-center space-y-4">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
+              <div className="size-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando movimientos...</p>
             </div>
           ) : (
@@ -266,7 +266,7 @@ export function StockLedger() {
           )}
           {!loading && movements.length === 0 && (
             <div className="p-20 text-center">
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mx-auto mb-4">
+              <div className="size-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mx-auto mb-4">
                 <History size={32} />
               </div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No hay movimientos registrados</p>

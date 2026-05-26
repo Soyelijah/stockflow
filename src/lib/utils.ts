@@ -137,6 +137,7 @@ export const INPUT_MAX = {
   URL: 2048,
   NOTES: 1000,
   DESCRIPTION: 500,
+  PASSWORD: 72,
 } as const;
 
 // Sprint 20 — normalize a RUT for search/comparison (strip dots/dashes/spaces, uppercase).

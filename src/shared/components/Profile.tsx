@@ -177,7 +177,7 @@ export function Profile() {
         <div className="md:col-span-1 space-y-6">
           <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm text-center">
               <div className="relative inline-block mb-6 group">
-                <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-indigo-200 overflow-hidden relative">
+                <div className="size-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-indigo-200 overflow-hidden relative">
                   {formData.photoURL ? (
                     <img src={formData.photoURL} alt="Profile" className="w-full h-full object-cover animate-fade-in" />
                   ) : (
@@ -185,7 +185,7 @@ export function Profile() {
                   )}
                   {isUploading && (
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
-                      <div className="w-8 h-8 border-4 border-indigo-500 border-t-white rounded-full animate-spin" />
+                      <div className="size-8 border-4 border-indigo-500 border-t-white rounded-full animate-spin" />
                     </div>
                   )}
                 </div>
@@ -347,7 +347,7 @@ export function Profile() {
                 className="flex items-center space-x-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:shadow-none"
               >
                 {isSaving ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <Save size={16} />
                 )}
@@ -358,7 +358,7 @@ export function Profile() {
 
           {/* Security Notice */}
           <div className="mt-6 p-6 bg-amber-50 border border-amber-100 rounded-[2rem] flex items-start space-x-4">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+            <div className="size-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
               <Shield size={20} />
             </div>
             <div>

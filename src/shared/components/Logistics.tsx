@@ -657,7 +657,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
     <div className="space-y-4 md:space-y-8 max-w-5xl mx-auto px-4 md:px-0">
       {/* Informational Banner about Non-Face-to-Face Sales */}
       <div className="bg-slate-900 text-white rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-6 flex flex-col md:flex-row items-center gap-4 md:gap-6 border-b-4 border-indigo-500/30">
-        <div className="w-12 h-12 md:w-16 md:h-16 bg-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0">
+        <div className="size-12 md:w-16 md:h-16 bg-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0">
           <Truck className="text-indigo-400" size={24} md:size={32} />
         </div>
         <div className="flex-1 text-center md:text-left">
@@ -803,7 +803,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
         <div className="w-full space-y-6 text-left">
           {/* STEP 4.2: Tomás de Inventario e Inventario Físico */}
           <div className="bg-gradient-to-r from-purple-900 via-indigo-950 to-slate-900 p-6 rounded-3xl text-white shadow-md border border-purple-900 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
+            <div className="absolute top-0 right-0 size-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
             <div className="space-y-1 relative z-10">
               <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-full border border-white/10">Fase 4.2: Auditoría Física Continua</span>
               <h2 className="text-2xl font-black tracking-tight mt-1.5">Tomas de Inventario Sistémico vs Real</h2>
@@ -824,7 +824,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               {/* Card 1: New empty inventory audit */}
               <div className="bg-white rounded-[2.5rem] p-6 border border-slate-150 shadow-sm flex flex-col justify-between space-y-6">
                 <div className="space-y-4">
-                  <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
+                  <div className="size-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
                     <Barcode size={24} />
                   </div>
                   <div className="space-y-1">
@@ -849,7 +849,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               {/* Card 2: Pre-filled theoretical stock inventory audit */}
               <div className="bg-white rounded-[2.5rem] p-6 border border-slate-150 shadow-sm flex flex-col justify-between space-y-6">
                 <div className="space-y-4">
-                  <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                  <div className="size-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
                     <ClipboardCheck size={24} />
                   </div>
                   <div className="space-y-1">
@@ -912,7 +912,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                       <input
                         type="text"
-                        placeholder="Escanee código de barra con gatillo físico o escriba y presione Enter..."
+                        placeholder="Escanee código de barra con gatillo físico o escriba y presione Enter…"
                         value={auditBarcode}
                         onChange={(e) => setAuditBarcode(e.target.value)}
                         onKeyDown={(e) => {
@@ -1095,7 +1095,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                       <input
                         type="text"
-                        placeholder="Buscar por nombre, SKU, barra..."
+                        placeholder="Buscar por nombre, SKU, barra…"
                         value={auditSearchQuery}
                         onChange={(e) => setAuditSearchQuery(e.target.value)}
                         className="w-full h-9 pl-9 pr-4 bg-white border border-slate-250 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 outline-none transition-all placeholder:text-slate-400"
@@ -1116,7 +1116,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           type="checkbox"
                           checked={onlyDiscrepancies}
                           onChange={(e) => setOnlyDiscrepancies(e.target.checked)}
-                          className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 bg-slate-100 border-slate-250 cursor-pointer"
+                          className="size-4 text-purple-600 rounded focus:ring-purple-500 bg-slate-100 border-slate-250 cursor-pointer"
                         />
                         <span>Ver solo discrepancias ({products.filter(p => (auditScans[p.id] ?? p.stock ?? 0) !== (p.stock ?? 0)).length})</span>
                       </label>
@@ -1163,7 +1163,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       return (
                         <div key={p.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 text-slate-400">
+                            <div className="size-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 text-slate-400">
                               <Package size={18} />
                             </div>
                             <div>
@@ -1186,7 +1186,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                                 <button
                                   type="button"
                                   onClick={() => setAuditScans(prev => ({ ...prev, [p.id]: Math.max(0, physicalValue - 1) }))}
-                                  className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
+                                  className="size-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
                                 >
                                   <Minus size={14} />
                                 </button>
@@ -1202,7 +1202,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                                 <button
                                   type="button"
                                   onClick={() => setAuditScans(prev => ({ ...prev, [p.id]: physicalValue + 1 }))}
-                                  className="w-8 h-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center cursor-pointer"
+                                  className="size-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center cursor-pointer"
                                 >
                                   <Plus size={14} />
                                 </button>
@@ -1357,7 +1357,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       disabled={isProcessing}
                       className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 w-full sm:w-auto text-center"
                     >
-                      {isProcessing ? "Conciliando..." : "Guardar y Ajustar Catálogo"}
+                      {isProcessing ? "Conciliando…" : "Guardar y Ajustar Catálogo"}
                     </button>
                   </div>
                 </div>
@@ -1369,7 +1369,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
         <div className="w-full space-y-8 text-left">
           {/* STEP 4.3: Stock Alertas y Analíticas logísticas */}
           <div className="bg-gradient-to-r from-indigo-900 to-indigo-950 p-6 rounded-3xl text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/15 blur-3xl rounded-full -mr-12 -mt-12" />
+            <div className="absolute top-0 right-0 size-32 bg-indigo-500/15 blur-3xl rounded-full -mr-12 -mt-12" />
             <div className="space-y-1 relative z-10">
               <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-full">Fase 4.3: Inteligencia Logística</span>
               <h2 className="text-2xl font-black tracking-tight">Centro de Alertas de Stock y KPIs Graficados</h2>
@@ -1426,7 +1426,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                           <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
                             <span>Umbral Alerta: {p.minThreshold || 5} un.</span>
-                            <button
+                            <button type="button"
                               onClick={() => {
                                 setSelectedProductForOC(p);
                                 setOcQuantity(50);
@@ -1456,7 +1456,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       const catData: Record<string, { name: string, stock: number }> = {};
                       products.forEach(p => {
                         const category = categories.find(c => c.id === p.categoryId)?.name || "Otros";
-                        const shortName = category.length > 10 ? category.substring(0, 10) + "..." : category;
+                        const shortName = category.length > 10 ? category.substring(0, 10) + "…" : category;
                         if (!catData[shortName]) {
                           catData[shortName] = { name: shortName, stock: 0 };
                         }
@@ -1487,7 +1487,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     {(() => {
                       const topValued = [...products]
                         .map(p => ({
-                          name: p.name.length > 12 ? p.name.substring(0, 12) + "..." : p.name,
+                          name: p.name.length > 12 ? p.name.substring(0, 12) + "…" : p.name,
                           valor: (p.stock || 0) * (p.costPrice || 0)
                         }))
                         .sort((a, b) => b.valor - a.valor)
@@ -1560,7 +1560,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   exit={{ scale: 0.95, opacity: 0 }}
                   className="bg-white rounded-[2.5rem] p-6 md:p-8 max-w-xl w-full border border-slate-100 shadow-2xl relative"
                 >
-                  <button
+                  <button type="button"
                     onClick={() => setSelectedProductForOC(null)}
                     className="absolute right-6 top-6 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all shadow-sm"
                   >
@@ -1569,7 +1569,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                   <div className="space-y-6">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center hover:rotate-12 transition-all">
+                      <div className="size-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center hover:rotate-12 transition-all">
                         <ShoppingBag size={24} />
                       </div>
                       <div>
@@ -1599,7 +1599,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           <button
                             type="button"
                             onClick={() => setOcQuantity(prev => Math.max(10, prev - 10))}
-                            className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600"
+                            className="size-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600"
                           >
                             <Minus size={14} />
                           </button>
@@ -1612,7 +1612,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           <button
                             type="button"
                             onClick={() => setOcQuantity(prev => prev + 10)}
-                            className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center"
+                            className="size-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center"
                           >
                             <Plus size={14} />
                           </button>
@@ -1632,13 +1632,13 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     </div>
 
                     <div className="flex gap-2 pt-2">
-                      <button
+                      <button type="button"
                         onClick={() => setSelectedProductForOC(null)}
                         className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
                       >
                         Cerrar
                       </button>
-                      <button
+                      <button type="button"
                         onClick={async () => {
                           try {
                             setIsProcessing(true);
@@ -1704,7 +1704,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
       ) : mode === "shipments" ? (
         <div className="w-full space-y-6 text-left">
           <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 rounded-3xl text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
+            <div className="absolute top-0 right-0 size-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
             <div className="space-y-1 relative z-10">
               <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-full border border-white/10">Control de Entregas</span>
               <h2 className="text-2xl font-black tracking-tight mt-1.5">Monitoreo de Pedidos y Rutas</h2>
@@ -1716,7 +1716,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
           {/* Submode Selection Menu */}
           <div className="flex bg-slate-100 p-1 rounded-2xl max-w-md w-full">
-            <button
+            <button type="button"
               onClick={() => setShipmentSubMode("list")}
               className={cn(
                 "flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center font-bold",
@@ -1725,7 +1725,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             >
               📋 Listado
             </button>
-            <button
+            <button type="button"
               onClick={() => setShipmentSubMode("map")}
               className={cn(
                 "flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center font-bold",
@@ -1740,12 +1740,12 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
             {shipmentsLoading ? (
               <div className="p-20 text-center flex flex-col items-center justify-center space-y-4">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
+                <div className="size-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando rutas...</p>
               </div>
             ) : paginatedShipments.length === 0 ? (
               <div className="p-20 text-center">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4">
+                <div className="size-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4">
                   <Truck size={32} />
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No hay rutas o pedidos registrados</p>
@@ -1874,7 +1874,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
       ) : mode === "claims" ? (
         <div className="w-full space-y-6 text-left">
           <div className="bg-gradient-to-r from-rose-900 to-slate-900 p-6 rounded-3xl text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
+            <div className="absolute top-0 right-0 size-32 bg-white/5 blur-3xl rounded-full -mr-12 -mt-12" />
             <div className="space-y-1 relative z-10">
               <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-full border border-white/10">Soporte Operativo</span>
               <h2 className="text-2xl font-black tracking-tight mt-1.5">Reclamos y Devoluciones de Clientes</h2>
@@ -1891,7 +1891,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block ml-1">Listado de Casos</span>
                 {claimsLoading ? (
                   <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-rose-100 border-t-rose-600" />
+                    <div className="size-6 animate-spin rounded-full border-2 border-rose-100 border-t-rose-600" />
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cargando reclamos...</p>
                   </div>
                 ) : claims.length === 0 ? (
@@ -2077,7 +2077,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 </div>
               ) : (
                 <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-4">
-                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                  <div className="size-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                     <AlertCircle size={32} />
                   </div>
                   <p className="text-[10px] font-black uppercase tracking-widest">Seleccione un reclamo para ver detalles</p>
@@ -2096,7 +2096,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <Search size={120} />
                 </div>
               <div className="max-w-xl mx-auto text-center">
-                <div className="w-16 h-16 md:w-20 md:h-20 bg-indigo-50 text-indigo-600 rounded-2xl md:rounded-[2rem] flex items-center justify-center mx-auto mb-4 md:mb-6">
+                <div className="size-16 md:w-20 md:h-20 bg-indigo-50 text-indigo-600 rounded-2xl md:rounded-[2rem] flex items-center justify-center mx-auto mb-4 md:mb-6">
                   <Search size={32} md:size={40} />
                 </div>
                 <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2 md:mb-4">Identificar Producto</h3>
@@ -2106,14 +2106,14 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   <Search className="absolute left-5 md:left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} md:size={24} />
                   <input 
                     type="text"
-                    placeholder="Escanear o buscar..."
+                    placeholder="Escanear o buscar…"
                     className="w-full h-16 md:h-20 bg-slate-50 border border-slate-100 rounded-2xl md:rounded-[2rem] pl-14 md:pl-16 pr-20 text-base md:text-lg font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
-                  <button 
+                  <button type="button" 
                     onClick={() => setIsScanning(true)}
-                    className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all shadow-sm border border-slate-100 active:scale-90"
+                    className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 size-10 md:w-12 md:h-12 bg-white rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all shadow-sm border border-slate-100 active:scale-90"
                     title="Usar Cámara"
                   >
                     <Camera size={20} md:size={24} />
@@ -2158,7 +2158,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         Este código no pertenece a ningún producto.
                       </p>
                       <div className="flex gap-2 mt-4">
-                        <button 
+                        <button type="button" 
                           onClick={() => {
                             setQuickCreateData({
                               name: "",
@@ -2187,7 +2187,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         </p>
                       </div>
                     </div>
-                    <button 
+                    <button type="button" 
                       onClick={() => setUnrecognizedBarcode(null)}
                       className="p-2 hover:bg-white/50 rounded-lg text-amber-400"
                     >
@@ -2199,13 +2199,13 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 {searchTerm.length > 0 && (
                   <div className="mt-6 space-y-3">
                     {filteredProducts.map(p => (
-                      <button
+                      <button type="button"
                         key={p.id}
                         onClick={() => setSelectedProduct(p)}
                         className="w-full p-4 bg-slate-50 hover:bg-indigo-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-all flex items-center justify-between group"
                       >
                         <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
+                          <div className="size-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
                             <Package size={24} />
                           </div>
                           <div className="text-left">
@@ -2249,7 +2249,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     </p>
                   </div>
                 </div>
-                <button 
+                <button type="button" 
                   onClick={() => setSelectedProduct(null)}
                   className="p-2 md:p-3 bg-white rounded-xl md:rounded-2xl text-slate-400 hover:text-slate-900 transition-all hover:rotate-90 shadow-sm"
                 >
@@ -2297,7 +2297,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <button 
                         type="button"
                         onClick={() => setFormData({...formData, quantity: Math.max(1, formData.quantity - 1)})}
-                        className="w-12 h-12 md:w-14 md:h-14 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+                        className="size-12 md:w-14 md:h-14 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
                       >
                         <Minus size={18} md:size={20} />
                       </button>
@@ -2312,7 +2312,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <button 
                         type="button"
                         onClick={() => setFormData({...formData, quantity: formData.quantity + 1})}
-                        className="w-12 h-12 md:w-14 md:h-14 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+                        className="size-12 md:w-14 md:h-14 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
                       >
                         <Plus size={18} md:size={20} />
                       </button>
@@ -2394,7 +2394,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input 
                           type="text"
-                          placeholder="Buscar cliente por nombre o RUT..."
+                          placeholder="Buscar cliente por nombre o RUT…"
                           className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20"
                           value={customerSearch}
                           onChange={(e) => setCustomerSearch(e.target.value)}
@@ -2435,7 +2435,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Sucursal de Destino</label>
                         <input 
                             type="text"
-                            placeholder="Ej: Sucursal Centro, Bodega 2, Concon..."
+                            placeholder="Ej: Sucursal Centro, Bodega 2, Concon…"
                             className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500"
                             value={formData.targetSucursal}
                             onChange={(e) => setFormData({...formData, targetSucursal: e.target.value})}
@@ -2451,7 +2451,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         : "bg-amber-50 text-amber-700"
                     )}>
                       <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                        "size-10 rounded-xl flex items-center justify-center shrink-0",
                         (formData.reason === "Venta No Presencial" || formData.reference.trim() !== "")
                           ? "bg-emerald-100"
                           : "bg-amber-100"
@@ -2493,7 +2493,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Observaciones / Motivo</label>
                     <textarea 
                       className="w-full min-h-[112px] bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 resize-none"
-                      placeholder="Detalles adicionales..."
+                      placeholder="Detalles adicionales…"
                       value={formData.reason}
                       onChange={(e) => setFormData({...formData, reason: e.target.value})}
                     />
@@ -2524,7 +2524,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     </div>
                   </div>
                   
-                  <button 
+                  <button type="button" 
                     disabled={isProcessing}
                     className={cn(
                       "w-full md:w-auto px-10 py-4 md:px-12 md:py-5 rounded-2xl md:rounded-[2rem] font-black uppercase tracking-widest text-[10px] md:text-xs flex items-center justify-center space-x-3 shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50",
@@ -2564,7 +2564,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         <p className="text-[10px] font-bold uppercase tracking-wider mt-1.5 text-amber-700/80">Creación rápida en logística</p>
                       </div>
                     </div>
-                    <button 
+                    <button type="button" 
                       onClick={() => setIsQuickCreateOpen(false)}
                       className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
                     >
@@ -2694,7 +2694,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                             <input 
                               type="text"
                               required
-                              placeholder="Nueva Categoría..."
+                              placeholder="Nueva Categoría…"
                               className="flex-1 h-12 bg-slate-50 border border-dashed border-indigo-200 rounded-xl px-3 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
                               value={newCategoryName}
                               onChange={e => setNewCategoryName(e.target.value)}
@@ -2770,7 +2770,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Descripción breve</label>
                       <textarea 
                         rows={2}
-                        placeholder="Uso, sabor, empaque o presentación del producto..."
+                        placeholder="Uso, sabor, empaque o presentación del producto…"
                         className="w-full bg-slate-50 border border-slate-105 rounded-xl p-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none resize-none"
                         value={quickCreateData.description}
                         onChange={e => setQuickCreateData({...quickCreateData, description: e.target.value})}
