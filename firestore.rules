@@ -43,6 +43,17 @@ service cloud.firestore {
       );
     }
 
+    // Tier 5.A3: explicit "internal workforce" check, excludes customer role.
+    // Matches src/lib/roles.ts isStaff(). Used by /customers + future customer-facing
+    // collections that should be readable by staff but NOT by other customers.
+    function isStaff() {
+      return isAdmin() || isLogistics() || isSeller() || isDriver();
+    }
+
+    function isCustomer() {
+      return isSignedIn() && request.auth.token.get('role', '') == 'customer';
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -229,23 +240,31 @@ service cloud.firestore {
     }
 
     match /customers/{docId} {
-      // H-CRITICAL fix: was `if true` on read/list/create/update (PII leak — Ley 21.719).
-      // Restored from canonical pre-incident-7 baseline + H6 hardening on create.
+      // H-CRITICAL fix (Sprint 18-20): was `if true` on read/list/create/update
+      // (PII leak — Ley 21.719). Locked down to self-read + staff.
+      // Tier 5.A3: collapsed admin||logistics||seller into isStaff() helper.
       allow read: if isSignedIn() && (
-        request.auth.uid == docId || isAdmin() || isLogistics() || isSeller()
+        request.auth.uid == docId || isStaff()
       );
-      allow list: if isAdmin() || isLogistics() || isSeller();
-      // H6 fix: force points and balance to 0 on self-create — prevents economic
-      // escalation via crafted signup payload (e.g. balance: 999999999).
+      allow list: if isStaff();
+      // H6 fix (Sprint 19): force points and balance to 0 on self-create —
+      // prevents economic escalation via crafted signup payload (e.g. balance: 999999999).
+      // Tier 5.A3: password field is server-managed in Firebase Auth, never in
+      // Firestore. Block it from create payloads as defense-in-depth.
       allow create: if isSignedIn() && request.auth.uid == docId
         && incoming().keys().hasOnly(['uid', 'name', 'email', 'phone', 'rut', 'address', 'createdAt', 'points', 'balance'])
         && incoming().email == request.auth.token.email
         && incoming().points == 0
         && incoming().balance == 0;
+      // Tier 5.A3: also block 'password' field on updates (defense-in-depth —
+      // self-update already restricts affected keys, but staff path used to be
+      // wide open. Now staff cannot accidentally re-introduce plain-text pw).
       allow update: if isSignedIn() && (
-        (request.auth.uid == docId && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'address', 'updatedAt'])) ||
-        isAdmin() ||
-        isSeller()
+        (request.auth.uid == docId
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'address', 'updatedAt']))
+        ||
+        (isStaff()
+          && !('password' in incoming().diff(existing()).affectedKeys()))
       );
       allow delete: if isAdmin();
     }
