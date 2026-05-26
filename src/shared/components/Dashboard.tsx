@@ -20,6 +20,8 @@ import {
 import { formatCurrency, cn } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { CROSS_BRANCH_SENTINEL } from "../../lib/branches";
 import { useSettings } from "../../contexts/SettingsContext";
 import { getStockInsights, StockInsight } from "../../services/aiService";
 
@@ -43,6 +45,7 @@ import {
 
 export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) {
   const { user, profile } = useAuth();
+  const { selectedBranchId } = useBranch();
   const { settings } = useSettings();
   const [stats, setStats] = useState({
     totalProducts: 0,
@@ -237,18 +240,29 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     const isAdminEffect = profile?.role === "admin" || profile?.role === "manager";
     const isLogisticsEffect = profile?.role === "logistics";
 
-    // Listen to recent transactions
+    // Listen to recent transactions.
+    // Multi-branch (Tier 1.4b): when a specific branch is selected (not "*"), scope
+    // the query server-side via where("branchId", ...) — this prunes reads + keeps the
+    // KPI view consistent with the sidebar dropdown.
+    const branchFilter = selectedBranchId !== CROSS_BRANCH_SENTINEL
+      ? [where("branchId", "==", selectedBranchId)]
+      : [];
+
     let qTransactions = query(
-      collection(db, "transactions"), 
-      orderBy("timestamp", "desc"), 
+      collection(db, "transactions"),
+      ...branchFilter,
+      orderBy("timestamp", "desc"),
       limit(200)
     );
-    
-    // Filter for sellers if not admin/manager/logistics
+
+    // Sellers still scoped to their own user (legacy behavior). Combined with the
+    // branchId filter from rules + the where() above, they see only their sales in
+    // their branch.
     if (!isAdminEffect && !isLogisticsEffect) {
       qTransactions = query(
         collection(db, "transactions"),
         where("userId", "==", profile?.uid),
+        ...branchFilter,
         orderBy("timestamp", "desc"),
         limit(200)
       );
@@ -348,8 +362,12 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       handleFirestoreError(error, OperationType.LIST, "transactions (Dashboard)");
     });
 
-    // Listen to recent expenses
-    const qExpenses = query(collection(db, "expenses"), limit(200));
+    // Listen to recent expenses. Same branch-scoping as transactions.
+    const qExpenses = query(
+      collection(db, "expenses"),
+      ...branchFilter,
+      limit(200)
+    );
     const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
       let expenseSum = 0;
       const exps: any[] = [];
@@ -381,7 +399,11 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       unsubTransactions();
       unsubExpenses();
     };
-  }, []);
+    // selectedBranchId is included so the query restarts when the cross-branch user
+    // switches branches in the sidebar dropdown. profile change is also relevant for
+    // the seller-scoped path.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBranchId, profile?.uid, profile?.role]);
 
   const handleFetchAI = async () => {
     if (!settings.aiEnabled) {

@@ -9,6 +9,8 @@ import {
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { CROSS_BRANCH_SENTINEL } from "../../lib/branches";
 import { cn, formatCurrency, toDate } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -102,6 +104,7 @@ function getPreviousRange(start: Date, end: Date): { start: Date; end: Date } {
 
 export function ShrinkageReport() {
   const { user, profile } = useAuth();
+  const { selectedBranchId } = useBranch();
 
   // Data
   const [lossMovements, setLossMovements] = useState<Movement[]>([]);
@@ -155,14 +158,17 @@ export function ShrinkageReport() {
     return unsub;
   }, []);
 
-  // Subscribe to loss movements
+  // Subscribe to loss movements. Multi-branch (Tier 1.4b): scope by selectedBranchId.
   useEffect(() => {
     setLoading(true);
-    const q = query(
-      collection(db, "stockMovements"),
+    const constraints = [
       where("type", "==", "loss"),
-      orderBy("timestamp", "desc")
-    );
+      orderBy("timestamp", "desc"),
+    ];
+    if (selectedBranchId !== CROSS_BRANCH_SENTINEL) {
+      constraints.unshift(where("branchId", "==", selectedBranchId));
+    }
+    const q = query(collection(db, "stockMovements"), ...constraints);
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -177,7 +183,7 @@ export function ShrinkageReport() {
       }
     );
     return unsub;
-  }, []);
+  }, [selectedBranchId]);
 
   // Computed: date range
   const { start: rangeStart, end: rangeEnd } = useMemo(

@@ -3,6 +3,8 @@ import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from "@
 import { collection, onSnapshot, query, doc, updateDoc, setDoc, serverTimestamp, getDocs, writeBatch, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { resolveBranchIdForStockOp } from "../../lib/productStock";
 import { cn } from "../../lib/utils";
 import { MapPin, Navigation, Truck, User, Phone, CheckCircle, Package, Plus, Map as MapIcon, Loader2, Sparkles, RefreshCw, Save, ArrowRight, Play, Square, Leaf } from "lucide-react";
 
@@ -199,6 +201,7 @@ interface DeliveryMapProps {
 
 export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
   const { profile } = useAuth();
+  const { branches, selectedBranchId } = useBranch();
   const [shipments, setShipments] = useState<any[]>([]);
   const [selectedShipment, setSelectedShipment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -225,7 +228,9 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
     driverName: "Claudio Gómez (Transportista)",
     driverPhone: "+56 9 8765 4321",
     total: 25000,
-    itemsText: "2x Caja de Vino Premium, 1x Aceite Oliva Extra"
+    itemsText: "2x Caja de Vino Premium, 1x Aceite Oliva Extra",
+    // Multi-branch (Tier 1.4b): picker default = active selectedBranchId (or "default")
+    pickupBranchId: "default",
   });
 
   // Simulation states
@@ -378,6 +383,10 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
     }
     try {
       const id = `SHIP_${Date.now()}`;
+      // Multi-branch (Tier 1.4b): admin now picks the source sucursal from a dropdown.
+      // Fallback to selectedBranchId (sidebar context) and finally "default".
+      const pickupBranchId = newShipment.pickupBranchId ||
+        resolveBranchIdForStockOp(selectedBranchId);
       await setDoc(doc(db, "shipments", id), {
         id,
         orderId: newShipment.orderId,
@@ -391,11 +400,8 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
         driverPhone: newShipment.driverPhone,
         total: Number(newShipment.total),
         items: newShipment.itemsText.split(",").map(i => i.trim()),
-        // Multi-branch (Tier 1.2): pickupBranchId is the warehouse the shipment is dispatched from.
-        // For mock/admin-created shipments, defaults to "default". Tier 1.4 will add a branch
-        // picker so admin can assign shipments to specific source branches.
-        pickupBranchId: "default",
-        branchId: "default",
+        pickupBranchId,
+        branchId: pickupBranchId,
         timestamp: new Date().toISOString()
       });
 
@@ -409,7 +415,8 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
         driverName: "Claudio Gómez (Transportista)",
         driverPhone: "+56 9 8765 4321",
         total: 25000,
-        itemsText: "2x Caja de Vino Premium, 1x Aceite Oliva Extra"
+        itemsText: "2x Caja de Vino Premium, 1x Aceite Oliva Extra",
+        pickupBranchId: resolveBranchIdForStockOp(selectedBranchId),
       });
     } catch (err) {
       alert("Error registrando despacho real");
@@ -627,6 +634,24 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   onChange={e => setNewShipment({ ...newShipment, total: Number(e.target.value) })}
                 />
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="pickupBranchId" className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sucursal de Origen (Despacha)</label>
+              <select
+                id="pickupBranchId"
+                className="w-full h-8 bg-white border border-slate-100 rounded-lg px-1 text-[10px] font-bold"
+                value={newShipment.pickupBranchId}
+                onChange={e => setNewShipment({ ...newShipment, pickupBranchId: e.target.value })}
+              >
+                {branches.filter(b => b.active !== false).length === 0 ? (
+                  <option value="default">Sucursal Principal (default)</option>
+                ) : (
+                  branches.filter(b => b.active !== false).map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))
+                )}
+              </select>
             </div>
 
             <button

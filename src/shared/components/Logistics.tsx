@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  writeBatch, 
-  doc, 
+import {
+  collection,
+  query,
+  onSnapshot,
+  writeBatch,
+  doc,
   addDoc,
   setDoc,
   updateDoc,
@@ -14,7 +14,8 @@ import {
   orderBy,
   limit,
   startAfter,
-  getDocs
+  getDocs,
+  where
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
 import { 
@@ -244,22 +245,28 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
     const unsubCusts = onSnapshot(query(collection(db, "customers"), orderBy("name"), limit(500)), (snap) => {
       setCustomers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    const unsubShipments = onSnapshot(query(collection(db, "shipments"), limit(500)), (snap) => {
+    // Multi-branch (Tier 1.4b): scope shipments listener by selectedBranchId when not "*".
+    const shipmentsQuery = selectedBranchId !== "*"
+      ? query(collection(db, "shipments"), where("branchId", "==", selectedBranchId), limit(500))
+      : query(collection(db, "shipments"), limit(500));
+    const unsubShipments = onSnapshot(shipmentsQuery, (snap) => {
       setShipments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
     const unsubClaimsCount = onSnapshot(query(collection(db, "claims"), limit(500)), (snap) => {
       const unresolved = snap.docs.filter(doc => doc.data().status !== "resolved").length;
       setPendingClaimsCount(unresolved);
     });
-    return () => { 
-      unsubProds(); 
-      unsubSupps(); 
-      unsubCats(); 
-      unsubCusts(); 
+    return () => {
+      unsubProds();
+      unsubSupps();
+      unsubCats();
+      unsubCusts();
       unsubShipments();
       unsubClaimsCount();
     };
-  }, []);
+    // Restart listeners on branch switch so shipments query rebinds correctly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBranchId]);
 
   const fetchPaginatedShipments = async (direction: "init" | "next" | "prev" = "init") => {
     setShipmentsLoading(true);

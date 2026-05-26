@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useId } from "react";
-import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
   orderBy,
   where,
   limit,
@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   Timestamp,
   getDocs,
-  startAfter
+  startAfter,
+  setDoc
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType, auth } from "../../lib/firebase";
 import { 
@@ -44,16 +45,22 @@ import { ModernAlert } from "./ui/ModernAlert";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
 import { useAuth } from "../../contexts/AuthContext";
 import { useBranch } from "../../contexts/BranchContext";
-import { resolveBranchIdForStockOp } from "../../lib/productStock";
+import { resolveBranchIdForStockOp, batchStockForBranch, batchStockAggregated, productStockRef } from "../../lib/productStock";
+import { CROSS_BRANCH_SENTINEL } from "../../lib/branches";
 import { cn, formatCurrency, INPUT_MAX } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { CategoryManager } from "./CategoryManager";
 
 export function Inventory() {
   const { profile } = useAuth();
-  const { selectedBranchId } = useBranch();
+  const { selectedBranchId, branches } = useBranch();
   const fid = useId();
   const inputId = (suffix: string) => `${fid}-${suffix}`;
+  // Multi-branch (Tier 1.4b): per-branch stock override map.
+  // Filled by an async effect that batch-reads /product_stock for selectedBranchId
+  // (or aggregates across all branches when "*" is selected). Falls back to
+  // products.stock (the dual-written legacy mirror) when no doc exists yet.
+  const [branchStockMap, setBranchStockMap] = useState<Map<string, number>>(new Map());
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -388,15 +395,38 @@ export function Inventory() {
       const userUidVal = profile?.uid || "";
 
       if (editingProduct) {
-        const stockDiff = finalData.stock - editingProduct.stock;
+        // Multi-branch (Tier 1.4b): stock edits happen in the context of the selected
+        // branch. If admin is on "*" aggregated view, this writes to the "default" branch
+        // (with console warning) — admin should switch to a specific branch first.
+        const editBranchId = resolveBranchIdForStockOp(selectedBranchId);
+        if (selectedBranchId === CROSS_BRANCH_SENTINEL) {
+          console.warn(`[Inventory] Editing stock while viewing aggregated ("*") branch. Writing to "${editBranchId}" branch. Switch to a specific branch first for clarity.`);
+        }
+        // The stock value displayed (and edited) is the per-branch value, so the diff
+        // is against the per-branch previous stock — NOT against products.stock (which
+        // is the legacy global mirror).
+        const previousBranchStock = branchStockMap.get(editingProduct.id) ?? (Number(editingProduct.stock) || 0);
+        const stockDiff = finalData.stock - previousBranchStock;
         const batch = writeBatch(db);
         const prodRef = doc(db, "products", editingProduct.id);
-        
+
+        // Update catalog metadata (name, prices, image, etc.). Stock stays as a deprecated
+        // mirror — we dual-write to it so legacy readers see something correct. Tier 1.5
+        // will drop the products.stock field entirely.
         batch.update(prodRef, {
           ...finalData,
           updatedAt: serverTimestamp(),
           updatedBy: updatedByName
         });
+
+        // Authoritative per-branch stock write. setMerge so first-time stock docs are seeded
+        // and existing docs are overwritten by the admin's manual adjustment.
+        batch.set(productStockRef(editingProduct.id, editBranchId), {
+          productId: editingProduct.id,
+          branchId: editBranchId,
+          stock: Number(finalData.stock) || 0,
+          lastUpdated: serverTimestamp(),
+        }, { merge: true });
 
         if (stockDiff !== 0) {
           const moveRef = doc(collection(db, "stockMovements"));
@@ -405,13 +435,13 @@ export function Inventory() {
             productName: finalData.name,
             type: stockDiff > 0 ? "adjustment" : "loss",
             quantity: Math.abs(stockDiff),
-            previousStock: Number(editingProduct.stock) || 0,
+            previousStock: previousBranchStock,
             newStock: Number(finalData.stock) || 0,
             reason: "Ajuste manual web",
             userId: userUidVal,
             userName: updatedByName,
             source: "web",
-            branchId: resolveBranchIdForStockOp(selectedBranchId),
+            branchId: editBranchId,
             timestamp: serverTimestamp()
           });
         }
@@ -422,6 +452,17 @@ export function Inventory() {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           updatedBy: updatedByName
+        });
+
+        // Multi-branch (Tier 1.4b): seed product_stock for the selected branch with the
+        // initial stock value. This makes the new product visible in the per-branch view
+        // immediately, without waiting for migrate-products-split-stock.ts to run.
+        const createBranchId = resolveBranchIdForStockOp(selectedBranchId);
+        await setDoc(productStockRef(prodRef.id, createBranchId), {
+          productId: prodRef.id,
+          branchId: createBranchId,
+          stock: Number(finalData.stock) || 0,
+          lastUpdated: serverTimestamp(),
         });
 
         if (finalData.stock > 0) {
@@ -436,7 +477,7 @@ export function Inventory() {
             userId: userUidVal,
             userName: updatedByName,
             source: "web",
-            branchId: resolveBranchIdForStockOp(selectedBranchId),
+            branchId: createBranchId,
             timestamp: serverTimestamp()
           });
         }
@@ -528,8 +569,55 @@ export function Inventory() {
   const isAdmin = profile?.role === "admin" || profile?.role === "manager";
   const isLogistics = profile?.role === "logistics";
 
+  // Multi-branch (Tier 1.4b): load /product_stock for the selected branch (or aggregated
+  // across all active branches when "*"). Updates as products list or selected branch changes.
+  useEffect(() => {
+    if (products.length === 0) {
+      setBranchStockMap(new Map());
+      return;
+    }
+    const productIds = products.map(p => p.id as string);
+    const fallbacks = new Map<string, number>(
+      products.map(p => [p.id as string, Number(p.stock) || 0])
+    );
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        let result: Map<string, number>;
+        if (selectedBranchId === CROSS_BRANCH_SENTINEL) {
+          const activeBranchIds = branches.filter(b => b.active !== false).map(b => b.id);
+          if (activeBranchIds.length === 0) {
+            // No branches loaded yet — show legacy products.stock as fallback.
+            result = fallbacks;
+          } else {
+            result = await batchStockAggregated(productIds, activeBranchIds, fallbacks);
+          }
+        } else {
+          result = await batchStockForBranch(productIds, selectedBranchId, fallbacks);
+        }
+        if (!cancelled) setBranchStockMap(result);
+      } catch (err) {
+        console.warn("[Inventory] branch stock load failed:", err);
+        if (!cancelled) setBranchStockMap(fallbacks);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [products, selectedBranchId, branches]);
+
+  // Products with `stock` overridden by the per-branch view (or aggregated, or legacy fallback).
+  // Used by every display path. Original `products` array stays as-is for write helpers
+  // that need the legacy mirror semantics.
+  const productsForBranch = useMemo(() => {
+    return products.map(p => ({
+      ...p,
+      stock: branchStockMap.get(p.id) ?? (Number(p.stock) || 0),
+    }));
+  }, [products, branchStockMap]);
+
   const inventorySummary = useMemo(() => {
-    return products.reduce((acc, p) => {
+    return productsForBranch.reduce((acc, p) => {
       const stock = Number(p.stock) || 0;
       const price = Number(p.price) || 0;
       const cost = Number(p.costPrice) || 0;
@@ -542,13 +630,13 @@ export function Inventory() {
       if (stock === 0) acc.outOfStock++;
       return acc;
     }, { totalItems: 0, totalValue: 0, totalCost: 0, lowStock: 0, outOfStock: 0 });
-  }, [products]);
+  }, [productsForBranch]);
 
   const potentialProfit = inventorySummary.totalValue - inventorySummary.totalCost;
   const [activeTab, setActiveTab] = useState<"all" | "low" | "smart">("all");
 
   const smartActions = useMemo(() => {
-    return products.map(p => {
+    return productsForBranch.map(p => {
       const stock = Number(p.stock) || 0;
       const velocity = salesVelocity[p.id] || 0;
       const daysLeft = velocity > 0 ? stock / velocity : Infinity;
@@ -579,9 +667,9 @@ export function Inventory() {
 
       return null;
     }).filter(Boolean);
-  }, [products, salesVelocity]);
+  }, [productsForBranch, salesVelocity]);
 
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = productsForBranch.filter(p => {
     const matchesSearch = (p.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.sku?.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.category?.toLowerCase().includes(searchTerm.toLowerCase())) ||

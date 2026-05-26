@@ -25,9 +25,12 @@ import {
   Calendar
 } from "lucide-react";
 import { formatCurrency, cn } from "../../lib/utils";
+import { useBranch } from "../../contexts/BranchContext";
+import { CROSS_BRANCH_SENTINEL } from "../../lib/branches";
 import { motion, AnimatePresence } from "motion/react";
 
 export function StockLedger() {
+  const { selectedBranchId } = useBranch();
   const [movements, setMovements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>("all");
@@ -43,6 +46,11 @@ export function StockLedger() {
     setLoading(true);
     try {
       let q = query(collection(db, "stockMovements"), orderBy("timestamp", "desc"));
+
+      // Multi-branch (Tier 1.4b): scope by selectedBranchId when not "*".
+      if (selectedBranchId !== CROSS_BRANCH_SENTINEL) {
+        q = query(q, where("branchId", "==", selectedBranchId));
+      }
 
       if (filterType !== "all") {
         q = query(q, where("type", "==", filterType));
@@ -111,9 +119,9 @@ export function StockLedger() {
 
   useEffect(() => {
     fetchMovements("init");
-    // Filter-driven refetch; fetchMovements closes over pagination state.
+    // Filter-driven refetch; also restarts on branch switch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, startDate, endDate]);
+  }, [filterType, startDate, endDate, selectedBranchId]);
 
   const getMovementConfig = (type: string) => {
     switch(type) {

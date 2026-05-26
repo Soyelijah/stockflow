@@ -34,10 +34,13 @@ import { cn, formatCurrency, formatDate, formatNumber } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext";
+import { useBranch } from "../../contexts/BranchContext";
+import { CROSS_BRANCH_SENTINEL } from "../../lib/branches";
 import { printReceipt } from "../../lib/printUtils";
 
 export function Transactions() {
   const { profile } = useAuth();
+  const { selectedBranchId } = useBranch();
   const { settings } = useSettings();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,8 +56,16 @@ export function Transactions() {
   const fetchTransactions = async (direction: "init" | "next" | "prev" = "init") => {
     setLoading(true);
     try {
+      // Multi-branch (Tier 1.4b): scope queries by selectedBranchId when not "*".
+      // Pinned users (seller/manager) effectively always have a concrete branchId so this
+      // always filters server-side for them, reducing read cost.
+      const branchFilter = selectedBranchId !== CROSS_BRANCH_SENTINEL
+        ? [where("branchId", "==", selectedBranchId)]
+        : [];
+
       let q = query(
         collection(db, "transactions"),
+        ...branchFilter,
         orderBy("timestamp", "desc")
       );
 
@@ -62,6 +73,7 @@ export function Transactions() {
         q = query(
           collection(db, "transactions"),
           where("userId", "==", profile?.uid),
+          ...branchFilter,
           orderBy("timestamp", "desc")
         );
       }
@@ -123,9 +135,9 @@ export function Transactions() {
 
   useEffect(() => {
     fetchTransactions("init");
-    // Mount-only fetch; fetchTransactions closes over pagination state.
+    // Refetch when the cross-branch user switches branches in the sidebar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedBranchId]);
 
   const stats = useMemo(() => {
     const today = new Date();

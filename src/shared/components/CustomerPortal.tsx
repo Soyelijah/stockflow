@@ -56,6 +56,8 @@ import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate }
 import { STORAGE_KEYS, getStorageJSON, setStorageJSON, removeStorage } from "../../lib/storage";
 import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon, seedCustomersIfEmpty } from "../../lib/coupons";
 import { PHYSICAL_REWARDS_CATALOGUE, PhysicalReward } from "../../lib/rewards";
+import { Branch, DEFAULT_BRANCH_ID } from "../../lib/branches";
+import { getStockForBranch } from "../../lib/productStock";
 import { ModernAlert } from "./ui/ModernAlert";
 import { QRCodeCanvas } from "qrcode.react";
 import { DeliveryMap } from "./DeliveryMap";
@@ -158,6 +160,10 @@ export function CustomerPortal() {
   const [tempCustomer, setTempCustomer] = useState<any>(null);
   const [customer, setCustomer] = useState<any>(() => getStorageJSON<any>(STORAGE_KEYS.customerSession, null));
 
+  // Multi-branch (Tier 1.4b): /branches snapshot for customer-side order routing.
+  // Customers can see all active branches' metadata (catalog is global within the retailer).
+  const [activeBranches, setActiveBranches] = useState<Branch[]>([]);
+
   const [fcmRegistered, setFcmRegistered] = useState(false);
   const [fcmLoading, setFcmLoading] = useState(false);
   const [fcmToast, setFcmToast] = useState<{ title: string; body: string } | null>(null);
@@ -250,6 +256,20 @@ export function CustomerPortal() {
     });
     return () => unsub();
   }, [selectedReceipt]);
+
+  // Multi-branch (Tier 1.4b): load active branches once for order routing + display.
+  useEffect(() => {
+    const q = query(collection(db, "branches"), where("active", "==", true));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Branch);
+        setActiveBranches(list);
+      },
+      (err) => console.warn("[CustomerPortal] branches listener:", err.message)
+    );
+    return unsub;
+  }, []);
 
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [couponInput, setCouponInput] = useState("");
@@ -954,26 +974,67 @@ export function CustomerPortal() {
       const description = `Pedido de ${customer.name}${appliedCoupon ? ` (Cupón: ${appliedCoupon.code})` : ""}`;
       const baseUrl = window.location.origin;
 
-      // Populate pending order details for successful Flow confirmation.
-      // Multi-branch (Tier 1.1): capture branchId on each cart item so FlowResult.tsx
-      // decrements stock from the right sucursal. For now this defaults to "default"
-      // (single-branch piloto); Tier 1.4 will plug in geo-routing / per-product branch
-      // selection when the customer-side branch picker lands.
-      const checkoutCart = cart.map(item => {
+      // Multi-branch (Tier 1.4b): per-item branch routing.
+      // Strategy:
+      //   1. Sort active branches by distance to the customer's geolocation (Haversine).
+      //      If the customer has no geo on their profile, branches stay in load order
+      //      with "default" pinned to top.
+      //   2. For each cart item, walk the sorted list and pick the FIRST branch that
+      //      has stock >= item.quantity in /product_stock/{productId}_{branchId}.
+      //   3. Fall back to "default" if no branch has enough stock (the order will fail
+      //      at FlowResult.tsx stock check — caller already saw stock UI in catalog).
+      const customerLat = Number(customer?.geolocation?.lat);
+      const customerLng = Number(customer?.geolocation?.lng);
+      const haveCustomerGeo = !isNaN(customerLat) && !isNaN(customerLng);
+
+      const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
+
+      const sortedBranches = [...activeBranches].sort((a, b) => {
+        if (haveCustomerGeo && a.geolocation && b.geolocation) {
+          const dA = haversineKm(customerLat, customerLng, a.geolocation.lat, a.geolocation.lng);
+          const dB = haversineKm(customerLat, customerLng, b.geolocation.lat, b.geolocation.lng);
+          return dA - dB;
+        }
+        // No geo data — keep "default" first, then alphabetical.
+        if (a.id === DEFAULT_BRANCH_ID) return -1;
+        if (b.id === DEFAULT_BRANCH_ID) return 1;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+
+      const pickBranchForItem = async (productId: string, quantity: number): Promise<string> => {
+        for (const branch of sortedBranches) {
+          const { stock } = await getStockForBranch(productId, branch.id);
+          if (stock >= quantity) return branch.id;
+        }
+        return DEFAULT_BRANCH_ID;
+      };
+
+      // Populate pending order details for FlowResult.tsx to consume after payment.
+      // Each item carries its own branchId so the stock decrement happens against the
+      // right sucursal.
+      const checkoutCart = await Promise.all(cart.map(async (item) => {
         const p = products.find(prod => prod.id === item.id);
         const moq = p?.wholesaleMinQty || 6;
         const reachedMOQ = item.quantity >= moq;
         const price = (reachedMOQ && p?.wholesalePrice)
           ? Number(p.wholesalePrice)
           : Number(item.price);
+        const branchId = await pickBranchForItem(item.id, item.quantity);
         return {
           ...item,
           price: price,
           stock: p?.stock || 0,
           maxStock: p?.maxStock || 100,
-          branchId: "default" as const,
+          branchId,
         };
-      });
+      }));
 
       setStorageJSON(STORAGE_KEYS.pendingOrderCart, checkoutCart);
       setStorageJSON(STORAGE_KEYS.pendingOrderPayments, [{ method: "flow", amount: finalCartTotal }]);
