@@ -29,7 +29,11 @@
     "apk:client:debug": "pnpm cap:sync:client && cd android-client && ./gradlew assembleDebug",
     "apk:driver:debug": "pnpm cap:sync:driver && cd android-driver && ./gradlew assembleDebug",
     "apk:all:debug": "pnpm apk:staff:debug && pnpm apk:client:debug && pnpm apk:driver:debug",
-    "bundle:check": "node scripts/bundle-check.cjs"
+    "bundle:check": "node scripts/bundle-check.cjs",
+    "assets:staff": "capacitor-assets generate --android --androidProject android-staff --assetPath assets/staff --iconBackgroundColor \"#0d0f12\"",
+    "assets:client": "capacitor-assets generate --android --androidProject android-client --assetPath assets/client --iconBackgroundColor \"#0d0f12\"",
+    "assets:driver": "capacitor-assets generate --android --androidProject android-driver --assetPath assets/driver --iconBackgroundColor \"#0b0c10\"",
+    "assets:all": "pnpm assets:staff && pnpm assets:client && pnpm assets:driver"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
@@ -63,6 +67,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "3.0.5",
     "@capacitor/cli": "^7.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
@@ -75,7 +80,12 @@
     "react-doctor": "^0.2.6",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "typescript": "~5.8.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "msgpackr-extract"
+    ]
   }
 }

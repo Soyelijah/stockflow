@@ -1372,7 +1372,7 @@ export function CustomerPortal() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center" aria-label="Cargando">
-        <div className="size-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" aria-hidden="true" />
+        <div className="size-10 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" aria-hidden="true" />
       </div>
     );
   }
@@ -1388,10 +1388,10 @@ export function CustomerPortal() {
           className="w-full max-w-sm"
         >
           <div className="text-center mb-10">
-            <div className="size-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-indigo-200">
+            <div className="size-20 bg-orange-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-orange-200">
               <Smartphone size={40} aria-hidden="true" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">StockFlow <span className="text-indigo-600">CLIENTES</span></h1>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">StockFlow <span className="text-orange-600">CLIENTES</span></h1>
             <p className="text-slate-500 font-medium mt-2">
               {mode === "login" && "Accede a tus beneficios."}
               {mode === "register" && "Crea tu cuenta en segundos."}
@@ -1420,7 +1420,7 @@ export function CustomerPortal() {
                     required
                     autoComplete="email"
                     placeholder="tu@correo.cl"
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(""); }}
                     aria-label="Correo electrónico"
@@ -1436,7 +1436,7 @@ export function CustomerPortal() {
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       placeholder="••••••••"
-                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       aria-label="Contraseña"
@@ -1466,7 +1466,7 @@ export function CustomerPortal() {
                 <button
                   type="submit"
                   disabled={loading || !email || !password}
-                  className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                  className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
                   aria-label="Iniciar sesión"
                 >
                   {loading ? (
@@ -1488,7 +1488,7 @@ export function CustomerPortal() {
                   <button
                     type="button"
                     onClick={() => { setMode("register"); setError(""); setSuccess(""); setPassword(""); }}
-                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest"
+                    className="text-[10px] font-bold text-orange-600 hover:text-orange-700 uppercase tracking-widest"
                     aria-label="Crear cuenta nueva"
                   >
                     ¿No tienes cuenta? Regístrate
@@ -1525,7 +1525,7 @@ export function CustomerPortal() {
                     autoComplete="name"
                     maxLength={100}
                     placeholder="Nombre completo"
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                     value={name}
                     onChange={(e) => { setName(e.target.value); setError(""); }}
                     aria-label="Nombre"
@@ -1540,7 +1540,7 @@ export function CustomerPortal() {
                     required
                     autoComplete="email"
                     placeholder="tu@correo.cl"
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(""); }}
                     aria-label="Correo electrónico"
@@ -1557,7 +1557,7 @@ export function CustomerPortal() {
                       autoComplete="new-password"
                       minLength={6}
                       placeholder="••••••••"
-                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); setError(""); }}
                       aria-label="Contraseña"
@@ -1587,7 +1587,7 @@ export function CustomerPortal() {
                 <button
                   type="submit"
                   disabled={loading || !email || !password || !name}
-                  className="w-full h-14 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50"
+                  className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
                   aria-label="Crear cuenta"
                 >
                   {loading ? (
@@ -1655,7 +1655,7 @@ export function CustomerPortal() {
                 <button
                   type="submit"
                   disabled={loading || !rut.trim()}
-                  className="w-full h-14 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-500 transition-all shadow-lg shadow-amber-100 disabled:opacity-50"
+                  className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
                   aria-label="Enviar solicitud de activación"
                 >
                   {loading ? (
@@ -1686,8 +1686,8 @@ export function CustomerPortal() {
                 className="space-y-4"
                 aria-label="Formulario de recuperación de contraseña"
               >
-                <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-4">
-                  <p className="text-[11px] font-bold text-indigo-900 leading-relaxed">
+                <div className="bg-orange-50 p-5 rounded-2xl border border-orange-100 mb-4">
+                  <p className="text-[11px] font-bold text-orange-900 leading-relaxed">
                     Ingresa tu correo y te enviamos un enlace para restablecer tu contraseña.
                   </p>
                 </div>
@@ -1701,7 +1701,7 @@ export function CustomerPortal() {
                     required
                     autoComplete="email"
                     placeholder="tu@correo.cl"
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(""); }}
                     aria-label="Correo electrónico"
@@ -1722,7 +1722,7 @@ export function CustomerPortal() {
                 <button
                   type="submit"
                   disabled={loading || !email}
-                  className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                  className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
                   aria-label="Enviar correo de recuperación"
                 >
                   {loading ? (
@@ -2190,7 +2190,7 @@ export function CustomerPortal() {
             >
               {/* Point Card */}
               <div className={cn("rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl", tier.bg, tier.textColor)}>
-                <div className="absolute top-0 right-0 size-32 bg-indigo-600/5 blur-3xl rounded-full -mr-16 -mt-16" />
+                <div className="absolute top-0 right-0 size-32 bg-orange-600/5 blur-3xl rounded-full -mr-16 -mt-16" />
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-8">
                     <Star size={24} className={tier.color} />
@@ -2219,7 +2219,7 @@ export function CustomerPortal() {
               </div>
 
               {/* FCM Push Notifications Control Card */}
-              <div className="bg-gradient-to-r from-slate-900 to-[#1e1b4b] text-white p-6 rounded-[2.5rem] border border-indigo-500/10 shadow-xl flex items-center justify-between">
+              <div className="bg-gradient-to-r from-slate-900 to-[#2a1200] text-white p-6 rounded-[2.5rem] border border-orange-500/10 shadow-xl flex items-center justify-between">
                 <div className="flex items-center gap-x-4">
                   <div className={`size-12 rounded-2xl flex items-center justify-center border transition-all ${fcmRegistered ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse"}`}>
                     <Bell size={20} className={fcmLoading ? "animate-spin" : ""} />
@@ -2239,7 +2239,7 @@ export function CustomerPortal() {
                   <button type="button"
                     onClick={handleActivateNotifications}
                     disabled={fcmLoading}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-[10px] font-black uppercase tracking-wider rounded-2xl transition-all cursor-pointer active:scale-95 text-white shadow-lg shadow-indigo-600/30"
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-[10px] font-black uppercase tracking-wider rounded-2xl transition-all cursor-pointer active:scale-95 text-white shadow-lg shadow-orange-600/30"
                   >
                     {fcmLoading ? "Conectando…" : "Activar"}
                   </button>
@@ -2434,7 +2434,7 @@ export function CustomerPortal() {
                 {cart.length > 0 && (
                   <button type="button" 
                     onClick={() => setShowCart(true)}
-                    className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[10px] font-black animate-soft-bounce uppercase tracking-wider"
+                    className="bg-orange-600 text-white px-3 py-1.5 rounded-full text-[10px] font-black animate-soft-bounce uppercase tracking-wider"
                   >
                     {cart.reduce((a, b) => a + b.quantity, 0)} Items
                   </button>
@@ -2646,7 +2646,7 @@ export function CustomerPortal() {
                         ) : (
                           <button type="button" 
                             onClick={() => addToCart(product)}
-                            className="mt-auto w-full py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 transition-colors"
+                            className="mt-auto w-full py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-600 transition-colors"
                           >
                             Añadir
                           </button>
@@ -2735,7 +2735,7 @@ export function CustomerPortal() {
                         ) : (
                           <button type="button" 
                             onClick={() => addToCart(product)}
-                            className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 shrink-0 transition-colors"
+                            className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-600 shrink-0 transition-colors"
                           >
                             Añadir
                           </button>
@@ -2751,7 +2751,7 @@ export function CustomerPortal() {
                 <div className="pt-2 text-center">
                   <button type="button"
                     onClick={() => setVisibleCount(idx => idx + 24)}
-                    className="px-6 py-3 bg-white border border-slate-100 hover:bg-slate-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5"
+                    className="px-6 py-3 bg-white border border-slate-100 hover:bg-slate-50 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5"
                   >
                     <span>Cargar más artículos</span>
                     <Plus size={14} />
@@ -3319,7 +3319,7 @@ export function CustomerPortal() {
                                 className={cn(
                                   "py-3 px-5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all",
                                   canRedeem 
-                                    ? "bg-slate-900 text-white hover:bg-indigo-600 cursor-pointer shadow-md"
+                                    ? "bg-slate-900 text-white hover:bg-orange-600 cursor-pointer shadow-md"
                                     : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                                 )}
                               >
@@ -3838,27 +3838,27 @@ export function CustomerPortal() {
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 py-4 flex items-center justify-between z-50 gap-1">
         <button type="button" 
           onClick={() => setActiveTab("home")}
-          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "home" ? "text-indigo-600 scale-110 font-bold" : "text-slate-400")}
+          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "home" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Star size={18} />
           <span className="text-[7.5px] font-black uppercase tracking-wider">Inicio</span>
         </button>
         <button type="button" 
           onClick={() => setActiveTab("history")}
-          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "history" ? "text-indigo-600 scale-110 font-bold" : "text-slate-400")}
+          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "history" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <History size={18} />
           <span className="text-[7.5px] font-black uppercase tracking-wider">Boletas</span>
         </button>
         <button type="button" 
           onClick={() => setActiveTab("wallet")}
-          className={cn("size-10 rounded-xl flex items-center justify-center text-white -mt-8 shadow-md transition-all shrink-0", activeTab === "wallet" ? "bg-indigo-600 scale-110" : "bg-slate-900 shadow-slate-200")}
+          className={cn("size-10 rounded-xl flex items-center justify-center text-white -mt-8 shadow-md transition-all shrink-0", activeTab === "wallet" ? "bg-orange-600 scale-110" : "bg-slate-900 shadow-slate-200")}
         >
            <Wallet size={18} />
         </button>
         <button type="button" 
           onClick={() => setActiveTab("offers")}
-          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "offers" ? "text-indigo-600 scale-110 font-bold" : "text-slate-400")}
+          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "offers" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Tag size={18} />
           <span className="text-[7.5px] font-black uppercase tracking-wider">Cupones</span>
@@ -3866,7 +3866,7 @@ export function CustomerPortal() {
         {settings.deliveryEnabled !== false && (
           <button type="button" 
             onClick={() => setActiveTab("delivery")}
-            className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "delivery" ? "text-indigo-600 scale-110 font-bold" : "text-slate-400")}
+            className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "delivery" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
           >
             <Truck size={18} />
             <span className="text-[7.5px] font-black uppercase tracking-wider">Envíos</span>
@@ -3889,10 +3889,10 @@ export function CustomerPortal() {
               className="bg-white rounded-[3rem] p-10 shadow-2xl flex flex-col items-center max-w-sm w-full"
             >
               <div className="relative mb-8">
-                <div className="size-20 bg-indigo-50 rounded-[2.5rem] flex items-center justify-center text-indigo-600">
+                <div className="size-20 bg-orange-50 rounded-[2.5rem] flex items-center justify-center text-orange-600">
                   <ShoppingBag size={32} className="animate-soft-bounce" />
                 </div>
-                <div className="absolute inset-0 rounded-[2.5rem] border-4 border-indigo-600 border-t-transparent animate-spin" />
+                <div className="absolute inset-0 rounded-[2.5rem] border-4 border-orange-600 border-t-transparent animate-spin" />
               </div>
               
               <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">Preparando tu Pago</h3>
@@ -3905,7 +3905,7 @@ export function CustomerPortal() {
                   initial={{ width: "0%" }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 0.8 }}
-                  className="h-full bg-indigo-600 rounded-full"
+                  className="h-full bg-orange-600 rounded-full"
                 />
               </div>
               <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-4">Conexión Segura Encriptada</p>
@@ -3930,7 +3930,7 @@ export function CustomerPortal() {
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-x-3">
-                  <div className="size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                  <div className="size-10 bg-orange-600 rounded-xl flex items-center justify-center text-white">
                     <ShoppingCart size={20} />
                   </div>
                   <h3 className="text-xl font-black text-slate-800">Tu Pedido</h3>
