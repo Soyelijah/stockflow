@@ -52,7 +52,7 @@ export function AppShell() {
   const { user, profile, loading } = useAuth();
 
   if (loading) return <LazyFallback />;
-  if (!user || !profile) return <Login />;
+  if (!user || !profile) return <Login variant="driver" />;
 
   const isDemoEmail = user.email?.endsWith("@stockflow.com");
   if (!user.emailVerified && !isDemoEmail) return <VerifyEmail />;

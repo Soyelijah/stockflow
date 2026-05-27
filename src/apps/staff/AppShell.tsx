@@ -72,7 +72,7 @@ export function AppShell() {
   }
 
   if (loading) return <LazyFallback />;
-  if (!user || !profile) return <Login />;
+  if (!user || !profile) return <Login variant="staff" />;
 
   const isDemoEmail = user.email?.endsWith("@stockflow.com") || profile?.role === "owner";
   if (!user.emailVerified && !isDemoEmail) return <VerifyEmail />;
