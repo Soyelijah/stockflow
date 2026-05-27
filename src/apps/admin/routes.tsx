@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import { useAuth } from "../../contexts/AuthContext";
 import { Layout } from "../../shared/components/Layout";
 import { motion, AnimatePresence } from "motion/react";
+import { RouteGuard } from "../../shared/components/RouteGuard";
 
 // Lazy-load page components per-route for fine-grained code-splitting.
 // Without this, all admin pages (~12 components) ship in a single chunk.
@@ -49,7 +50,9 @@ export function AdminRoutes() {
   if (location.pathname === "/mobile") {
     return (
       <React.Suspense fallback={<PageFallback />}>
-        <MobilePOS />
+        <RouteGuard allowedRoles={["admin", "manager", "seller"]}>
+          <MobilePOS />
+        </RouteGuard>
       </React.Suspense>
     );
   }
@@ -90,19 +93,19 @@ export function AdminRoutes() {
         >
           <React.Suspense fallback={<PageFallback />}>
             <Routes>
-              <Route path="/" element={<Dashboard onNavigate={handleNavigate} />} />
-              <Route path="/dashboard" element={<Dashboard onNavigate={handleNavigate} />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/logistics" element={<Logistics onNavigate={handleNavigate} />} />
-              <Route path="/pos" element={<POS />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/suppliers" element={<Suppliers />} />
-              <Route path="/expenses" element={<Expenses />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/kardex" element={<StockLedger />} />
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/shrinkage" element={<ShrinkageReport />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/" element={<RouteGuard allowedRoles={["admin", "manager", "seller", "logistics"]}><Dashboard onNavigate={handleNavigate} /></RouteGuard>} />
+              <Route path="/dashboard" element={<RouteGuard allowedRoles={["admin", "manager", "seller", "logistics"]}><Dashboard onNavigate={handleNavigate} /></RouteGuard>} />
+              <Route path="/inventory" element={<RouteGuard allowedRoles={["admin", "manager", "logistics"]}><Inventory /></RouteGuard>} />
+              <Route path="/logistics" element={<RouteGuard allowedRoles={["admin", "manager", "logistics"]}><Logistics onNavigate={handleNavigate} /></RouteGuard>} />
+              <Route path="/pos" element={<RouteGuard allowedRoles={["admin", "manager", "seller"]}><POS /></RouteGuard>} />
+              <Route path="/transactions" element={<RouteGuard allowedRoles={["admin", "manager", "seller"]}><Transactions /></RouteGuard>} />
+              <Route path="/suppliers" element={<RouteGuard allowedRoles={["admin", "manager", "logistics"]}><Suppliers /></RouteGuard>} />
+              <Route path="/expenses" element={<RouteGuard allowedRoles={["admin", "manager"]}><Expenses /></RouteGuard>} />
+              <Route path="/settings" element={<RouteGuard allowedRoles={["admin"]}><Settings /></RouteGuard>} />
+              <Route path="/kardex" element={<RouteGuard allowedRoles={["admin", "manager", "logistics"]}><StockLedger /></RouteGuard>} />
+              <Route path="/customers" element={<RouteGuard allowedRoles={["admin", "manager", "seller"]}><Customers /></RouteGuard>} />
+              <Route path="/shrinkage" element={<RouteGuard allowedRoles={["admin", "manager"]}><ShrinkageReport /></RouteGuard>} />
+              <Route path="/profile" element={<RouteGuard allowedRoles={["admin", "manager", "seller", "logistics"]}><Profile /></RouteGuard>} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </React.Suspense>

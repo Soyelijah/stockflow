@@ -25,7 +25,7 @@ const VARIANTS = [
   {
     name: "client",
     dir: path.join(ROOT, "dist-client"),
-    // Client must NOT contain admin/driver code.
+    // Client must NOT contain admin/driver/staff-only security code.
     forbidden: [
       "AdminRoutes",
       "MobilePOS",
@@ -35,6 +35,8 @@ const VARIANTS = [
       "costPrice",          // CRITICAL: never leak cost prices to customer bundle (CLAUDE.md §6.2)
       "ShrinkageReport",
       "Kardex",
+      "RouteGuard",
+      "Forbidden",
     ],
     requiredOne: ["CustomerPortal"],
   },
@@ -48,6 +50,8 @@ const VARIANTS = [
       "setUserRole",
       "costPrice",
       "ShrinkageReport",
+      "RouteGuard",
+      "Forbidden",
     ],
     requiredOne: ["DeliveryRoutes"],
   },
