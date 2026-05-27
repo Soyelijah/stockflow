@@ -49,15 +49,15 @@ function WrongAppMessage({ title, body }: { title: string; body: string }) {
 }
 
 export function AppShell() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, claimRole, loading } = useAuth();
 
   if (loading) return <LazyFallback />;
-  if (!user || !profile) return <Login variant="driver" />;
+  if (!user) return <Login variant="driver" />;
 
-  const isDemoEmail = user.email?.endsWith("@stockflow.com");
-  if (!user.emailVerified && !isDemoEmail) return <VerifyEmail />;
-
-  if (profile.role === "customer") {
+  // Tier 5.B fix: decide cross-app guard from claim BEFORE waiting on profile,
+  // because customers don't have /users mirrors and would otherwise get stuck
+  // on the login screen forever (same bug as staff AppShell — Case 2 of smoke).
+  if (claimRole === "customer") {
     return (
       <WrongAppMessage
         title="Esta es la app de Repartidores"
@@ -65,8 +65,7 @@ export function AppShell() {
       />
     );
   }
-
-  if (profile.role !== "driver") {
+  if (claimRole && claimRole !== "driver") {
     return (
       <WrongAppMessage
         title="Esta es la app de Repartidores"
@@ -74,6 +73,20 @@ export function AppShell() {
       />
     );
   }
+  if (!claimRole) {
+    return (
+      <WrongAppMessage
+        title="Cuenta sin autorización"
+        body="Tu cuenta no tiene rol asignado. Contacta al administrador."
+      />
+    );
+  }
+
+  // claimRole === "driver" — wait for the /users mirror to hydrate UI fields.
+  if (!profile) return <LazyFallback />;
+
+  const isDemoEmail = user.email?.endsWith("@stockflow.com");
+  if (!user.emailVerified && !isDemoEmail) return <VerifyEmail />;
 
   return (
     <Suspense fallback={<LazyFallback />}>

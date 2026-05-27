@@ -55,7 +55,7 @@ function WrongAppMessage({ title, body }: { title: string; body: string }) {
 }
 
 export function AppShell() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, claimRole, loading } = useAuth();
   const location = useLocation();
 
   // Seed default coupons only — customers are NOT seeded from the client anymore
@@ -72,13 +72,15 @@ export function AppShell() {
   }
 
   if (loading) return <LazyFallback />;
-  if (!user || !profile) return <Login variant="staff" />;
 
-  const isDemoEmail = user.email?.endsWith("@stockflow.com") || profile?.role === "owner";
-  if (!user.emailVerified && !isDemoEmail) return <VerifyEmail />;
+  // Not signed in → standard staff login screen.
+  if (!user) return <Login variant="staff" />;
 
-  // Guard: customer landed on the staff app
-  if (profile.role === "customer") {
+  // Signed in but the claim says "customer" or "driver" → cross-app guard,
+  // NOT the login screen. Without this we re-rendered <Login /> on every
+  // wrong-app login attempt, leaving the user stuck on the form with no
+  // way out (Tier 5.B smoke Case 2 regression).
+  if (claimRole === "customer") {
     return (
       <WrongAppMessage
         title="Esta es la app de Trabajadores"
@@ -86,9 +88,7 @@ export function AppShell() {
       />
     );
   }
-
-  // Guard: driver landed on the staff app
-  if (profile.role === "driver") {
+  if (claimRole === "driver") {
     return (
       <WrongAppMessage
         title="Esta es la app de Trabajadores"
@@ -96,6 +96,14 @@ export function AppShell() {
       />
     );
   }
+
+  // Signed in with a staff claim but no /users mirror yet — wait for the
+  // mirror listener (a missing mirror with a valid claim is also handled
+  // explicitly inside AuthContext, which surfaces a warning).
+  if (!profile) return <LazyFallback />;
+
+  const isDemoEmail = user.email?.endsWith("@stockflow.com") || profile?.role === "owner";
+  if (!user.emailVerified && !isDemoEmail) return <VerifyEmail />;
 
   // Staff-only check via canonical helper (safety net against typos in role string)
   if (!isStaff(profile.role)) {

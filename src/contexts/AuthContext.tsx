@@ -33,6 +33,11 @@ interface UserProfile {
 interface AuthContextType {
   user: FirebaseUser | null;
   profile: UserProfile | null;
+  // Tier 5.B fix: expose the custom-claim role directly so AppShells can
+  // distinguish "authenticated but not staff" from "not authenticated" without
+  // relying on the /users mirror (which doesn't exist for customers/drivers
+  // on the staff app path).
+  claimRole: string | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
   register: (email: string, pass: string, name: string, role?: "admin" | "manager" | "seller" | "logistics" | "driver" | "owner") => Promise<void>;
@@ -47,6 +52,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [claimRole, setClaimRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,10 +60,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
       setUser(authUser);
-      
+
       if (unsubscribeProfile) {
         unsubscribeProfile();
         unsubscribeProfile = null;
+      }
+
+      if (!authUser) {
+        setClaimRole(null);
       }
 
       if (authUser) {
@@ -73,31 +83,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         //   - Auto-write to /users/{uid} from the client. The Cloud Function
         //     setUserRole + scripts/bootstrap-admin are the only authorized
         //     writers of role + mirror; the client must NEVER do it on its own.
-        let claimRole: string | null = null;
+        let resolvedClaim: string | null = null;
         try {
           const tokenResult = await authUser.getIdTokenResult();
-          claimRole = typeof tokenResult.claims.role === "string" ? tokenResult.claims.role : null;
+          resolvedClaim = typeof tokenResult.claims.role === "string" ? tokenResult.claims.role : null;
         } catch (e) {
           console.error("AuthContext: failed reading token claim:", e);
         }
+        // Publish the claim to consumers BEFORE we make any further decisions
+        // so AppShells can distinguish customer/driver/no-claim from "not auth'd".
+        setClaimRole(resolvedClaim);
 
         // Customers do not live in /users — they live in /customers and the
         // CustomerPortal hydrates its own profile via its own listener. The
         // staff AuthProvider must not attempt to read /users for them (it
         // would always be a no-op and the listener would consume reads
         // forever). Just clear staff profile and let the customer flow run.
-        if (claimRole === "customer") {
+        if (resolvedClaim === "customer") {
           setProfile(null);
           setLoading(false);
           return;
         }
 
         const validStaffRoles = ["owner", "admin", "manager", "seller", "logistics", "driver"];
-        if (!claimRole || !validStaffRoles.includes(claimRole)) {
+        if (!resolvedClaim || !validStaffRoles.includes(resolvedClaim)) {
           // Authenticated but with no staff role claim. This used to silently
           // create a seller doc; now it surfaces as "no profile" so the staff
           // app can render an unauthorized message + logout button.
-          console.warn(`AuthContext: authenticated user ${authUser.email} has no staff role claim (claim="${claimRole}"). Not provisioning anything.`);
+          console.warn(`AuthContext: authenticated user ${authUser.email} has no staff role claim (claim="${resolvedClaim}"). Not provisioning anything.`);
           setProfile(null);
           setLoading(false);
           return;
@@ -114,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           (docSnap) => {
             if (!docSnap.exists()) {
               console.warn(
-                `AuthContext: staff claim "${claimRole}" present for ${authUser.email} but /users/${authUser.uid} missing. Mirror inconsistency — surfacing as no-profile.`
+                `AuthContext: staff claim "${resolvedClaim}" present for ${authUser.email} but /users/${authUser.uid} missing. Mirror inconsistency — surfacing as no-profile.`
               );
               setProfile(null);
               setLoading(false);
@@ -124,11 +137,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Trust the claim, not the mirror. If they disagree (e.g. mirror was
             // edited via Firebase Console without updating the claim), prefer the
             // claim. UI fields like name/photo still come from the mirror.
-            if (profileData.role !== claimRole) {
+            if (profileData.role !== resolvedClaim) {
               console.warn(
-                `AuthContext: mirror/claim role mismatch for ${authUser.email}: mirror="${profileData.role}" claim="${claimRole}". Trusting claim.`
+                `AuthContext: mirror/claim role mismatch for ${authUser.email}: mirror="${profileData.role}" claim="${resolvedClaim}". Trusting claim.`
               );
-              profileData.role = claimRole as UserProfile["role"];
+              profileData.role = resolvedClaim as UserProfile["role"];
             }
             setProfile(profileData);
             setLoading(false);
@@ -209,16 +222,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => signOut(auth);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      profile, 
-      loading, 
-      login, 
-      register, 
-      sendVerification, 
+    <AuthContext.Provider value={{
+      user,
+      profile,
+      claimRole,
+      loading,
+      login,
+      register,
+      sendVerification,
       sendPasswordReset,
-      refreshUser, 
-      logout 
+      refreshUser,
+      logout
     }}>
       {children}
     </AuthContext.Provider>
