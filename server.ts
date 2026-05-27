@@ -15,6 +15,7 @@ import { startFCMStatusListener } from "./server/services/fcmListener";
 import { shrinkageRouter, healthCheck as shrinkageHealth } from "./server/routes/shrinkage";
 import { auditRouter, expressAuditMiddleware, healthCheck as auditHealth } from "./server/routes/audit";
 import { customerRouter, healthCheck as customerHealth } from "./server/routes/customer";
+import { staffRouter, healthCheck as staffHealth } from "./server/routes/staff";
 
 dotenv.config();
 
@@ -99,6 +100,7 @@ async function startServer() {
     const shrinkageStatus = shrinkageHealth();
     const auditStatus = auditHealth();
     const customerStatus = customerHealth();
+    const staffStatus = staffHealth();
 
     const allOnline =
       barcodeStatus.status === "online" &&
@@ -107,7 +109,8 @@ async function startServer() {
       aiStatus.status === "online" &&
       shrinkageStatus.status === "online" &&
       auditStatus.status === "online" &&
-      customerStatus.status === "online";
+      customerStatus.status === "online" &&
+      staffStatus.status === "online";
 
     res.json({
       status: allOnline ? "online" : "degraded",
@@ -121,7 +124,8 @@ async function startServer() {
         ai: aiStatus,
         shrinkage: shrinkageStatus,
         audit: auditStatus,
-        customer: customerStatus
+        customer: customerStatus,
+        staff: staffStatus
       }
     });
   });
@@ -134,6 +138,7 @@ async function startServer() {
   app.use("/api", shrinkageRouter);
   app.use("/api", auditRouter);
   app.use("/api", customerRouter);
+  app.use("/api", staffRouter);
 
   // Vite development compiler integration or static production delivery
   if (process.env.NODE_ENV !== "production") {

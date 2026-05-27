@@ -1,24 +1,28 @@
 import { Request, Response, NextFunction } from "express";
-import admin from "./firebaseAdmin";
+import "./firebaseAdmin"; // side-effect: initializeApp() if not already
+import { getAuth } from "firebase-admin/auth";
 import { z } from "zod";
 
-function getFirebaseAdmin(): typeof admin | null {
-  const hasCredentials = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (!hasCredentials) {
-    // Fallback for demo or local dev environment when server keys aren't provisioned yet
-    return null;
-  }
-  return admin;
+// Tier 5.D v13 hotfix: the legacy `admin.auth()` namespace pattern is not
+// callable in firebase-admin v13 (same bug as customer.ts fixed in d1447e4).
+// We now resolve the Auth instance via the modular `getAuth()` import.
+function hasServerCredentials(): boolean {
+  return !!(process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS);
 }
 
-// Extends Request interface to attach authenticated user info
+// Extends Request interface to attach authenticated user info.
+// Tier 5.D enmienda: `role` and `branchId` are now populated from the Firebase
+// custom claims (decodedToken.role / decodedToken.branchId), not derived from
+// any Firestore mirror. Endpoints that gate by role (e.g. /api/staff/create-employee)
+// can trust these fields directly. If the token has no claims set, both are null.
 export interface AuthenticatedRequest extends Request {
   user?: {
     uid: string;
     email?: string;
     email_verified?: boolean;
     name?: string;
-    role?: string;
+    role?: string | null;
+    branchId?: string | null;
   };
 }
 
@@ -37,16 +41,20 @@ export async function requireAuthBearer(req: AuthenticatedRequest, res: Response
     return res.status(401).json({ error: "Token malformado en la cabecera Authorization." });
   }
 
-  const adminClient = getFirebaseAdmin();
-
-  if (adminClient) {
+  if (hasServerCredentials()) {
     try {
-      const decodedToken = await adminClient.auth().verifyIdToken(token);
+      const decodedToken = await getAuth().verifyIdToken(token);
+      // Tier 5.D enmienda: extract role + branchId from custom claims so
+      // downstream endpoints can gate by them without a second token decode.
+      const claimRole = typeof decodedToken.role === "string" ? decodedToken.role : null;
+      const claimBranchId = typeof decodedToken.branchId === "string" ? decodedToken.branchId : null;
       req.user = {
         uid: decodedToken.uid,
         email: decodedToken.email,
         email_verified: decodedToken.email_verified,
-        name: decodedToken.name || (decodedToken.email ? decodedToken.email.split("@")[0] : "Operador")
+        name: decodedToken.name || (decodedToken.email ? decodedToken.email.split("@")[0] : "Operador"),
+        role: claimRole,
+        branchId: claimBranchId
       };
       return next();
     } catch (err: any) {
