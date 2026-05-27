@@ -390,12 +390,24 @@ export function MobilePOS() {
     try {
       for (const sale of offlineQueue) {
         const orderId = sale.orderId;
+        let skippedAsIdempotent = false;
         try {
           // Multi-branch (Tier 1.1): venta offline-sync debita de la sucursal del cajero
           // capturada AL MOMENTO de la venta (sale.branchId si está, else current selectedBranchId).
           const offlineSyncBranchId = resolveBranchIdForStockOp(sale.branchId || selectedBranchId);
 
           await runTransaction(db, async (transaction) => {
+            // Idempotency check: check if this transaction has already been written
+            if (sale.items && sale.items.length > 0) {
+              const checkRef = doc(db, "transactions", `${orderId}_${sale.items[0].id}`);
+              const checkSnap = await transaction.get(checkRef);
+              if (checkSnap.exists()) {
+                // Already synced in a previous attempt. Skip stock decrement and points.
+                skippedAsIdempotent = true;
+                return;
+              }
+            }
+
             const productDocs: any[] = [];
             // Validate stock first
             for (const item of sale.items) {
@@ -462,6 +474,24 @@ export function MobilePOS() {
               });
             }
           });
+
+          // Log the idempotency hit for ops visibility (try/catch wraps for security rules safety)
+          if (skippedAsIdempotent) {
+            try {
+              await addDoc(collection(db, "role_audit"), {
+                action: "POS_OFFLINE_SYNC_IDEMPOTENT_SKIP",
+                orderId,
+                operatorUid: profile?.uid || "unknown",
+                operatorEmail: profile?.email || "unknown",
+                branchId: offlineSyncBranchId,
+                skippedItems: sale.items.length,
+                timestamp: serverTimestamp(),
+              });
+            } catch (auditErr) {
+              console.warn("Could not write role_audit (likely due to role permission rules):", auditErr);
+            }
+          }
+
           successfulCount++;
         } catch (err: any) {
           console.error(`Error al procesar venta offline ${orderId}:`, err);
@@ -974,6 +1004,11 @@ export function MobilePOS() {
                 onClick={() => {
                   const newVal = !isOffline;
                   setIsOffline(newVal);
+                  if (!newVal && offlineQueue.length > 0) {
+                    setTimeout(() => {
+                      handleSyncOfflineSales();
+                    }, 300);
+                  }
                   alert(newVal 
                     ? "☁️ Modo Fuera de Línea Activado: Las ventas se guardarán localmente y habrá cero llamadas a Firebase." 
                     : "🌐 Modo En Línea Activado: Las llamadas a la base de datos se restablecerán.");
