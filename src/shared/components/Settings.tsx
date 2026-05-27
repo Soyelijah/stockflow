@@ -28,6 +28,7 @@ import { db, handleFirestoreError, OperationType, functions } from "../../lib/fi
 import { cn, formatChileanPhone } from "../../lib/utils";
 import { motion } from "motion/react";
 import { getPushConfig, savePushConfig } from "../../lib/idbNotifications";
+import { isAdminOrManager } from "../../lib/roles";
 import { Branch, CROSS_BRANCH_SENTINEL, DEFAULT_BRANCH_ID, defaultBranchForRole } from "../../lib/branches";
 import { BranchesManager } from "./BranchesManager";
 import { RefundsHistory } from "./RefundsHistory";
@@ -404,7 +405,7 @@ export function Settings() {
     fetchSettings();
 
     const fetchUsers = async () => {
-      if (profile?.role !== "admin") return;
+      if (!isAdminOrManager(profile?.role)) return;
       try {
         // High-performance query leveraging the users collection index sorting by creation time
         const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(50));
