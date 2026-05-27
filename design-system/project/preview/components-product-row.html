@@ -1,0 +1,68 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Product row</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:20px; background: var(--sf-page-bg); font-family: var(--sf-font-sans); display:flex; flex-direction:column; gap:10px; }
+  .row { background:white; padding:14px; border-radius:16px; border:1px solid var(--sf-stroke-1); box-shadow: 0 1px 2px rgba(15,23,42,0.05); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .row.selected { box-shadow: 0 0 0 2px rgba(79,70,229,0.25); border-color: var(--sf-indigo-200); background: #fafbff; }
+  .left { display:flex; gap:14px; align-items:center; min-width:0; flex:1; }
+  .swatch { width:46px; height:46px; border-radius:12px; background: var(--sf-slate-50); color: var(--sf-fg-3); display:flex; align-items:center; justify-content:center; font:900 16px/1 var(--sf-font-sans); flex-shrink:0; }
+  .swatch.selected { background: var(--sf-indigo-600); color:white; box-shadow: 0 0 0 4px var(--sf-indigo-50); }
+  .swatch.out { background: var(--sf-slate-100); color: var(--sf-fg-4); }
+  .info { min-width:0; }
+  .name { font: 800 13px/1.2 var(--sf-font-sans); color: var(--sf-fg-1); }
+  .meta { display:flex; align-items:center; gap:8px; margin-top:4px; }
+  .price { font:900 12px/1 var(--sf-font-sans); color: var(--sf-indigo-600); letter-spacing:-0.01em; }
+  .sku { font:700 9px/1.2 var(--sf-font-mono); color: var(--sf-fg-4); background: #f1f5f9; padding:1px 6px; border-radius:4px; text-transform:uppercase; }
+  .stock { margin-top:6px; }
+  .pill { display:inline-flex; align-items:center; gap:3px; font:900 8px/1.2 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; border-radius:9999px; }
+  .pill.ok { background:#ecfdf5; color:#059669; }
+  .pill.low { background:#fffbeb; color:#f59e0b; }
+  .pill.out { background:#fff1f2; color:#f43f5e; }
+  .add-btn { background: var(--sf-indigo-600); color:white; height:36px; padding: 0 14px; border-radius:12px; font:900 10px/1 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.1em; border:none; display:inline-flex; align-items:center; gap:4px; cursor:pointer; box-shadow: 0 2px 6px -2px rgba(79,70,229,0.4); }
+  .stepper { display:inline-flex; align-items:center; gap:6px; padding:4px; background: var(--sf-indigo-50); border:1px solid var(--sf-indigo-100); border-radius:12px; }
+  .stepper button { width:28px;height:28px;border-radius:8px;background:white;border:1px solid var(--sf-stroke-1); color: var(--sf-indigo-600); font:900 14px/1 var(--sf-font-sans); }
+  .stepper .qty { font:900 12px/1 var(--sf-font-sans); color: var(--sf-indigo-900); min-width:16px; text-align:center; }
+  .disabled { background: #f1f5f9; color: var(--sf-fg-4); box-shadow:none; cursor:not-allowed; border: 1px solid var(--sf-stroke-2); }
+</style>
+</head>
+<body>
+  <div class="row selected">
+    <div class="left">
+      <div class="swatch selected">C</div>
+      <div class="info">
+        <div class="name">Coca‑Cola 1.5L Retornable</div>
+        <div class="meta"><span class="price">$1.890</span><span class="sku">CC‑1500R</span></div>
+        <div class="stock"><span class="pill ok">✓ Disponible (24 u)</span></div>
+      </div>
+    </div>
+    <div class="stepper"><button>−</button><span class="qty">2</span><button>＋</button></div>
+  </div>
+  <div class="row">
+    <div class="left">
+      <div class="swatch">P</div>
+      <div class="info">
+        <div class="name">Pan amasado · unidad</div>
+        <div class="meta"><span class="price">$350</span><span class="sku">PAN‑AM01</span></div>
+        <div class="stock"><span class="pill low">⚠ Pocas unidades (4)</span></div>
+      </div>
+    </div>
+    <button class="add-btn">＋ Añadir</button>
+  </div>
+  <div class="row">
+    <div class="left">
+      <div class="swatch out">L</div>
+      <div class="info">
+        <div class="name">Leche entera Soprole 1L</div>
+        <div class="meta"><span class="price" style="color:var(--sf-fg-4)">$1.290</span><span class="sku">SOP‑L1</span></div>
+        <div class="stock"><span class="pill out">✕ Agotado</span></div>
+      </div>
+    </div>
+    <button class="add-btn disabled">＋ Añadir</button>
+  </div>
+</body>
+</html>

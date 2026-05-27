@@ -1,0 +1,41 @@
+<!-- @dsCard group="Type" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Number & money</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:24px; background: var(--sf-page-bg); font-family: var(--sf-font-sans); display:grid; grid-template-columns: repeat(2,1fr); gap:20px; align-items:center; }
+  .head { font: 900 10px/1.2 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.14em; color: var(--sf-fg-4); margin-bottom:6px; }
+  .money { font-weight:900; letter-spacing:-0.02em; font-variant-numeric: tabular-nums; color: var(--sf-fg-1); }
+  .lg { font-size:32px; }
+  .md { font-size:20px; color: var(--sf-indigo-600); }
+  .sm { font-size:14px; }
+  .ids { display:flex; flex-direction:column; gap:8px; }
+  .mono { font: 700 11px/1.3 var(--sf-font-mono); color: var(--sf-fg-4); }
+  .pill { display:inline-block; padding:2px 8px; background:#f1f5f9; border-radius:6px; font:700 10px/1.4 var(--sf-font-mono); color: var(--sf-fg-3); }
+  .row { display:flex; gap:8px; align-items:baseline; }
+  .lbl { font: 900 9px/1.2 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.12em; color: var(--sf-fg-4); }
+</style>
+</head>
+<body>
+  <div>
+    <div class="head">Money · tabular nums · CLP</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div class="money lg">$245.890</div>
+      <div class="row"><span class="lbl">Subtotal</span><span class="money md">$1.500</span></div>
+      <div class="row"><span class="lbl">Comisión</span><span class="money sm">$6.250</span></div>
+    </div>
+  </div>
+  <div>
+    <div class="head">Mono · IDs only</div>
+    <div class="ids">
+      <span class="mono">TX-847291036</span>
+      <span class="pill">SKU: 7800123456</span>
+      <span class="pill">ord 9a3f-72b1</span>
+      <span class="mono" style="color:var(--sf-fg-3)">22:47 · 27/05/2026</span>
+    </div>
+  </div>
+</body>
+</html>

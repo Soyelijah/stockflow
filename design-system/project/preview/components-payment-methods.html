@@ -1,0 +1,40 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Payment methods</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:20px; background: var(--sf-page-bg); font-family: var(--sf-font-sans); }
+  .grid { display:grid; grid-template-columns: repeat(4,1fr); gap:10px; }
+  .tile { background:white; border:1px solid var(--sf-stroke-1); border-radius:16px; padding: 14px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; color: var(--sf-fg-4); cursor:pointer; transition:all 200ms; }
+  .tile svg { stroke-width:2; }
+  .lbl { font:900 9px/1 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.12em; }
+  .efectivo.sel { background:#ecfdf5; border-color:#a7f3d0; color:#059669; box-shadow: 0 1px 2px rgba(16,185,129,0.1); }
+  .tarjeta.sel { background:#eff6ff; border-color:#bfdbfe; color:#3b82f6; }
+  .transf.sel  { background:#fffbeb; border-color:#fde68a; color:#f59e0b; }
+  .digital.sel { background:#eef2ff; border-color:#c7d2fe; color:#4f46e5; }
+
+  h3 { margin: 0 0 10px 2px; font:900 10px/1 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.14em; color: var(--sf-fg-4); }
+  .row2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top:14px; }
+  .doc { background:white; border:1px solid var(--sf-stroke-1); border-radius:16px; padding:12px; display:flex; flex-direction:column; align-items:center; gap:6px; color: var(--sf-fg-4); }
+  .doc.boleta { background: var(--sf-slate-900); color:white; border-color: var(--sf-slate-900); }
+  .doc.factura { background: var(--sf-indigo-600); color:white; border-color: var(--sf-indigo-600); box-shadow: 0 4px 16px -4px rgba(79,70,229,0.3); }
+</style>
+</head>
+<body>
+  <h3>Método de pago — selected = colored fill + border, unselected = muted</h3>
+  <div class="grid">
+    <div class="tile efectivo sel"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg><span class="lbl">Efectivo</span></div>
+    <div class="tile tarjeta"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg><span class="lbl">Tarjeta</span></div>
+    <div class="tile transf"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg><span class="lbl">Transf.</span></div>
+    <div class="tile digital"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M11 18h2"/></svg><span class="lbl">Virtual</span></div>
+  </div>
+  <h3 style="margin-top:18px">Tipo de documento — boleta default, factura primary</h3>
+  <div class="row2">
+    <div class="doc boleta"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 9V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4M5 3v18M19 3v18M2 9h20M9 21l3-3 3 3"/></svg><span class="lbl">Boleta</span></div>
+    <div class="doc factura"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg><span class="lbl">Factura</span></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bottom nav</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:20px; background: var(--sf-page-bg); font-family: var(--sf-font-sans); }
+  .frame { background:white; border:1px solid var(--sf-stroke-1); border-radius:24px 24px 16px 16px; padding: 18px 24px 22px; display:flex; justify-content:space-around; align-items:center; box-shadow: 0 -4px 12px rgba(15,23,42,0.04); }
+  .item { display:flex; flex-direction:column; align-items:center; gap:4px; color: var(--sf-slate-300); position:relative; cursor:pointer; }
+  .item.active { color: var(--sf-indigo-600); transform: scale(1.1); }
+  .item span { font:900 10px/1 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.04em; }
+  .badge { position:absolute; top:-4px; right:-10px; min-width:18px; height:18px; padding: 0 5px; background: var(--sf-danger); color:white; font:900 9px/18px var(--sf-font-sans); text-align:center; border-radius:9999px; border: 2px solid white; }
+  h3 { margin: 0 0 12px 2px; font:900 10px/1 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.14em; color: var(--sf-fg-4); }
+</style>
+</head>
+<body>
+  <h3>Bottom nav · fixed, pb-10 for android safe area</h3>
+  <div class="frame">
+    <div class="item active">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 10-2 0a3 3 0 0 1-6 0 3 3 0 0 1-6 0H5L4 4h16l-1 6Z"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/></svg>
+      <span>Tienda</span>
+    </div>
+    <div class="item">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+      <span>Carrito</span>
+      <span class="badge">3</span>
+    </div>
+    <div class="item">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Perfil</span>
+    </div>
+  </div>
+</body>
+</html>

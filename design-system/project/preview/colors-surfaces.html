@@ -1,0 +1,34 @@
+<!-- @dsCard group="Colors" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Surfaces</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:20px; background: #d7d9e2; font-family: var(--sf-font-sans); display:grid; grid-template-columns: repeat(4,1fr); gap:12px; }
+  .surf { border-radius:14px; padding:14px; height:130px; display:flex; flex-direction:column; justify-content:space-between; box-shadow: 0 1px 3px rgba(15,23,42,0.06); position:relative; }
+  .surf .l { font:900 9px/1.2 var(--sf-font-sans); text-transform:uppercase; letter-spacing:0.12em; }
+  .surf .h { font:700 10px/1.2 var(--sf-font-mono); }
+  .surf .note { font:700 10px/1.3 var(--sf-font-sans); opacity:.7; }
+  .a { background: #f8f9fc; color:#1e293b; border: 1px solid #f1f5f9; }
+  .b { background: white; color:#1e293b; }
+  .c { background: #f8fafc; color:#1e293b; border:1px solid #f1f5f9; }
+  .d { background: #0f172a; color:white; }
+  .e { background: linear-gradient(to right, #0f172a, #1e1b4b); color:white; }
+  .f { background: #060608; color:white; }
+  .g { background: #0b0b0e; color:white; border:1px solid rgba(255,255,255,0.05); }
+  .h { background: linear-gradient(to right, #6366f1, #4f46e5); color:white; }
+</style>
+</head>
+<body>
+  <div class="surf a"><span class="l">Page</span><div><span class="h">#f8f9fc</span><br><span class="note">app shell · admin/staff</span></div></div>
+  <div class="surf b"><span class="l">Card</span><div><span class="h">#ffffff</span><br><span class="note">every container</span></div></div>
+  <div class="surf c"><span class="l">Nested well</span><div><span class="h">slate‑50</span><br><span class="note">inside cards · audit log</span></div></div>
+  <div class="surf d"><span class="l">Dark CTA</span><div><span class="h">slate‑900</span><br><span class="note">total card · pay button block</span></div></div>
+  <div class="surf e"><span class="l">Hero banner</span><div><span class="h">→ indigo‑950</span><br><span class="note">vendor banner · gradient r</span></div></div>
+  <div class="surf f"><span class="l">Login bg</span><div><span class="h">#060608</span><br><span class="note">dark · trust moment</span></div></div>
+  <div class="surf g"><span class="l">Login card</span><div><span class="h">#0b0b0e</span><br><span class="note">login form body</span></div></div>
+  <div class="surf h"><span class="l">Progress fill</span><div><span class="h">indigo‑500 → 600</span><br><span class="note">meta / target bar</span></div></div>
+</body>
+</html>

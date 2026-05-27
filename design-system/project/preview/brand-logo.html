@@ -1,0 +1,57 @@
+<!-- @dsCard group="Brand" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Brand Logo</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--sf-page-bg); display: flex; align-items: center; gap: 24px; min-height: calc(100vh - 48px); }
+  .lockup { display: flex; align-items: center; gap: 10px; }
+  .mark { width: 40px; height: 40px; background: var(--sf-indigo-600); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px -8px rgba(79,70,229,0.45), 0 2px 6px rgba(79,70,229,0.18); }
+  .mark--lg { width: 56px; height: 56px; border-radius: 14px; }
+  .mark--sm { width: 28px; height: 28px; border-radius: 7px; }
+  .mark svg { fill: white; }
+  .wordmark { font-family: var(--sf-font-sans); font-weight: 900; letter-spacing: -0.02em; color: var(--sf-slate-800); }
+  .wm-lg { font-size: 28px; }
+  .wm-md { font-size: 20px; }
+  .wm-sm { font-size: 14px; }
+  .group { display: flex; flex-direction: column; gap: 6px; }
+  .group + .group { padding-left: 24px; border-left: 1px solid var(--sf-stroke-1); }
+  .label { font: 900 9px/1 var(--sf-font-sans); text-transform: uppercase; letter-spacing: 0.14em; color: var(--sf-fg-4); }
+  .dark { padding: 16px 20px; background: #060608; border-radius: 16px; display: flex; align-items: center; gap: 10px; }
+  .dark .wordmark { color: white; }
+</style>
+</head>
+<body>
+  <div class="group">
+    <span class="label">Primary lockup</span>
+    <div class="lockup">
+      <span class="mark mark--lg" aria-label="StockFlow"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 0 0 .77 1.63H10l-1 7.4a.5.5 0 0 0 .9.36L19.91 11.03a1 1 0 0 0-.77-1.63H14l1-7.4a.5.5 0 0 0-.9-.36L13 2z"/></svg></span>
+      <span class="wordmark wm-lg">StockFlow</span>
+    </div>
+    <div class="lockup" style="margin-top:4px">
+      <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 0 0 .77 1.63H10l-1 7.4a.5.5 0 0 0 .9.36L19.91 11.03a1 1 0 0 0-.77-1.63H14l1-7.4a.5.5 0 0 0-.9-.36L13 2z"/></svg></span>
+      <span class="wordmark wm-md">StockFlow</span>
+    </div>
+    <div class="lockup">
+      <span class="mark mark--sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 0 0 .77 1.63H10l-1 7.4a.5.5 0 0 0 .9.36L19.91 11.03a1 1 0 0 0-.77-1.63H14l1-7.4a.5.5 0 0 0-.9-.36L13 2z"/></svg></span>
+      <span class="wordmark wm-sm">StockFlow</span>
+    </div>
+  </div>
+
+  <div class="group">
+    <span class="label">On dark</span>
+    <div class="dark">
+      <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 0 0 .77 1.63H10l-1 7.4a.5.5 0 0 0 .9.36L19.91 11.03a1 1 0 0 0-.77-1.63H14l1-7.4a.5.5 0 0 0-.9-.36L13 2z"/></svg></span>
+      <span class="wordmark wm-md">StockFlow</span>
+    </div>
+    <span class="label" style="margin-top:8px">Mark only</span>
+    <div class="lockup" style="gap:8px">
+      <span class="mark mark--lg"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 0 0 .77 1.63H10l-1 7.4a.5.5 0 0 0 .9.36L19.91 11.03a1 1 0 0 0-.77-1.63H14l1-7.4a.5.5 0 0 0-.9-.36L13 2z"/></svg></span>
+      <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 0 0 .77 1.63H10l-1 7.4a.5.5 0 0 0 .9.36L19.91 11.03a1 1 0 0 0-.77-1.63H14l1-7.4a.5.5 0 0 0-.9-.36L13 2z"/></svg></span>
+      <span class="mark mark--sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 0 0 .77 1.63H10l-1 7.4a.5.5 0 0 0 .9.36L19.91 11.03a1 1 0 0 0-.77-1.63H14l1-7.4a.5.5 0 0 0-.9-.36L13 2z"/></svg></span>
+    </div>
+  </div>
+</body>
+</html>
