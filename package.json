@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "build:staff": "vite build --config vite.config.staff.ts",
-    "build:client": "vite build --config vite.config.client.ts",
-    "build:driver": "vite build --config vite.config.driver.ts",
+    "build:staff": "vite build --config vite.config.staff.ts && node scripts/postbuild-rename-html.cjs staff",
+    "build:client": "vite build --config vite.config.client.ts && node scripts/postbuild-rename-html.cjs client",
+    "build:driver": "vite build --config vite.config.driver.ts && node scripts/postbuild-rename-html.cjs driver",
     "build:all": "pnpm build:staff && pnpm build:client && pnpm build:driver",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist dist-staff dist-client dist-driver server.js",
