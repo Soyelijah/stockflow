@@ -4,10 +4,12 @@
 // Strictly smaller dependency surface than the staff entry:
 //   - No AdminRoutes import (no admin/manager/seller/logistics UI).
 //   - No DeliveryRoutes import (no map / GPS / driver UI).
-//   - No BranchProvider — customers are always on the "default" branch
-//     conceptually; per-item branch is decided at checkout by FlowResult.
-//     If we ever need per-branch view on the customer side (e.g. pickup
-//     location selector), we add it locally inside the customer module.
+//
+// Tier 5.C.2 hotfix: BranchProvider re-added. The shared DeliveryMap (consumed
+// from CustomerPortal "Despacho" tab) calls useBranch() unconditionally. Without
+// the provider, opening the dispatch tab crashes the client with a runtime error.
+// Resolver falls back to defaultBranchForRole(profile.role) for the customer role,
+// so functional behaviour stays unchanged ("default" branch view).
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -15,6 +17,7 @@ import { BrowserRouter } from "react-router-dom";
 import { MotionConfig } from "motion/react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
+import { BranchProvider } from "./contexts/BranchContext";
 import { AppShell } from "./apps/client/AppShell";
 import "./index.css";
 
@@ -24,7 +27,9 @@ createRoot(document.getElementById("root")!).render(
       <MotionConfig reducedMotion="user">
         <AuthProvider>
           <SettingsProvider>
-            <AppShell />
+            <BranchProvider>
+              <AppShell />
+            </BranchProvider>
           </SettingsProvider>
         </AuthProvider>
       </MotionConfig>

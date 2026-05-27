@@ -182,10 +182,16 @@ service cloud.firestore {
       // Customer can read their own transactions regardless of branch (they need to see
       // every purchase across the retailer's footprint).
       // Cross-branch staff see everything. Pinned sellers see only their own branch.
+      // Tier 5.C.2 hotfix: pinned sellers must be able to `transaction.get()` a
+      // non-existent transaction doc to perform the offline-sync idempotency check
+      // (MobilePOS handleSyncOfflineSales). For non-existent docs `resource == null`
+      // and `resourceBranch()` falls back to "default", which would reject every
+      // pinned seller (branchId != "default") and break offline sync entirely.
+      // Allowing `resource == null` leaks no data — there is no document to read.
       allow read, list: if isSignedIn() && (
         (resource != null && resource.data.customerId == request.auth.uid) ||
         isCrossBranch() ||
-        (isSeller() && inMyBranch(resourceBranch()))
+        (isSeller() && (resource == null || inMyBranch(resourceBranch())))
       );
       // Create — H5 + Tier 1.3:
       //   - Customer self: only if type in [sale, app_purchase, redemption] AND customerId == auth.uid
@@ -381,7 +387,13 @@ service cloud.firestore {
 
     match /role_audit/{docId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
+      // Tier 5.C.2 hotfix: sellers may write a narrow whitelist of audit events
+      // they originate themselves (POS offline-sync idempotency hits). Forging
+      // other action types or impersonating another operator is rejected.
+      allow create: if isAdmin() ||
+        (isSeller() &&
+         incoming().action == 'POS_OFFLINE_SYNC_IDEMPOTENT_SKIP' &&
+         incoming().operatorUid == request.auth.uid);
       allow update, delete: if false;
     }
 

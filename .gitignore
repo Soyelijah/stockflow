@@ -35,6 +35,8 @@ smoke-*.ts
 smoke-*.cjs
 probe-*.ts
 probe-*.cjs
+screenshots-*/
+skills-lock.json
 
 # react-doctor output
 doctor-report.txt
