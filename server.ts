@@ -46,8 +46,14 @@ async function startServer() {
       if (process.env.NODE_ENV !== "production" || !origin) {
         callback(null, true);
       } else {
-        const isAllowed = allowedOrigins.includes(origin) || 
-                          origin.endsWith(".run.app") || 
+        // Localhost/127.0.0.1 always allowed even in production mode — useful for
+        // production-like smoke tests (e.g. Playwright probes that arrancan el
+        // server con NODE_ENV=production + STATIC_DIR=dist-staff). External
+        // .run.app domains keep the existing whitelist.
+        const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+        const isAllowed = isLocalhost ||
+                          allowedOrigins.includes(origin) ||
+                          origin.endsWith(".run.app") ||
                           origin.includes("34034757239.us-east1.run.app");
         if (isAllowed) {
           callback(null, true);
@@ -148,7 +154,13 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    // Tier 5.B: support per-variant static dirs via STATIC_DIR env var.
+    // Default kept as "dist" for backward compat with the legacy monolithic
+    // bundle. Set STATIC_DIR=dist-staff (or dist-client / dist-driver) to
+    // serve the variant bundle in a production-like setup. Useful for the
+    // create-employee modal smoke test which exercises both UI + /api/* in
+    // one origin.
+    const distPath = path.join(process.cwd(), process.env.STATIC_DIR || "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
