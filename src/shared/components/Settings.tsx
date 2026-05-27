@@ -50,6 +50,37 @@ export function Settings() {
   const [searchEmail, setSearchEmail] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any[] | null>(null);
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
+
+  const filteredUsers = React.useMemo(() => {
+    const sourceList = searchResult !== null ? searchResult : users;
+    if (selectedRoleFilter === "all") {
+      return sourceList;
+    }
+    return sourceList.filter(u => (u.role || "seller") === selectedRoleFilter);
+  }, [searchResult, users, selectedRoleFilter]);
+
+  const ROLE_ORDER = ["owner", "admin", "manager", "seller", "logistics", "driver"] as const;
+  const ROLE_LABELS: Record<string, string> = {
+    owner: "Owners / Propietarios",
+    admin: "Administradores",
+    manager: "Gerentes / Encargados",
+    seller: "Vendedores / POS",
+    logistics: "Logística / Bodega",
+    driver: "Repartidores / Drivers"
+  };
+
+  const groupedUsersByRole = React.useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    filteredUsers.forEach(u => {
+      const r = u.role || "seller";
+      if (!groups[r]) {
+        groups[r] = [];
+      }
+      groups[r].push(u);
+    });
+    return groups;
+  }, [filteredUsers]);
 
   // Push Notifications Configuration State & Handlers
   const [pushConfig, setPushConfig] = useState<{
@@ -481,6 +512,22 @@ export function Settings() {
       setIsSearching(false);
     }
   };
+
+  // Debounce 250ms for user email/name search (Issue #3)
+  useEffect(() => {
+    const term = searchEmail.trim();
+    if (!term) {
+      setSearchResult(null);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(() => {
+      void handleSearchUser();
+    }, 250);
+
+    return () => clearTimeout(delayDebounceFn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchEmail]);
 
   // Multi-branch (Tier 1.4): opens the branch picker modal. Cross-branch roles
   // (admin/owner/logistics) skip the picker and go straight to assignment with branchId="*".
@@ -1358,76 +1405,210 @@ export function Settings() {
               </div>
 
               {/* Buscar usuario por email */}
-              <div className="flex items-center gap-x-2">
-                <input 
-                  type="text"
-                  placeholder="Buscar por email o nombre…"
-                  value={searchEmail}
-                  onChange={(e) => {
-                    setSearchEmail(e.target.value);
-                    if (!e.target.value.trim()) setSearchResult(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleSearchUser();
-                    }
-                  }}
-                  className="w-64 h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
+              <div 
+                className="flex items-center gap-x-2"
+                aria-busy={isSearching ? "true" : "false"}
+              >
+                <div className="relative">
+                  <input 
+                    type="text"
+                    placeholder="Buscar por email o nombre…"
+                    value={searchEmail}
+                    onChange={(e) => {
+                      setSearchEmail(e.target.value);
+                      if (!e.target.value.trim()) setSearchResult(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleSearchUser();
+                      }
+                    }}
+                    className="w-64 h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <RefreshCw size={14} className="animate-spin text-slate-400" aria-hidden="true" />
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={handleSearchUser}
                   disabled={isSearching}
                   className="h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center transition-colors disabled:opacity-50"
                 >
-                  {isSearching ? "Buscando…" : "Buscar"}
+                  Buscar
                 </button>
               </div>
             </div>
-            
-            <div className="p-8 space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                {(searchResult !== null ? searchResult : users).map((u) => (
-                  <div key={u.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between group hover:bg-white hover:border-indigo-100 transition-all">
-                    <div className="flex items-center gap-x-4">
-                      <div className="size-12 bg-white rounded-xl flex items-center justify-center text-slate-400 font-black text-lg shadow-sm border border-slate-50 uppercase">
-                        {u.name?.charAt(0) || u.email?.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">{u.name || "Usuario Sin Nombre"}</p>
-                        <p className="text-[10px] text-slate-400 font-bold">{u.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-y-1">
-                      <div className="flex items-center gap-x-3">
-                        <select
-                          className="bg-white border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-                          value={u.role || "seller"}
-                          onChange={(e) => initiateRoleChange(u.id, e.target.value)}
-                          aria-label={`Cambiar rol de ${u.email || u.id}`}
-                        >
-                          <option value="admin">Administrador</option>
-                          <option value="manager">Gerente / Encargado</option>
-                          <option value="seller">Vendedor / POS</option>
-                          <option value="logistics">Logística / Bodega</option>
-                          <option value="driver">Repartidor / Driver</option>
-                        </select>
-                        <div className={cn(
-                          "size-2 rounded-full",
-                          u.role === "admin" ? "bg-indigo-600" : u.role === "manager" ? "bg-emerald-500" : u.role === "logistics" ? "bg-amber-500" : u.role === "driver" ? "bg-sky-500" : "bg-slate-300"
-                        )} title={u.role} />
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-400 tracking-wider">
-                        {u.branchId === CROSS_BRANCH_SENTINEL
-                          ? "Todas las sucursales"
-                          : `Sucursal: ${branchesList.find(b => b.id === u.branchId)?.name || u.branchId || "—"}`}
-                      </span>
-                    </div>
-                  </div>
-                ))}
 
-                {(searchResult !== null ? searchResult : users).length === 0 && (
+            {/* Filter chips (Issue #5) */}
+            <div className="px-8 pb-4">
+              <div 
+                className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none"
+                role="group" 
+                aria-label="Filtrar por rol"
+              >
+                {[
+                  { key: "all", label: "Todos" },
+                  { key: "owner", label: "Owners" },
+                  { key: "admin", label: "Admins" },
+                  { key: "manager", label: "Managers" },
+                  { key: "seller", label: "Sellers" },
+                  { key: "logistics", label: "Logística" },
+                  { key: "driver", label: "Drivers" }
+                ].map(chip => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => setSelectedRoleFilter(chip.key)}
+                    aria-pressed={selectedRoleFilter === chip.key ? "true" : "false"}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shrink-0 border cursor-pointer outline-none",
+                      selectedRoleFilter === chip.key
+                        ? "bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-900/10"
+                        : "bg-white text-slate-500 border-slate-200 hover:text-slate-800 hover:bg-slate-50"
+                    )}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="p-8 space-y-8">
+              <div className="space-y-8">
+                {ROLE_ORDER.map(roleKey => {
+                  const groupUsers = groupedUsersByRole[roleKey] || [];
+                  if (groupUsers.length === 0) return null; // Enmienda 2: Omitir grupos vacíos
+                  
+                  const sectionId = `role-group-${roleKey}`;
+                  return (
+                    <section 
+                      key={roleKey} 
+                      aria-labelledby={sectionId} 
+                      className="space-y-3"
+                    >
+                      <div className="flex items-center gap-x-2 px-3 py-1 bg-slate-100/60 rounded-xl w-fit border border-slate-150/40">
+                        <h3 id={sectionId} className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                          {ROLE_LABELS[roleKey]}
+                        </h3>
+                        <span className="text-[9px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded-md border border-slate-150/60 leading-none">
+                          {groupUsers.length}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        {groupUsers.map((u) => (
+                          <div key={u.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-white hover:border-indigo-100 transition-all">
+                            <div className="flex items-center gap-x-4 min-w-0">
+                              <div className="size-12 bg-white rounded-xl flex items-center justify-center text-slate-400 font-black text-lg shadow-sm border border-slate-50 uppercase shrink-0">
+                                {u.name?.charAt(0) || u.email?.charAt(0)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-800 text-sm truncate">{u.name || "Usuario Sin Nombre"}</p>
+                                <p className="text-[10px] text-slate-400 font-bold truncate">{u.email}</p>
+                                <div className="flex items-center gap-x-1 mt-1.5 text-slate-400">
+                                  <MapPin size={11} className="shrink-0" />
+                                  <span className="text-[9px] font-bold tracking-wider truncate">
+                                    {u.branchId === CROSS_BRANCH_SENTINEL
+                                      ? "Todas las sucursales"
+                                      : `Sucursal: ${branchesList.find(b => b.id === u.branchId)?.name || u.branchId || "—"}`}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between md:justify-end gap-x-3 w-full md:w-auto shrink-0 border-t border-slate-100/60 pt-3 md:pt-0 md:border-t-0">
+                              <select
+                                className="bg-white border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer w-full md:w-auto"
+                                value={u.role || "seller"}
+                                onChange={(e) => initiateRoleChange(u.id, e.target.value)}
+                                aria-label={`Cambiar rol de ${u.email || u.id}`}
+                              >
+                                <option value="admin">Administrador</option>
+                                <option value="manager">Gerente / Encargado</option>
+                                <option value="seller">Vendedor / POS</option>
+                                <option value="logistics">Logística / Bodega</option>
+                                <option value="driver">Repartidor / Driver</option>
+                              </select>
+                              <div className={cn(
+                                "size-2 rounded-full shrink-0",
+                                u.role === "admin" ? "bg-indigo-600" : u.role === "manager" ? "bg-emerald-500" : u.role === "logistics" ? "bg-amber-500" : u.role === "driver" ? "bg-sky-500" : "bg-slate-300"
+                              )} title={u.role} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+
+                {/* Render any other roles not defined in ROLE_ORDER */}
+                {Object.keys(groupedUsersByRole).filter(r => !ROLE_ORDER.includes(r as any)).map(roleKey => {
+                  const groupUsers = groupedUsersByRole[roleKey] || [];
+                  if (groupUsers.length === 0) return null; // Enmienda 2: Omitir grupos vacíos
+                  
+                  const sectionId = `role-group-${roleKey}`;
+                  return (
+                    <section 
+                      key={roleKey} 
+                      aria-labelledby={sectionId} 
+                      className="space-y-3"
+                    >
+                      <div className="flex items-center gap-x-2 px-3 py-1 bg-slate-100/60 rounded-xl w-fit border border-slate-150/40">
+                        <h3 id={sectionId} className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                          {roleKey.toUpperCase()}
+                        </h3>
+                        <span className="text-[9px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded-md border border-slate-150/60 leading-none">
+                          {groupUsers.length}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        {groupUsers.map((u) => (
+                          <div key={u.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-white hover:border-indigo-100 transition-all">
+                            <div className="flex items-center gap-x-4 min-w-0">
+                              <div className="size-12 bg-white rounded-xl flex items-center justify-center text-slate-400 font-black text-lg shadow-sm border border-slate-50 uppercase shrink-0">
+                                {u.name?.charAt(0) || u.email?.charAt(0)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-800 text-sm truncate">{u.name || "Usuario Sin Nombre"}</p>
+                                <p className="text-[10px] text-slate-400 font-bold truncate">{u.email}</p>
+                                <div className="flex items-center gap-x-1 mt-1.5 text-slate-400">
+                                  <MapPin size={11} className="shrink-0" />
+                                  <span className="text-[9px] font-bold tracking-wider truncate">
+                                    {u.branchId === CROSS_BRANCH_SENTINEL
+                                      ? "Todas las sucursales"
+                                      : `Sucursal: ${branchesList.find(b => b.id === u.branchId)?.name || u.branchId || "—"}`}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between md:justify-end gap-x-3 w-full md:w-auto shrink-0 border-t border-slate-100/60 pt-3 md:pt-0 md:border-t-0">
+                              <select
+                                className="bg-white border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer w-full md:w-auto"
+                                value={u.role || "seller"}
+                                onChange={(e) => initiateRoleChange(u.id, e.target.value)}
+                                aria-label={`Cambiar rol de ${u.email || u.id}`}
+                              >
+                                <option value="admin">Administrador</option>
+                                <option value="manager">Gerente / Encargado</option>
+                                <option value="seller">Vendedor / POS</option>
+                                <option value="logistics">Logística / Bodega</option>
+                                <option value="driver">Repartidor / Driver</option>
+                              </select>
+                              <div className={cn(
+                                "size-2 rounded-full shrink-0",
+                                u.role === "admin" ? "bg-indigo-600" : u.role === "manager" ? "bg-emerald-500" : u.role === "logistics" ? "bg-amber-500" : u.role === "driver" ? "bg-sky-500" : "bg-slate-300"
+                              )} title={u.role} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+
+                {filteredUsers.length === 0 && (
                   <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     <p className="text-sm font-bold text-slate-400">No se encontraron usuarios.</p>
                   </div>

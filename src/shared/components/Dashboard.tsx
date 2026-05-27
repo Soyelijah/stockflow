@@ -14,8 +14,7 @@ import {
   DollarSign,
   BarChart3,
   Zap,
-  Users,
-  Smartphone
+  Users
 } from "lucide-react";
 import { formatCurrency, cn } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -798,41 +797,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             </motion.div>
           )}
 
-          {/* Apps & Channels Section */}
-          <div className="bg-indigo-50 border border-indigo-100 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-x-6">
-              <div className="size-16 bg-white rounded-[1.5rem] flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
-                <Smartphone size={32} />
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-slate-800 tracking-tight">App Móvil de Clientes</h2>
-                <p className="text-sm font-medium text-slate-500 max-w-md">
-                  Tus clientes pueden ver sus puntos, historial y ofertas exclusivas desde su propio celular. Comparte el link o imprime el QR en tus comprobantes.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-              <a 
-                href="/cliente" 
-                target="_blank" 
-                className="w-full sm:w-auto bg-white text-slate-900 font-black px-8 py-4 rounded-2xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-x-2 text-xs uppercase tracking-widest"
-              >
-                <Activity size={16} />
-                <span>Ver Portal Cliente</span>
-              </a>
-              <button type="button" 
-                onClick={() => {
-                  const url = window.location.origin + "/cliente";
-                  navigator.clipboard.writeText(url);
-                  alert("Link del Portal de Clientes copiado: " + url);
-                }}
-                className="w-full sm:w-auto bg-indigo-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-500 transition-all flex items-center justify-center gap-x-2 text-xs uppercase tracking-widest"
-              >
-                <Plus size={16} />
-                <span>Copiar Link</span>
-              </button>
-            </div>
-          </div>
+
         </div>
       )}
 
