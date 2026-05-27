@@ -20,7 +20,13 @@ import {
   Tag,
   Plus,
   Trash2,
-  Truck
+  Truck,
+  UserPlus,
+  Copy,
+  Check,
+  Lock,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { collection, getDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, limit, addDoc, serverTimestamp } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -51,6 +57,86 @@ export function Settings() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any[] | null>(null);
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
+
+  // Tier 5.D: Create employee states
+  const [showCreateEmployeeModal, setShowCreateEmployeeModal] = useState(false);
+  const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
+  const [createEmployeeError, setCreateEmployeeError] = useState<string | null>(null);
+  const [generatedPasswordBanner, setGeneratedPasswordBanner] = useState<string | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
+  const [showPasswordText, setShowPasswordText] = useState(false);
+  const [newEmployeeData, setNewEmployeeData] = useState({
+    name: "",
+    email: "",
+    role: "seller",
+    branchId: "",
+    password: ""
+  });
+
+  // a11y modal refs for focus trapping & restoration
+  const createButtonRef = React.useRef<HTMLButtonElement>(null);
+  const nameInputRef = React.useRef<HTMLInputElement>(null);
+  const createModalRef = React.useRef<HTMLDivElement>(null);
+
+  // Focus trap effect
+  React.useEffect(() => {
+    if (showCreateEmployeeModal) {
+      // Focus the name input
+      const timer = setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 50);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          if (!isCreatingEmployee) {
+            setShowCreateEmployeeModal(false);
+          }
+        }
+        if (e.key === "Tab") {
+          const focusableElements = createModalRef.current?.querySelectorAll(
+            'input, select, button, [tabindex="0"]'
+          );
+          if (focusableElements && focusableElements.length > 0) {
+            const first = focusableElements[0] as HTMLElement;
+            const last = focusableElements[focusableElements.length - 1] as HTMLElement;
+            if (e.shiftKey) {
+              if (document.activeElement === first) {
+                last.focus();
+                e.preventDefault();
+              }
+            } else {
+              if (document.activeElement === last) {
+                first.focus();
+                e.preventDefault();
+              }
+            }
+          }
+        }
+      };
+
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    } else {
+      // Restore focus to button when closing modal
+      createButtonRef.current?.focus();
+    }
+  }, [showCreateEmployeeModal, isCreatingEmployee]);
+
+  // Tier 5.D: Manage branch selection defaults for the employee creation form
+  useEffect(() => {
+    const activeBranches = branchesList.filter(b => b.active);
+    if (activeBranches.length > 0) {
+      if (!newEmployeeData.branchId || !activeBranches.some(b => b.id === newEmployeeData.branchId)) {
+        setNewEmployeeData(prev => ({
+          ...prev,
+          branchId: activeBranches[0].id
+        }));
+      }
+    }
+  }, [branchesList, newEmployeeData.branchId]);
 
   const filteredUsers = React.useMemo(() => {
     const sourceList = searchResult !== null ? searchResult : users;
@@ -435,25 +521,36 @@ export function Settings() {
     };
     fetchSettings();
 
-    const fetchUsers = async () => {
+    let unsubUsers: (() => void) | undefined;
+    const fetchUsers = () => {
       if (!isAdminOrManager(profile?.role)) return;
       try {
         // High-performance query leveraging the users collection index sorting by creation time
         const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(50));
-        const snap = await getDocs(q);
-        setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+        unsubUsers = onSnapshot(q, (snap) => {
+          setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+        }, (err) => {
+          console.warn("Index-sorted user fetch subscription failed, falling back to unordered list:", err);
+          try {
+            const qSimple = query(collection(db, "users"));
+            unsubUsers = onSnapshot(qSimple, (snapSimple) => {
+              setUsers(snapSimple.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+            }, (innerErr) => {
+              console.error("Error subscribing to all users fallback:", innerErr);
+            });
+          } catch (innerErr) {
+            console.error("Error setting up fallback user subscription:", innerErr);
+          }
+        });
       } catch (err) {
-        console.warn("Index-sorted user fetch warm-up failed, falling back to unordered list:", err);
-        try {
-          const qSimple = query(collection(db, "users"));
-          const snapSimple = await getDocs(qSimple);
-          setUsers(snapSimple.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
-        } catch (innerErr) {
-          console.error("Error fetching all users fallback:", innerErr);
-        }
+        console.error("Error in fetchUsers subscription:", err);
       }
     };
     fetchUsers();
+
+    return () => {
+      if (unsubUsers) unsubUsers();
+    };
   }, [profile?.role]);
 
   useEffect(() => {
@@ -549,6 +646,93 @@ export function Settings() {
     const { userId, role, branchId } = pendingRoleAssignment;
     setPendingRoleAssignment(null);
     await updateUserRole(userId, role, branchId);
+  };
+
+  const handleCreateEmployeeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateEmployeeError(null);
+
+    const nameTrimmed = newEmployeeData.name.trim();
+    if (nameTrimmed.length < 2 || nameTrimmed.length > 200) {
+      setCreateEmployeeError("El nombre completo debe tener entre 2 y 200 caracteres.");
+      return;
+    }
+
+    const emailTrimmed = newEmployeeData.email.trim().toLowerCase();
+    if (!emailTrimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+      setCreateEmployeeError("Por favor ingrese un email válido.");
+      return;
+    }
+
+    const { role, password } = newEmployeeData;
+    if (!["admin", "manager", "seller", "logistics", "driver"].includes(role)) {
+      setCreateEmployeeError("Por favor seleccione un rol válido.");
+      return;
+    }
+
+    let finalBranchId = newEmployeeData.branchId;
+    const needsBranch = ["manager", "seller", "driver"].includes(role);
+    if (needsBranch) {
+      if (!finalBranchId) {
+        setCreateEmployeeError("Por favor seleccione una sucursal.");
+        return;
+      }
+    } else {
+      finalBranchId = "*";
+    }
+
+    if (password && password.length < 8) {
+      setCreateEmployeeError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    setIsCreatingEmployee(true);
+    try {
+      const idToken = await user?.getIdToken();
+      const resp = await fetch("/api/staff/create-employee", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          email: emailTrimmed,
+          name: nameTrimmed,
+          role,
+          branchId: finalBranchId,
+          password: password || undefined
+        })
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        setCreateEmployeeError(data.error || "Error al crear el empleado.");
+        return;
+      }
+
+      if (data.generatedPassword) {
+        setGeneratedPasswordBanner(data.generatedPassword);
+        setPasswordCopied(false);
+      } else {
+        setGeneratedPasswordBanner(null);
+      }
+
+      setNewEmployeeData({
+        name: "",
+        email: "",
+        role: "seller",
+        branchId: "",
+        password: ""
+      });
+      setShowCreateEmployeeModal(false);
+
+    } catch (err: any) {
+      console.error("Error calling create-employee endpoint:", err);
+      setCreateEmployeeError("Error de red o conexión al servidor.");
+    } finally {
+      setIsCreatingEmployee(false);
+    }
   };
 
   const updateUserRole = async (userId: string, newRole: string, branchId: string) => {
@@ -1404,44 +1588,102 @@ export function Settings() {
                 </div>
               </div>
 
-              {/* Buscar usuario por email */}
-              <div 
-                className="flex items-center gap-x-2"
-                aria-busy={isSearching ? "true" : "false"}
-              >
-                <div className="relative">
-                  <input 
-                    type="text"
-                    placeholder="Buscar por email o nombre…"
-                    value={searchEmail}
-                    onChange={(e) => {
-                      setSearchEmail(e.target.value);
-                      if (!e.target.value.trim()) setSearchResult(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void handleSearchUser();
-                      }
-                    }}
-                    className="w-64 h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                  {isSearching && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <RefreshCw size={14} className="animate-spin text-slate-400" aria-hidden="true" />
-                    </div>
-                  )}
-                </div>
+              {/* Action bar with create button and search */}
+              <div className="flex flex-wrap items-center gap-3">
                 <button
+                  ref={createButtonRef}
                   type="button"
-                  onClick={handleSearchUser}
-                  disabled={isSearching}
-                  className="h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center transition-colors disabled:opacity-50"
+                  onClick={() => {
+                    setShowCreateEmployeeModal(true);
+                    setCreateEmployeeError(null);
+                  }}
+                  className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-2 transition-colors shadow-md shadow-indigo-600/10 cursor-pointer"
                 >
-                  Buscar
+                  <UserPlus size={14} />
+                  <span>+ Crear empleado</span>
                 </button>
+
+                {/* Buscar usuario por email */}
+                <div
+                  className="flex items-center gap-x-2"
+                  aria-busy={isSearching ? "true" : "false"}
+                >
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Buscar por email o nombre…"
+                      value={searchEmail}
+                      onChange={(e) => {
+                        setSearchEmail(e.target.value);
+                        if (!e.target.value.trim()) setSearchResult(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleSearchUser();
+                        }
+                      }}
+                      className="w-64 h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                    {isSearching && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <RefreshCw size={14} className="animate-spin text-slate-400" aria-hidden="true" />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSearchUser}
+                    disabled={isSearching}
+                    className="h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center transition-colors disabled:opacity-50"
+                  >
+                    Buscar
+                  </button>
+                </div>
               </div>
             </div>
+
+            {/* Success Password Banner (One-time Display) */}
+            {generatedPasswordBanner && (
+              <div className="mx-8 mt-6 mb-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm animate-fadeIn">
+                <div className="flex items-center gap-x-3">
+                  <div className="size-8 bg-emerald-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm shadow-emerald-500/20">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900">Empleado creado con éxito</h4>
+                    <p className="text-[10px] font-bold text-emerald-700 mt-0.5">
+                      Contraseña temporal: <span className="font-mono bg-white px-2 py-0.5 rounded border border-emerald-150 text-emerald-800 select-all font-black">{generatedPasswordBanner}</span>
+                    </p>
+                    <p className="text-[9px] font-medium text-emerald-600 mt-1 italic">
+                      * Mostrada por única vez. Cópiela antes de salir.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-x-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedPasswordBanner);
+                      setPasswordCopied(true);
+                      setTimeout(() => setPasswordCopied(false), 2000);
+                    }}
+                    className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-x-1.5 transition-colors shadow-sm shadow-emerald-600/10 cursor-pointer"
+                  >
+                    {passwordCopied ? <Check size={12} /> : <Copy size={12} />}
+                    <span>{passwordCopied ? "¡Copiada!" : "Copiar"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGeneratedPasswordBanner(null)}
+                    className="p-1.5 text-emerald-600 hover:text-emerald-800 transition-colors"
+                    aria-label="Descartar aviso"
+                  >
+                    <span className="text-sm font-black select-none">✕</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Filter chips (Issue #5) */}
             <div className="px-8 pb-4">
@@ -1878,6 +2120,211 @@ export function Settings() {
                 {isSaving ? "Asignando…" : "Confirmar asignación"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tier 5.D: Create Employee Modal with complete a11y & focus trap */}
+      {showCreateEmployeeModal && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-employee-modal-title"
+          tabIndex={-1}
+          ref={createModalRef}
+        >
+          {/* Backdrop */}
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-label="Cerrar modal"
+            onClick={() => {
+              if (!isCreatingEmployee) {
+                setShowCreateEmployeeModal(false);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && !isCreatingEmployee) {
+                setShowCreateEmployeeModal(false);
+              }
+            }}
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+          />
+
+          {/* Modal Container */}
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative z-10 p-7 space-y-5 border border-slate-100 transform scale-100 transition-all">
+            <div className="flex items-center gap-x-3 text-indigo-600">
+              <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                <UserPlus size={18} />
+              </div>
+              <h2 id="create-employee-modal-title" className="text-base font-black text-slate-800 tracking-tight">
+                Crear Nuevo Empleado
+              </h2>
+            </div>
+
+            {createEmployeeError && (
+              <div className="p-3.5 bg-rose-50 border border-rose-100 text-rose-700 rounded-xl text-[11px] font-bold flex items-center gap-x-2">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{createEmployeeError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateEmployeeSubmit} className="space-y-4">
+              {/* Nombre completo */}
+              <div className="space-y-1.5">
+                <label htmlFor="emp-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">
+                  Nombre completo
+                </label>
+                <input
+                  id="emp-name"
+                  ref={nameInputRef}
+                  type="text"
+                  required
+                  maxLength={200}
+                  placeholder="ej. Juan Pérez"
+                  disabled={isCreatingEmployee}
+                  value={newEmployeeData.name}
+                  onChange={(e) => setNewEmployeeData(p => ({ ...p, name: e.target.value }))}
+                  className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-850"
+                />
+              </div>
+
+              {/* Email */}
+              <div className="space-y-1.5">
+                <label htmlFor="emp-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">
+                  Email
+                </label>
+                <input
+                  id="emp-email"
+                  type="email"
+                  required
+                  placeholder="vendedor.juan@stockflow.cl"
+                  disabled={isCreatingEmployee}
+                  value={newEmployeeData.email}
+                  onChange={(e) => setNewEmployeeData(p => ({ ...p, email: e.target.value }))}
+                  className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-850"
+                />
+              </div>
+
+              {/* Rol */}
+              <div className="space-y-1.5">
+                <label htmlFor="emp-role" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">
+                  Rol
+                </label>
+                <select
+                  id="emp-role"
+                  value={newEmployeeData.role}
+                  disabled={isCreatingEmployee}
+                  onChange={(e) => {
+                    const nextRole = e.target.value;
+                    const activeBranches = branchesList.filter(b => b.active);
+                    const defaultBranch = activeBranches.length > 0 ? activeBranches[0].id : "";
+                    setNewEmployeeData(p => ({
+                      ...p,
+                      role: nextRole,
+                      branchId: ["manager", "seller", "driver"].includes(nextRole) ? defaultBranch : ""
+                    }));
+                  }}
+                  className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-850 cursor-pointer"
+                >
+                  <option value="seller">Vendedor / POS</option>
+                  <option value="manager">Gerente / Encargado</option>
+                  <option value="driver">Repartidor / Driver</option>
+                  <option value="admin">Administrador</option>
+                  <option value="logistics">Logística / Bodega</option>
+                </select>
+              </div>
+
+              {/* Sucursal (condicional si rol es manager, seller o driver) */}
+              {["manager", "seller", "driver"].includes(newEmployeeData.role) ? (
+                <div className="space-y-1.5">
+                  <label htmlFor="emp-branch" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">
+                    Sucursal
+                  </label>
+                  <select
+                    id="emp-branch"
+                    required
+                    disabled={isCreatingEmployee || branchesList.filter(b => b.active).length === 0}
+                    value={newEmployeeData.branchId}
+                    onChange={(e) => setNewEmployeeData(p => ({ ...p, branchId: e.target.value }))}
+                    className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-850 cursor-pointer"
+                  >
+                    {branchesList.filter(b => b.active).map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                  {branchesList.filter(b => b.active).length === 0 && (
+                    <p className="text-[9px] font-black text-rose-500 ml-1 leading-normal" role="alert">
+                      Cargando sucursales... (No se puede crear empleado sin sucursales activas)
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3 bg-indigo-50/50 border border-indigo-100/40 rounded-xl text-[10px] text-indigo-700 font-bold flex items-center gap-x-2">
+                  <Globe size={14} className="shrink-0" />
+                  <span>Esta cuenta tendrá acceso a todas las sucursales.</span>
+                </div>
+              )}
+
+              {/* Contraseña */}
+              <div className="space-y-1.5">
+                <label htmlFor="emp-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">
+                  Contraseña (opcional)
+                </label>
+                <div className="relative">
+                  <input
+                    id="emp-password"
+                    type={showPasswordText ? "text" : "password"}
+                    placeholder="Mínimo 8 caracteres"
+                    disabled={isCreatingEmployee}
+                    value={newEmployeeData.password}
+                    onChange={(e) => setNewEmployeeData(p => ({ ...p, password: e.target.value }))}
+                    className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-4 pr-10 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-850"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordText(!showPasswordText)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 transition-colors p-1"
+                    aria-label={showPasswordText ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showPasswordText ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                <p className="text-[9px] font-bold text-slate-400 ml-1 leading-normal">
+                  Dejá vacío para que el sistema genere una contraseña aleatoria segura.
+                </p>
+              </div>
+
+              {/* Footer buttons */}
+              <div className="flex gap-x-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateEmployeeModal(false)}
+                  disabled={isCreatingEmployee}
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-black uppercase tracking-widest text-[9px] rounded-xl hover:bg-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    isCreatingEmployee ||
+                    (["manager", "seller", "driver"].includes(newEmployeeData.role) && branchesList.filter(b => b.active).length === 0)
+                  }
+                  className="flex-[2] py-3.5 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-x-2 cursor-pointer"
+                >
+                  {isCreatingEmployee ? (
+                    <>
+                      <RefreshCw size={12} className="animate-spin" />
+                      <span>CREANDO...</span>
+                    </>
+                  ) : (
+                    <span>CREAR EMPLEADO</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
