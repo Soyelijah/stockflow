@@ -23,7 +23,6 @@ functions/node_modules/
 .agents/
 .qwen/
 .codex/
-AGENTS.md
 
 # Tier 5 migration artifacts — pre-migration data backups and runtime logs stay local.
 # Backups contain PII (customer emails, RUTs); do NOT commit.
