@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 import { collection, onSnapshot, query, doc, updateDoc, serverTimestamp, getDocs, where } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
+import { db, storage, handleFirestoreError, OperationType } from "../../lib/firebase";
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
 import { 
   MapPin, Navigation, Truck, User, Phone, CheckCircle, Package, 
-  Loader2, Sparkles, LogOut, ArrowRight, ShieldCheck, QrCode, ClipboardList, Award, Home, Bell
+  Loader2, Sparkles, LogOut, ArrowRight, ShieldCheck, QrCode, ClipboardList, Award, Home, Bell,
+  Camera, X, AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
@@ -76,6 +78,8 @@ export function DriverPWA() {
   const [isScanning, setIsScanning] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [pendingDeliverStopId, setPendingDeliverStopId] = useState<string | null>(null);
+  const [isFailedModalOpen, setIsFailedModalOpen] = useState(false);
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [transitInterval, setTransitInterval] = useState<NodeJS.Timeout | null>(null);
@@ -218,6 +222,90 @@ export function DriverPWA() {
       showSuccessBanner("🚚 Tránsito Iniciado. Siga la ruta del mapa.");
     } catch (err: any) {
       console.error(err);
+    }
+  };
+
+  // Helper to resize image keeping aspect ratio
+  const resizeImageToBlob = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const max = 800;
+        if (width > max || height > max) {
+          if (width > height) {
+            height = Math.round((height * max) / width);
+            width = max;
+          } else {
+            width = Math.round((width * max) / height);
+            height = max;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("La conversión de imagen a Blob falló."));
+            }
+          }, "image/jpeg", 0.85);
+        } else {
+          reject(new Error("No se pudo obtener el contexto del canvas."));
+        }
+      };
+      img.onerror = () => {
+        reject(new Error("Error al procesar la imagen elegida."));
+      };
+    });
+  };
+
+  // Handle failed delivery with upload -> commit + rollback order (Note #7)
+  const handleFailedDelivery = async (stopId: string, reasonCode: string, file: File) => {
+    let fileRef: any = null;
+    setIsUploadingEvidence(true);
+    try {
+      // 1. Upload photo first
+      const compressedBlob = await resizeImageToBlob(file);
+      const ts = Date.now();
+      const path = `shipments/by-driver/${profile?.uid}/${stopId}/evidence_${ts}.jpg`;
+      fileRef = storageRef(storage, path);
+      await uploadBytes(fileRef, compressedBlob);
+      const downloadUrl = await getDownloadURL(fileRef);
+
+      // 2. Commit Firestore
+      const docRef = doc(db, "shipments", stopId);
+      await updateDoc(docRef, {
+        status: "failed",
+        failedAt: serverTimestamp(),
+        failedDeliveryReason: reasonCode,
+        photoEvidenceUrl: downloadUrl,
+        updatedAt: serverTimestamp()
+        // currentLat/currentLng are preserved (not nullified) per Pierre's suggestion
+      });
+
+      showSuccessBanner("⚠️ Entrega registrada como fallida.");
+      setIsFailedModalOpen(false);
+    } catch (err: any) {
+      console.error("Failed delivery process error:", err);
+      // 3. Rollback Storage upload if Firestore failed
+      if (fileRef) {
+        try {
+          await deleteObject(fileRef);
+          console.log("Cleanup: Deleted orphaned photo evidence after Firestore failure.");
+        } catch (cleanupErr) {
+          console.error("Cleanup error (orphaned photo delete):", cleanupErr);
+        }
+      }
+      alert("Error al reportar entrega fallida: " + (err.message || String(err)));
+    } finally {
+      setIsUploadingEvidence(false);
     }
   };
 
@@ -504,6 +592,16 @@ export function DriverPWA() {
                     <CheckCircle size={14} />
                     Confirmar Entrega Tactil
                   </button>
+
+                  <button type="button"
+                    onClick={() => {
+                      setIsFailedModalOpen(true);
+                    }}
+                    className="w-full py-3.5 bg-white border border-rose-200 hover:bg-rose-50/30 text-rose-600 active:scale-[0.99] transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <AlertTriangle size={14} />
+                    Reportar Entrega Fallida
+                  </button>
                 </div>
               )}
             </div>
@@ -612,6 +710,191 @@ export function DriverPWA() {
           />
         )}
       </AnimatePresence>
+
+      {/* FAILED DELIVERY DIALOG */}
+      <AnimatePresence>
+        {isFailedModalOpen && activeNextStop && (
+          <FailedDeliveryModal
+            isOpen={isFailedModalOpen}
+            onClose={() => setIsFailedModalOpen(false)}
+            orderId={activeNextStop.orderId}
+            isSaving={isUploadingEvidence}
+            onConfirm={async (reasonCode, file) => {
+              await handleFailedDelivery(activeNextStop.id, reasonCode, file);
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+interface FailedDeliveryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (reasonCode: string, file: File) => Promise<void>;
+  orderId: string;
+  isSaving: boolean;
+}
+
+function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: FailedDeliveryModalProps) {
+  const [reason, setReason] = useState("");
+  const [otherDetails, setOtherDetails] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const reasons = [
+    { code: "address_not_found", label: "Dirección no encontrada" },
+    { code: "recipient_not_available", label: "Cliente ausente / no disponible" },
+    { code: "recipient_rejected", label: "Cliente rechazó el pedido" },
+    { code: "force_majeure", label: "Problema de fuerza mayor (accidente/taco)" },
+    { code: "other", label: "Otro motivo (especificar)" }
+  ];
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhoto(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleConfirmClick = () => {
+    if (!reason || !photo) return;
+    const finalReason = reason === "other" ? `other: ${otherDetails.trim()}` : reason;
+    onConfirm(finalReason, photo);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[150] overflow-y-auto flex items-end sm:items-center justify-center p-4">
+      <div 
+        className="fixed inset-0 bg-slate-950/85 backdrop-blur-xs transition-opacity" 
+        onClick={onClose}
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 100, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 100, scale: 0.98 }}
+        className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden z-10 flex flex-col"
+      >
+        <div className="absolute top-0 inset-x-0 h-1.5 bg-rose-500" />
+
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
+          <div className="flex items-center gap-x-2.5">
+            <div className="w-8.5 h-8.5 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 border border-rose-100/40">
+              <AlertTriangle size={16} />
+            </div>
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Reportar Falla</h3>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Orden #{orderId.slice(0, 8).toUpperCase()}</p>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            onClick={onClose}
+            className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-colors cursor-pointer"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4 text-left">
+          {/* Reason Select */}
+          <div className="space-y-1">
+            <label htmlFor="failureReason" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Motivo del Fallo:</label>
+            <select
+              id="failureReason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full h-11 px-3 bg-slate-50/50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 rounded-2xl transition-all"
+            >
+              <option value="">Seleccione un motivo...</option>
+              {reasons.map((r) => (
+                <option key={r.code} value={r.code}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* If "other", show input */}
+          {reason === "other" && (
+            <div className="space-y-1">
+              <label htmlFor="otherReasonDetails" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Especificar:</label>
+              <input
+                id="otherReasonDetails"
+                type="text"
+                value={otherDetails}
+                onChange={(e) => setOtherDetails(e.target.value)}
+                placeholder="Detalle el motivo aquí..."
+                className="w-full h-11 px-4 bg-slate-50/50 border border-slate-200 text-xs font-bold text-slate-800 rounded-2xl focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all"
+              />
+            </div>
+          )}
+
+          {/* Camera upload */}
+          <div className="space-y-1.5">
+            <span className="block text-[9px] font-black uppercase text-slate-400 tracking-wider">Foto-Evidencia Obligatoria:</span>
+            
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl min-h-[140px] relative overflow-hidden">
+              {photoPreview ? (
+                <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+                  <img src={photoPreview} alt="Evidence Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => { setPhoto(null); setPhotoPreview(null); }}
+                    className="absolute top-2 right-2 p-1.5 bg-slate-900/60 hover:bg-slate-900/80 text-white rounded-full transition-colors cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center gap-2 text-slate-455 hover:text-rose-500 transition-colors cursor-pointer"
+                >
+                  <Camera size={32} className="stroke-[1.5]" />
+                  <span className="text-[10px] font-black uppercase tracking-wider">Tomar Foto / Cargar Imagen</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="px-6 pb-6 pt-2 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="h-12 w-full bg-slate-100 hover:bg-slate-200/60 active:scale-95 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all cursor-pointer disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmClick}
+            disabled={isSaving || !reason || !photo || (reason === "other" && !otherDetails.trim())}
+            className="h-12 w-full bg-rose-500 hover:bg-rose-650 active:scale-95 text-white rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all cursor-pointer disabled:opacity-50 shadow-lg shadow-rose-200"
+          >
+            {isSaving ? "Guardando..." : "Reportar Falla"}
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
