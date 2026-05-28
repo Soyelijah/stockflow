@@ -173,7 +173,14 @@ export function CustomerPortal() {
   // an onSnapshot listener below.
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [customer, setCustomer] = useState<any>(null);
+  // Tier 5.C.6: customer state has 3 distinct phases:
+  //   undefined → /customers snapshot not received yet (post-auth, pre-snapshot)
+  //   null      → snapshot arrived and doc does NOT exist (staff/no-profile guard)
+  //   object    → profile loaded, render portal
+  // Initializing to `null` (as before) collapses "loading" and "no-profile",
+  // causing a brief flash of the Login screen on app cold-start while the
+  // snapshot is in flight.
+  const [customer, setCustomer] = useState<any>(undefined);
 
   // Form state for the login/register/recover/activate screens.
   // - login: returning customer enters email + password.
@@ -1372,6 +1379,17 @@ export function CustomerPortal() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center" aria-label="Cargando">
+        <div className="size-10 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  // Tier 5.C.6: authenticated but /customers snapshot still in flight — show
+  // the same spinner (NOT the Login form). Avoids the cold-start flash where
+  // an already-logged-in customer briefly sees the login screen.
+  if (authUser && customer === undefined) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center" aria-label="Cargando perfil">
         <div className="size-10 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" aria-hidden="true" />
       </div>
     );
