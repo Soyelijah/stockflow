@@ -123,6 +123,247 @@ export function CustomerPortal() {
       claimDetails: "Detalles del Reclamo",
       claimStatus: "Estado del Reclamo",
       claimResolvedMessage: "Tu reclamo ha sido resuelto por soporte.",
+      // Access / Authentication screens
+      accountBenefits: "Accede a tus beneficios.",
+      createAccountSeconds: "Crea tu cuenta en segundos.",
+      recoverAccess: "Recupera el acceso a tu cuenta.",
+      activateLegacyAccount: "Activa tu cuenta de cliente existente.",
+      emailLabel: "Correo Electrónico",
+      passwordLabel: "Contraseña",
+      passwordMin: "Contraseña (mínimo 6)",
+      fullNameLabel: "Tu nombre",
+      fullNamePlaceholder: "Nombre completo",
+      activateNotice: "Si ya compraste en nuestra tienda y el cajero registró tus datos con tu RUT, ingrésalo aquí y te enviaremos un correo para crear tu contraseña.",
+      sendActivationEmail: "Enviar correo de activación",
+      alreadyHaveAccount: "Ya tengo cuenta — Iniciar sesión",
+      notRegisteredYet: "¿No tienes cuenta? Regístrate",
+      forgotPasswordQuestion: "¿Olvidaste tu contraseña?",
+      boughtInStoreActivate: "¿Compraste en nuestra tienda? Activar mi cuenta",
+      enterEmailReset: "Ingresa tu correo y te enviamos un enlace para restablecer tu contraseña.",
+      sendRecoverEmail: "Enviar correo",
+      backToLogin: "Volver al inicio de sesión",
+      emailRequiredError: "Ingresa tu email para enviarte el correo de restablecimiento.",
+      rutRequiredError: "Ingresa tu RUT para activar tu cuenta.",
+      invalidEmailError: "Por favor ingresa un correo electrónico válido.",
+      // Home Screen / Point Widgets
+      accumulatedPoints: "Puntos Acumulados",
+      pointsProgress: "Progreso al siguiente nivel",
+      pushNotifications: "Notificaciones Push",
+      pushSubscribed: "Suscripción Activa v2.0",
+      pushUnsubscribed: "Recibe avisos de despacho en vivo",
+      pushActiveNotice: "Notificaremos inmediatamente los cambios de tu pedido.",
+      pushInactiveNotice: "Se te avisará al preparar y despachar.",
+      connecting: "Conectando…",
+      active: "Activo",
+      redeem: "Canjear",
+      buy: "Comprar",
+      offersForYou: "Ofertas para ti",
+      viewAll: "Ver Todas",
+      welcomeUser: (name: string) => `¡Hola, ${name}!`,
+      pointsLower: "pts",
+      brandVersionText: "CLIENTES",
+      // Coupons & Vouchers Alerts/Metadata
+      loyaltyCouponActive: "¡Cupón Fidelidad por Puntos Activo!",
+      businessCouponActive: "¡Cupón de la Empresa Activo!",
+      loyaltyCouponMessage: (code: string, desc: string) => `Presenta el código "${code}" en la caja del local para aplicar un ${desc}.`,
+      businessCouponMessage: (code: string, desc: string) => `Presenta el código "${code}" en caja para aplicar: ${desc}.`,
+      registeredInSystem: "REGISTRADO EN SISTEMA",
+      pointsMissingForCoupon: (pts: number, desc: string) => `Faltan ${pts} pts para este cupón (${desc})`,
+      // Wallet Screen
+      digitalCardTitle: "Tu Tarjeta Digital",
+      digitalCardNotice: "Presenta este código seguro en caja para identificarte y usar tus cupones sin dictar tu RUT.",
+      secureDynamicCode: "CÓDIGO DINÁMICO SEGURO",
+      updateInSeconds: (sec: number) => `Se actualiza en ${sec}s`,
+      numericOtpToken: "Token Numérico de Entrada",
+      manualEntryNotice: "Ingreso manual en caja si el lector óptico está apagado",
+      prepaidDigitalWallet: "Billetera Prepago Digital",
+      chargeSuccessTitle: "Carga Exitosa",
+      chargeSuccessMessage: "Se han cargado $10.000 CLP de forma simulada vía Flow. ¡Tu saldo se actualizó al instante!",
+      chargeSuccessMessage50: "Se han cargado $50.000 CLP de forma simulada vía Flow. ¡Tu saldo se actualizó al instante!",
+      simulationNotice: "Recarga instantánea simulada para validar la unificación del saldo electrónico con el punto de venta (POS) en tiempo real.",
+      screenshotProtected: "Protegido contra capturas de pantalla y suplantación",
+      closeCard: "Cerrar Tarjeta",
+      // Sidebar Drawer Screen
+      myAccount: "Mi Cuenta",
+      configAndSupport: "Configuración y Soporte",
+      uploadProfilePhoto: "Subir foto de perfil",
+      profileVerified: "Perfil Verificado",
+      memberTier: (tier: string) => `Socio ${tier}`,
+      idVerifiedBadge: "ID Verificado",
+      uploadPhotoToVerify: "Sube una foto para verificar tu ID",
+      registeredRut: "RUT Registrado",
+      linkedPhone: "Teléfono de Enlace",
+      editContactData: "Editar Datos de Contacto",
+      emailInvoices: "Correo Electrónico (Boletas/Flow)",
+      billingType: "Tipo de Facturación",
+      retailPerson: "Persona Natural (Minorista)",
+      wholesaleCompany: "Empresa (Mayorista)",
+      profileSavedTitle: "¡Perfil Guardado! 🎉",
+      profileSavedMessage: "Tus datos de contacto se actualizaron exitosamente.",
+      saveErrorTitle: "Error al guardar",
+      saveErrorMessage: "Ocurrió un error al actualizar los datos en la base de datos.",
+      saveChanges: "Guardar Cambios",
+      accountAccessHeader: "Accesos Cuenta",
+      rewardsRedemptionMenu: "Canje de Premios",
+      activeCouponsMenu: "Mis Cupones Activos",
+      closeSessionMobile: "Cerrar Sesión Móvil",
+      noRegistered: "No registrado",
+      // E-commerce Online Shop Tab
+      itemsCount: (count: number, label: string) => `${count} ${label}`,
+      itemsPlural: "Artículos",
+      itemsSingular: "Artículo",
+      searchPlaceholder: "Buscar marca, SKU o nombre…",
+      viewGrid: "Vista de Cuadrícula",
+      viewList: "Lista de Pedido Rápido",
+      allCategory: "Todo",
+      showingCountOf: (show: number, total: number) => `Viendo ${show} de ${total} productos`,
+      sortByLabel: "Ordenar:",
+      sortName: "Alfabético",
+      sortPriceAsc: "Precio: Menor a Mayor",
+      sortPriceDesc: "Precio: Mayor a Menor",
+      sortDiscount: "Mejor Oferta/Mayorista",
+      noMatchesTitle: "Sin coincidencias",
+      noMatchesDesc: "Prueba ajustando la búsqueda o seleccionando otra de tus categorías.",
+      resetFilters: "Restablecer Filtros",
+      lowStockBadge: (stock: number) => `Poco Stock (${stock})`,
+      wholesalePricingBadge: "Precio Mayorista",
+      wholesaleMinUnit: (price: string, qty: number) => `${price} bulto (${qty}+)`,
+      stockLimitTitle: "Límite de Stock",
+      stockLimitMessage: (stock: number) => `Únicamente hay ${stock} unidades de este producto en inventario.`,
+      addBtn: "Añadir",
+      loadMoreBtn: "Cargar más artículos",
+      processingBtn: "PROCESANDO…",
+      reviewOrderBtn: "REVISAR PEDIDO",
+      // Shopping Cart Modal
+      orderCartTitle: "Tu Pedido",
+      cartEmptyText: "Tu carrito está vacío",
+      hasCouponLabel: "¿Tienes un cupón?",
+      removeLabel: "Quitar",
+      couponPlaceholder: "CÓDIGO (ej. SUMMER15)",
+      applyLabel: "Aplicar",
+      subtotalLabel: "Subtotal",
+      discountLabel: "Descuento",
+      estimatedTotalLabel: "Total Estimado",
+      confirmOrderTitle: "Confirmar Pedido",
+      confirmOrderMsg: (total: string) => `Estás a punto de procesar tu compra por ${total}. Serás redirigido a Flow para realizar el pago de forma segura.`,
+      finishCheckoutBtn: "Finalizar Compra",
+      // Notifications Modal
+      notificationsTitle: "Notificaciones",
+      notificationsEmpty: "No tienes notificaciones por ahora",
+      closeBtn: "Cerrar",
+      // Receipt Details Modal
+      receiptTitle: "Comprobante de Compra",
+      docLabel: "Documento",
+      orderCodeLabel: "Código de Orden",
+      dateTimeLabel: "Fecha & Hora",
+      attendedByLabel: "Atendido por",
+      attendedAutoApp: "Auto-Atención App",
+      attendedCashier: (name: string) => `Cajero: ${name}`,
+      attendedCashierDefault: "Cajero de Turno",
+      purchaseTypeLabel: "Tipo de Compra",
+      purchaseTypeApp: "Pedido Online (App)",
+      purchaseTypePos: "Compra Presencial (POS)",
+      deliveryMethodLabel: "Método de Entrega",
+      deliveryMethodApp: "Retiro en Local 🏬",
+      deliveryMethodPos: "Entrega Presencial 🤝",
+      productDetailHeader: "Detalle de Productos",
+      qtyUnitsTimes: (qty: number, plural: string, price: string) => `${qty} unidad${plural} x ${price}`,
+      pluralSuffix: "s",
+      singularSuffix: "",
+      shippedFromBranch: (name: string) => `Despachado desde ${name}`,
+      receiptSubtotal: "Subtotal de Compra:",
+      receiptTotalPaid: "Total Pagado:",
+      fidelityPointsReward: "Puntos de Fidelidad",
+      fidelityPointsMessage: "Acumulados con este recibo",
+      deliveryProofTitle: "📦 Comprobante de Entrega Digital",
+      receivedByLabel: "Recibido por:",
+      deliveredBadge: "Entregado ✓",
+      digitalSignatureTitle: "Firma digital registrada:",
+      digitalSignatureAlt: "Firma del Cliente",
+      internalReceiptWarning: "COMPROBANTE INTERNO DE COMPRA — NO VÁLIDO COMO BOLETA ELECTRÓNICA",
+      siiStampHeader: "TIMBRE ELECTRÓNICO SII",
+      siiStampDesc: (folio: string) => `DTE Boleta Electrónica - Folio ${folio}`,
+      siiPendingWarning: "SOLICITE EL COMPROBANTE SII TRAS LA SINCRONIZACIÓN EN LÍNEA",
+      verificationCodeLabel: "Código de Verificación",
+      printBtn: "Imprimir",
+      loading: "Cargando...",
+      loadingProfile: "Cargando perfil...",
+      slogan: "Donde cada venta construye confianza.",
+      levelLabel: "Nivel",
+      closeNotification: "Cerrar notificación",
+      claimResolvedTitle: "Reclamo Resuelto",
+      claimResolvedMsg: (id: string) => `Tu caso para el Pedido #${id} fue resuelto con éxito`,
+      fulfillmentResponse: "Respuesta de Bodega",
+      understood: "Entendido",
+      activeStatus: "Activo",
+      activateBtn: "Activar",
+      pointsNoticeCart: "¡Suma puntos con tus compras para activar cupones automáticos! 🛒",
+      startNav: "Inicio",
+      receiptsNav: "Boletas",
+      couponsNav: "Cupones",
+      deliveryNav: "Envíos",
+      myReceipts: "Mis Boletas",
+      satisfactionGuarantee: "Garantía de Satisfacción",
+      satisfactionGuaranteeDesc: "¿Un producto llegó dañado o faltó en tu envío? No te preocupes. Selecciona una boleta en \"Mis Boletas\" e inicia tu reclamo con foto de evidencia para reembolso inmediato.",
+      resolvedStatus: "Resuelto / Solucionado",
+      rejectedStatus: "Cerrado - Rechazado",
+      pendingStatus: "Pendiente de Revisión",
+      purchaseClaimLabel: "Reclamo de Compra",
+      orderLabel: "Orden",
+      attachedEvidenceLabel: "Evidencia Adjunta",
+      claimEvidenceTitle: "Evidencia de Reclamo",
+      claimEvidenceDesc: "Fotografía cargada por el cliente como evidencia física del problema.",
+      noClaimsLogged: "No has ingresado ningún reclamo",
+      rewardsTitle: "Canje de Premios Físicos",
+      rewardsSubtitle: "Fidelidad y Regalos Directos",
+      pointsEquivTitle: "Equivalencia aproximada",
+      pointsEquivDesc: "10 PTS = $100 CLP en productos",
+      redeemRewardBtn: "Canjear Regalo",
+      pointsMissingReward: (pts: number) => `Faltan ${pts} pts`,
+      noRedemptions: "Aún no tienes canjes acumulados",
+      viewRewardsCatalog: "Ver Catálogo de Premios",
+      pendingPickup: "Por Retirar",
+      delivered: "Entregado",
+      redeemedOn: (date: string) => `Canjeado el ${date}`,
+      redemptionPickupNotice: "Presenta este código QR o tu RUT en caja para retirar tu producto físico inmediatamente.",
+      redemptionDeliveredNotice: "Este producto ya te fue entregado por un vendedor en la tienda de forma exitosa.",
+      confirmRewardTitle: "Confirmar Canje de Regalo",
+      cancelBtn: "Cancelar",
+      confirmRedeemBtn: "Confirmar Canje",
+      challengesTitle: "Academia de Desafíos Semanales",
+      challengesSubtitle: "¡Completa misiones y suma puntos!",
+      chCompradorEstrella: "Comprador Estrella ⭐",
+      chCompradorEstrellaDesc: "Acumula un mínimo de $50.000 CLP en compras totales en el local.",
+      chEcoBoleta: "Eco-Comprador Boleta Digital 🌱",
+      chEcoBoletaDesc: "Mantén un correo registrado para recibir tus boletas y facturas 100% digitales.",
+      chMayoristaPro: "Inversionista Mayorista 📦",
+      chMayoristaProDesc: "Suma un acumulado histórico de 1.000 Puntos de Fidelidad.",
+      chSocioPionero: "Socio Pionero Dorado 🏆",
+      chSocioPioneroDesc: "Registra al menos 3 transacciones o boletas en el historial.",
+      completed: "Completado",
+      progressLabel: "Progreso",
+      challengeClaimedSuccess: "✓ Desafío Reclamado con Éxito",
+      claimExtraRewardBtn: "Reclamar Premio Extra",
+      locked: "Bloqueado",
+      challengeClaimedAlertTitle: "✨ ¡Desafío Reclamado! ✨",
+      challengeClaimedAlertMessage: (title: string, points: number) => `Felicidades, has desbloqueado "${title}" y ganado un bono de +${points} Puntos extra para canjear regalos.`,
+      generalClaimTitle: "Reclamo General Chile",
+      reasonBroken: "Llegó roto / dañado",
+      reasonMissing: "Faltó un producto en el envío",
+      reasonWrong: "Recibí un producto equivocado",
+      reasonDefect: "Defecto de calidad/fábrica",
+      reasonOther: "Otro inconveniente",
+      claimPlaceholder: "Explica detalladamente qué sucedió con tu producto o pedido…",
+      characters: "caracteres",
+      evidenceLabel: "Foto de Evidencia (Físico/Empaque)",
+      camera: "CÁMARA",
+      cameraInstruction: "Toma una fotografía clara del producto roto, vencido o del empaque completo.",
+      claimRegisteredTitle: "¡Reclamo Registrado!",
+      claimRegisteredMessage: "Tu caso fue subido con éxito y enviado a bodega. Estaremos evaluando tu caso de inmediato.",
+      claimErrorTitle: "Error de Envío",
+      claimErrorMessage: "No se pudo registrar el reclamo. Verifica tu conexión a internet e intenta nuevamente.",
+      submitCaseBtn: "Enviar Caso",
+      xWholesale: "xMayor"
     },
     en: {
       points: "Flow Points",
@@ -164,6 +405,247 @@ export function CustomerPortal() {
       claimDetails: "Claim Details",
       claimStatus: "Claim Status",
       claimResolvedMessage: "Your claim has been resolved by our support team.",
+      // Access / Authentication screens
+      accountBenefits: "Access your benefits.",
+      createAccountSeconds: "Create your account in seconds.",
+      recoverAccess: "Recover access to your account.",
+      activateLegacyAccount: "Activate your existing customer account.",
+      emailLabel: "Email Address",
+      passwordLabel: "Password",
+      passwordMin: "Password (minimum 6)",
+      fullNameLabel: "Your name",
+      fullNamePlaceholder: "Full name",
+      activateNotice: "If you already bought in our store and the cashier registered your details with your RUT, enter it here and we will send you an email to create your password.",
+      sendActivationEmail: "Send activation email",
+      alreadyHaveAccount: "Already have an account — Log In",
+      notRegisteredYet: "Don't have an account? Sign Up",
+      forgotPasswordQuestion: "Forgot your password?",
+      boughtInStoreActivate: "Bought in our store? Activate my account",
+      enterEmailReset: "Enter your email and we will send you a link to reset your password.",
+      sendRecoverEmail: "Send email",
+      backToLogin: "Back to Login",
+      emailRequiredError: "Enter your email to send the reset link.",
+      rutRequiredError: "Enter your RUT to activate your account.",
+      invalidEmailError: "Please enter a valid email address.",
+      // Home Screen / Point Widgets
+      accumulatedPoints: "Accumulated Points",
+      pointsProgress: "Progress to next level",
+      pushNotifications: "Push Notifications",
+      pushSubscribed: "Subscription Active v2.0",
+      pushUnsubscribed: "Receive live delivery alerts",
+      pushActiveNotice: "We will notify you immediately of changes to your order.",
+      pushInactiveNotice: "You will be notified upon preparation and dispatch.",
+      connecting: "Connecting…",
+      active: "Active",
+      redeem: "Redeem",
+      buy: "Shop",
+      offersForYou: "Offers for you",
+      viewAll: "View All",
+      welcomeUser: (name: string) => `Hello, ${name}!`,
+      pointsLower: "pts",
+      brandVersionText: "CLIENTS",
+      // Coupons & Vouchers Alerts/Metadata
+      loyaltyCouponActive: "Loyalty Coupon Points Active!",
+      businessCouponActive: "Company Coupon Active!",
+      loyaltyCouponMessage: (code: string, desc: string) => `Present code "${code}" at checkout to apply ${desc}.`,
+      businessCouponMessage: (code: string, desc: string) => `Present code "${code}" at checkout to apply: ${desc}.`,
+      registeredInSystem: "REGISTERED IN SYSTEM",
+      pointsMissingForCoupon: (pts: number, desc: string) => `${pts} pts left for this coupon (${desc})`,
+      // Wallet Screen
+      digitalCardTitle: "Your Digital Card",
+      digitalCardNotice: "Present this secure code at checkout to identify yourself and use your coupons without dictating your RUT.",
+      secureDynamicCode: "SECURE DYNAMIC CODE",
+      updateInSeconds: (sec: number) => `Updates in ${sec}s`,
+      numericOtpToken: "Numeric Entry Token",
+      manualEntryNotice: "Manual entry at register if the optical reader is turned off",
+      prepaidDigitalWallet: "Prepaid Digital Wallet",
+      chargeSuccessTitle: "Top-up Successful",
+      chargeSuccessMessage: "Simulated $10,000 CLP has been loaded via Flow. Your balance updated instantly!",
+      chargeSuccessMessage50: "Simulated $50,000 CLP has been loaded via Flow. Your balance updated instantly!",
+      simulationNotice: "Simulated instant reload to validate integration of electronic balance with checkout (POS) in real time.",
+      screenshotProtected: "Protected against screenshots and spoofing",
+      closeCard: "Close Card",
+      // Sidebar Drawer Screen
+      myAccount: "My Account",
+      configAndSupport: "Settings & Support",
+      uploadProfilePhoto: "Upload profile photo",
+      profileVerified: "Profile Verified",
+      memberTier: (tier: string) => `${tier} Member`,
+      idVerifiedBadge: "ID Verified",
+      uploadPhotoToVerify: "Upload a photo to verify your ID",
+      registeredRut: "Registered RUT",
+      linkedPhone: "Link Phone",
+      editContactData: "Edit Contact Details",
+      emailInvoices: "Email Address (Receipts/Flow)",
+      billingType: "Billing Type",
+      retailPerson: "Natural Person (Retail)",
+      wholesaleCompany: "Company (Wholesale)",
+      profileSavedTitle: "Profile Saved! 🎉",
+      profileSavedMessage: "Your contact details have been successfully updated.",
+      saveErrorTitle: "Error saving",
+      saveErrorMessage: "An error occurred while updating the data in the database.",
+      saveChanges: "Save Changes",
+      accountAccessHeader: "Account Access",
+      rewardsRedemptionMenu: "Rewards Redemption",
+      activeCouponsMenu: "My Active Coupons",
+      closeSessionMobile: "Log Out Mobile",
+      noRegistered: "Not registered",
+      // E-commerce Online Shop Tab
+      itemsCount: (count: number, label: string) => `${count} ${label}`,
+      itemsPlural: "Items",
+      itemsSingular: "Item",
+      searchPlaceholder: "Search brand, SKU or name…",
+      viewGrid: "Grid View",
+      viewList: "Quick Order List",
+      allCategory: "All",
+      showingCountOf: (show: number, total: number) => `Showing ${show} of ${total} products`,
+      sortByLabel: "Sort by:",
+      sortName: "Alphabetical",
+      sortPriceAsc: "Price: Low to High",
+      sortPriceDesc: "Price: High to Low",
+      sortDiscount: "Best Offer/Wholesale",
+      noMatchesTitle: "No matches found",
+      noMatchesDesc: "Try adjusting your search or selecting another category.",
+      resetFilters: "Reset Filters",
+      lowStockBadge: (stock: number) => `Low Stock (${stock})`,
+      wholesalePricingBadge: "Wholesale Price",
+      wholesaleMinUnit: (price: string, qty: number) => `${price} bulk (${qty}+)`,
+      stockLimitTitle: "Stock Limit",
+      stockLimitMessage: (stock: number) => `Only ${stock} units of this product are in stock.`,
+      addBtn: "Add",
+      loadMoreBtn: "Load more items",
+      processingBtn: "PROCESSING…",
+      reviewOrderBtn: "REVIEW ORDER",
+      // Shopping Cart Modal
+      orderCartTitle: "Your Order",
+      cartEmptyText: "Your cart is empty",
+      hasCouponLabel: "Have a coupon?",
+      removeLabel: "Remove",
+      couponPlaceholder: "CODE (e.g. SUMMER15)",
+      applyLabel: "Apply",
+      subtotalLabel: "Subtotal",
+      discountLabel: "Discount",
+      estimatedTotalLabel: "Estimated Total",
+      confirmOrderTitle: "Confirm Order",
+      confirmOrderMsg: (total: string) => `You are about to process your purchase for ${total}. You will be redirected to Flow to make the payment securely.`,
+      finishCheckoutBtn: "Checkout",
+      // Notifications Modal
+      notificationsTitle: "Notifications",
+      notificationsEmpty: "You don't have notifications right now",
+      closeBtn: "Close",
+      // Receipt Details Modal
+      receiptTitle: "Purchase Receipt",
+      docLabel: "Document",
+      orderCodeLabel: "Order Code",
+      dateTimeLabel: "Date & Time",
+      attendedByLabel: "Attended by",
+      attendedAutoApp: "App Self-Service",
+      attendedCashier: (name: string) => `Cashier: ${name}`,
+      attendedCashierDefault: "Cashier on Duty",
+      purchaseTypeLabel: "Purchase Type",
+      purchaseTypeApp: "Online Order (App)",
+      purchaseTypePos: "In-Store Purchase (POS)",
+      deliveryMethodLabel: "Delivery Method",
+      deliveryMethodApp: "In-Store Pickup 🏬",
+      deliveryMethodPos: "Hand Delivery 🤝",
+      productDetailHeader: "Product Details",
+      qtyUnitsTimes: (qty: number, plural: string, price: string) => `${qty} unit${plural} x ${price}`,
+      pluralSuffix: "s",
+      singularSuffix: "",
+      shippedFromBranch: (name: string) => `Shipped from ${name}`,
+      receiptSubtotal: "Purchase Subtotal:",
+      receiptTotalPaid: "Total Paid:",
+      fidelityPointsReward: "Fidelity Points",
+      fidelityPointsMessage: "Earned with this receipt",
+      deliveryProofTitle: "📦 Digital Delivery Proof",
+      receivedByLabel: "Received by:",
+      deliveredBadge: "Delivered ✓",
+      digitalSignatureTitle: "Registered digital signature:",
+      digitalSignatureAlt: "Customer Signature",
+      internalReceiptWarning: "INTERNAL PURCHASE PROOF — NOT VALID AS OFFICIAL ELECTRONIC RECEIPT",
+      siiStampHeader: "SII ELECTRONIC STAMP",
+      siiStampDesc: (folio: string) => `SII Electronic Receipt - Folio ${folio}`,
+      siiPendingWarning: "REQUEST SII PROOF AFTER ONLINE SYNCHRONIZATION",
+      verificationCodeLabel: "Verification Code",
+      printBtn: "Print",
+      loading: "Loading...",
+      loadingProfile: "Loading profile...",
+      slogan: "Where every sale builds trust.",
+      levelLabel: "Level",
+      closeNotification: "Close notification",
+      claimResolvedTitle: "Claim Resolved",
+      claimResolvedMsg: (id: string) => `Your ticket for Order #${id} was successfully resolved`,
+      fulfillmentResponse: "Fulfillment Response",
+      understood: "Understood",
+      activeStatus: "Active",
+      activateBtn: "Activate",
+      pointsNoticeCart: "Earn points with your purchases to activate automatic coupons! 🛒",
+      startNav: "Home",
+      receiptsNav: "Receipts",
+      couponsNav: "Coupons",
+      deliveryNav: "Delivery",
+      myReceipts: "My Receipts",
+      satisfactionGuarantee: "Satisfaction Guarantee",
+      satisfactionGuaranteeDesc: "Did a product arrive damaged or was it missing from your shipment? Don't worry. Select any receipt in \"My Receipts\" and file a claim with photos for immediate replacement.",
+      resolvedStatus: "Resolved / Closed",
+      rejectedStatus: "Closed - Rejected",
+      pendingStatus: "Pending Review",
+      purchaseClaimLabel: "Purchase Claim",
+      orderLabel: "Order",
+      attachedEvidenceLabel: "Attached Evidence",
+      claimEvidenceTitle: "Claim Evidence",
+      claimEvidenceDesc: "Photograph uploaded by the customer as physical evidence of the issue.",
+      noClaimsLogged: "You have not logged any claims",
+      rewardsTitle: "Physical Rewards Redemption",
+      rewardsSubtitle: "Loyalty & Direct Gifts",
+      pointsEquivTitle: "Approximate equivalence",
+      pointsEquivDesc: "10 PTS = $100 CLP in products",
+      redeemRewardBtn: "Redeem Gift",
+      pointsMissingReward: (pts: number) => `Missing ${pts} pts`,
+      noRedemptions: "You don't have redemptions yet",
+      viewRewardsCatalog: "View Rewards Catalog",
+      pendingPickup: "Pending Pickup",
+      delivered: "Delivered",
+      redeemedOn: (date: string) => `Redeemed on ${date}`,
+      redemptionPickupNotice: "Present this QR code or your RUT at checkout to retrieve your physical product immediately.",
+      redemptionDeliveredNotice: "This product has already been successfully delivered to you by a cashier in the store.",
+      confirmRewardTitle: "Confirm Gift Redemption",
+      cancelBtn: "Cancel",
+      confirmRedeemBtn: "Confirm Redemption",
+      challengesTitle: "Weekly Challenges Academy",
+      challengesSubtitle: "Complete missions and earn points!",
+      chCompradorEstrella: "Star Shopper ⭐",
+      chCompradorEstrellaDesc: "Accumulate a minimum of $50,000 CLP in total purchases at the store.",
+      chEcoBoleta: "Eco-Shopper Digital Receipt 🌱",
+      chEcoBoletaDesc: "Keep a registered email to receive your receipts and invoices 100% digitally.",
+      chMayoristaPro: "Wholesale Investor 📦",
+      chMayoristaProDesc: "Accumulate a lifetime total of 1,000 Loyalty Points.",
+      chSocioPionero: "Golden Pioneer Member 🏆",
+      chSocioPioneroDesc: "Register at least 3 transactions or receipts in your history.",
+      completed: "Completed",
+      progressLabel: "Progress",
+      challengeClaimedSuccess: "✓ Challenge Successfully Claimed",
+      claimExtraRewardBtn: "Claim Extra Reward",
+      locked: "Locked",
+      challengeClaimedAlertTitle: "✨ Challenge Claimed! ✨",
+      challengeClaimedAlertMessage: (title: string, points: number) => `Congratulations, you have unlocked "${title}" and earned a bonus of +${points} extra Points to redeem gifts.`,
+      generalClaimTitle: "General Claim Chile",
+      reasonBroken: "Arrived broken / damaged",
+      reasonMissing: "Missing item in delivery",
+      reasonWrong: "Received wrong item",
+      reasonDefect: "Quality/Factory defect",
+      reasonOther: "Other issue",
+      claimPlaceholder: "Please describe in detail what happened to your product or order…",
+      characters: "characters",
+      evidenceLabel: "Evidence Photo (Physical/Package)",
+      camera: "CAMERA",
+      cameraInstruction: "Take a clear picture of the damaged, expired product or of the entire package.",
+      claimRegisteredTitle: "Claim Registered!",
+      claimRegisteredMessage: "Your claim was successfully uploaded and sent to the warehouse. We will evaluate your case immediately.",
+      claimErrorTitle: "Submission Error",
+      claimErrorMessage: "Could not submit your claim. Please check your internet connection and try again.",
+      submitCaseBtn: "Submit Case",
+      xWholesale: "Wholesale"
     }
   };
 
@@ -506,29 +988,35 @@ export function CustomerPortal() {
       const lastTx = transactions[0];
       const points = lastTx.pointsEarned || Math.floor((lastTx.amount || 0) / 1000);
       
-      let timeStr = "Hace unos minutos";
+      let timeStr = lang === "es" ? "Hace unos minutos" : "A few minutes ago";
       if (lastTx.timestamp) {
         try {
           const date = toDate(lastTx.timestamp);
           const diffMs = Date.now() - date.getTime();
           const diffMins = Math.floor(diffMs / 60000);
           if (diffMins < 0) {
-            timeStr = "Reciente";
+            timeStr = lang === "es" ? "Reciente" : "Recent";
           } else if (diffMins < 60) {
-            timeStr = diffMins <= 1 ? "Hace un momento" : `Hace ${diffMins} minutos`;
+            timeStr = diffMins <= 1 
+              ? (lang === "es" ? "Hace un momento" : "Just now") 
+              : (lang === "es" ? `Hace ${diffMins} minutos` : `${diffMins} minutes ago`);
           } else if (diffMins < 1440) {
             const diffHours = Math.floor(diffMins / 60);
-            timeStr = `Hace ${diffHours} hr${diffHours > 1 ? "s" : ""}`;
+            timeStr = lang === "es" 
+              ? `Hace ${diffHours} hr${diffHours > 1 ? "s" : ""}` 
+              : `${diffHours} hr${diffHours > 1 ? "s" : ""} ago`;
           } else {
-            timeStr = date.toLocaleDateString("es-CL");
+            timeStr = date.toLocaleDateString(lang === "es" ? "es-CL" : "en-US");
           }
         } catch (_) {}
       }
 
       list.push({
         id: `tx-${lastTx.id}`,
-        title: "Puntos Recibidos",
-        message: `¡Ganaste ${points} puntos en tu última compra de ${formatCurrency(lastTx.amount)}!`,
+        title: lang === "es" ? "Puntos Recibidos" : "Points Received",
+        message: lang === "es" 
+          ? `¡Ganaste ${points} puntos en tu última compra de ${formatCurrency(lastTx.amount)}!`
+          : `You earned ${points} points on your last purchase of ${formatCurrency(lastTx.amount)}!`,
         timeText: timeStr,
         accent: "text-indigo-600 bg-indigo-50 border-indigo-100",
         icon: "puntos"
@@ -536,9 +1024,11 @@ export function CustomerPortal() {
     } else {
       list.push({
         id: "msg-welcome-purchase",
-        title: "Bienvenido",
-        message: "¡Realiza tu primera compra desde la tienda y acumula 1 punto por cada $1.000 CLP!",
-        timeText: "Reciente",
+        title: lang === "es" ? "Bienvenido" : "Welcome",
+        message: lang === "es" 
+          ? "¡Realiza tu primera compra desde la tienda y acumula 1 punto por cada $1.000 CLP!"
+          : "Make your first purchase from the store and earn 1 point for every $1,000 CLP!",
+        timeText: lang === "es" ? "Reciente" : "Recent",
         accent: "text-indigo-600 bg-indigo-50 border-indigo-100",
         icon: "puntos"
       });
@@ -560,18 +1050,22 @@ export function CustomerPortal() {
       }
       list.push({
         id: `tier-goal-${nextTierName.toLowerCase()}`,
-        title: "Meta de Nivel",
-        message: `Estás a sólo ${pointsNeeded} puntos de alcanzar el nivel ${nextTierName} y desbloquear nuevos beneficios.`,
-        timeText: "Meta Activa",
+        title: lang === "es" ? "Meta de Nivel" : "Tier Goal",
+        message: lang === "es" 
+          ? `Estás a sólo ${pointsNeeded} puntos de alcanzar el nivel ${nextTierName} y desbloquear nuevos beneficios.`
+          : `You are only ${pointsNeeded} points away from reaching the ${nextTierName} tier and unlocking new benefits.`,
+        timeText: lang === "es" ? "Meta Activa" : "Active Goal",
         accent: "text-emerald-600 bg-emerald-50 border-emerald-100",
         icon: "meta"
       });
     } else {
       list.push({
         id: "tier-plat-max",
-        title: "¡Nivel Máximo!",
-        message: "¡Felicitaciones! Has alcanzado el nivel Platinum, la categoría más exclusiva de StockFlow Pro.",
-        timeText: "Meta Completada",
+        title: lang === "es" ? "¡Nivel Máximo!" : "Max Tier!",
+        message: lang === "es" 
+          ? `¡Felicitaciones! Has alcanzado el nivel Platinum, la categoría más exclusiva de ${settings.businessName || "StockFlow"} Pro.`
+          : `Congratulations! You have reached Platinum level, the most exclusive category of ${settings.businessName || "StockFlow"} Pro.`,
+        timeText: lang === "es" ? "Meta Completada" : "Goal Completed",
         accent: "text-emerald-600 bg-emerald-50 border-emerald-100",
         icon: "meta"
       });
@@ -587,11 +1081,15 @@ export function CustomerPortal() {
       
       list.push({
         id: "active-coupons-alert",
-        title: "Beneficio Exclusivo",
+        title: lang === "es" ? "Beneficio Exclusivo" : "Exclusive Benefit",
         message: bestAuto 
-          ? `¡Tienes ${itemsCount} beneficios listos! Tu "${bestAuto.title}" (${bestAuto.desc}) está activo con tus ${currentPoints} puntos.`
-          : `¡Tienes ${itemsCount} cupones activos de la empresa para canjear en tu próxima visita!`,
-        timeText: "Activo",
+          ? (lang === "es" 
+              ? `¡Tienes ${itemsCount} beneficios listos! Tu "${bestAuto.title}" (${bestAuto.desc}) está activo con tus ${currentPoints} puntos.`
+              : `You have ${itemsCount} benefits ready! Your "${bestAuto.title}" (${bestAuto.desc}) is active with your ${currentPoints} points.`)
+          : (lang === "es" 
+              ? `¡Tienes ${itemsCount} cupones activos de la empresa para canjear en tu próxima visita!`
+              : `You have ${itemsCount} active company coupons to redeem on your next visit!`),
+        timeText: lang === "es" ? "Activo" : "Active",
         accent: "text-amber-600 bg-amber-50 border-amber-100",
         icon: "oferta"
       });
@@ -599,18 +1097,22 @@ export function CustomerPortal() {
       const nextLocked = AUTOMATIC_POINT_COUPONS.find(c => currentPoints < c.requiredPoints);
       list.push({
         id: "no-coupons-yet",
-        title: "Beneficio en Camino",
+        title: lang === "es" ? "Beneficio en Camino" : "Benefit on the Way",
         message: nextLocked 
-          ? `Acumula ${nextLocked.requiredPoints - currentPoints} puntos más para desbloquear automáticamente tu "${nextLocked.title}" (${nextLocked.desc}).`
-          : "¡Suma puntos con tus compras en el local para activar tus primeros cupones automáticos de fidelidad!",
-        timeText: "Próximo Canje",
+          ? (lang === "es" 
+              ? `Acumula ${nextLocked.requiredPoints - currentPoints} puntos más para desbloquear automáticamente tu "${nextLocked.title}" (${nextLocked.desc}).`
+              : `Accumulate ${nextLocked.requiredPoints - currentPoints} more points to automatically unlock your "${nextLocked.title}" (${nextLocked.desc}).`)
+          : (lang === "es" 
+              ? "¡Suma puntos con tus compras en el local para activar tus primeros cupones automáticos de fidelidad!"
+              : "Earn points with your purchases at the store to activate your first automatic loyalty coupons!"),
+        timeText: lang === "es" ? "Próximo Canje" : "Next Redemption",
         accent: "text-amber-600 bg-amber-50 border-amber-100",
         icon: "oferta"
       });
     }
 
     return list;
-  }, [customer, transactions, coupons]);
+  }, [customer, transactions, coupons, lang, settings.businessName]);
 
   // Handle auto-reset hasUnread when opened
   useEffect(() => {
@@ -703,12 +1205,14 @@ export function CustomerPortal() {
         setAlertConfig({
           isOpen: true,
           type: "success",
-          title: "Foto de Perfil Verde",
-          message: "Tu fotografía se ha subido y tu perfil ha sido verificado con éxito por StockFlow."
+          title: lang === "es" ? "Foto de Perfil Subida" : "Profile Photo Uploaded",
+          message: lang === "es" 
+            ? `Tu fotografía se ha subido y tu perfil ha sido verificado con éxito por ${settings.businessName || "StockFlow"}.` 
+            : `Your photo has been uploaded and your profile has been successfully verified by ${settings.businessName || "StockFlow"}.`
         });
       } catch (err) {
         console.error("Error updating profile photo icon", err);
-        setError("Error al cargar tu foto de perfil.");
+        setError(lang === "es" ? "Error al cargar tu foto de perfil." : "Error uploading your profile photo.");
       } finally {
         setIsUploadingPhoto(false);
       }
@@ -722,8 +1226,10 @@ export function CustomerPortal() {
       setAlertConfig({
         isOpen: true,
         type: "error",
-        title: "Puntos Insuficientes",
-        message: `Necesitas ${reward.pointsCost} puntos para canjear este premio. Actualmente tienes ${customer.points || 0} puntos.`
+        title: lang === "es" ? "Puntos Insuficientes" : "Insufficient Points",
+        message: lang === "es" 
+          ? `Necesitas ${reward.pointsCost} puntos para canjear este premio. Actualmente tienes ${customer.points || 0} puntos.`
+          : `You need ${reward.pointsCost} points to redeem this reward. You currently have ${customer.points || 0} points.`
       });
       return;
     }
@@ -772,8 +1278,10 @@ export function CustomerPortal() {
       setAlertConfig({
         isOpen: true,
         type: "success",
-        title: "¡Canje Realizado con Éxito! 🎉",
-        message: `Has canjeado ${reward.pointsCost} puntos por "${reward.name}". Muestra tu código de canje "${validationCode}" en caja para retirar tu producto físico.`
+        title: lang === "es" ? "¡Canje Realizado con Éxito! 🎉" : "Redemption Successful! 🎉",
+        message: lang === "es"
+          ? `Has canjeado ${reward.pointsCost} puntos por "${reward.name}". Muestra tu código de canje "${validationCode}" en caja para retirar tu producto físico.`
+          : `You have redeemed ${reward.pointsCost} points for "${reward.name}". Present your redemption code "${validationCode}" at checkout to retrieve your physical product.`
       });
       
       setRewardViewTab("vouchers");
@@ -782,8 +1290,8 @@ export function CustomerPortal() {
       setAlertConfig({
         isOpen: true,
         type: "error",
-        title: "Error en el canje",
-        message: "Ocurrió un error al procesar tu canje: " + e.message
+        title: lang === "es" ? "Error en el canje" : "Redemption Error",
+        message: (lang === "es" ? "Ocurrió un error al procesar tu canje: " : "An error occurred while processing your redemption: ") + e.message
       });
     } finally {
       setLoading(false);
@@ -832,12 +1340,12 @@ export function CustomerPortal() {
       if (data.status === 2) {
         await finalizeOrder();
       } else if (data.status === 1) {
-        setError("Pago en proceso…");
+        setError(lang === "es" ? "Pago en proceso…" : "Payment processing…");
       } else {
-        setError("El pago no fue completado.");
+        setError(lang === "es" ? "El pago no fue completado." : "Payment was not completed.");
       }
     } catch (err) {
-      setError("Error al verificar pago.");
+      setError(lang === "es" ? "Error al verificar pago." : "Error verifying payment.");
     } finally {
       setLoading(false);
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -879,8 +1387,10 @@ export function CustomerPortal() {
     setAlertConfig({
       isOpen: true,
       type: "success",
-      title: "¡Pago Confirmado!",
-      message: `Gracias por tu compra. Ganaste ${pointsToEarn} puntos. Tu pedido está siendo preparado para retiro en tienda.`
+      title: lang === "es" ? "¡Pago Confirmado!" : "Payment Confirmed!",
+      message: lang === "es"
+        ? `Gracias por tu compra. Ganaste ${pointsToEarn} puntos. Tu pedido está siendo preparado para retiro en tienda.`
+        : `Thank you for your purchase. You earned ${pointsToEarn} points. Your order is being prepared for in-store pickup.`
     });
     setCart([]);
     setActiveTab("home");
@@ -1229,7 +1739,11 @@ export function CustomerPortal() {
     setError("");
     setSuccess("");
     if (!rut.trim()) {
-      setError("Ingresa tu RUT para activar tu cuenta.");
+      setError(lang === "es" ? "Ingresa tu RUT para activar tu cuenta." : "Enter your RUT to activate your account.");
+      return;
+    }
+    if (!validateChileanRUT(rut)) {
+      setError(lang === "es" ? "❌ RUT inválido (Dígito verificador incorrecto)" : "❌ Invalid RUT (Bad check-digit)");
       return;
     }
     setLoading(true);
@@ -1246,10 +1760,10 @@ export function CustomerPortal() {
         throw new Error("server-error");
       }
       const body = await resp.json().catch(() => ({}));
-      setSuccess(body?.message || "Si tu RUT está registrado, te enviamos un correo con instrucciones.");
+      setSuccess(body?.message || (lang === "es" ? "Si tu RUT está registrado, te enviamos un correo con instrucciones." : "If your RUT is registered, we have sent you an email with instructions."));
       setTimeout(() => setMode("login"), 5000);
     } catch (err) {
-      setError("No se pudo procesar la solicitud. Verifica tu conexión y vuelve a intentar.");
+      setError(lang === "es" ? "No se pudo procesar la solicitud. Verifica tu conexión y vuelve a intentar." : "Could not process request. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -1378,7 +1892,7 @@ export function CustomerPortal() {
   // Tier 5.A4.2: spinner while Firebase Auth is determining the initial state.
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center" aria-label="Cargando">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center" aria-label={t[lang].loading}>
         <div className="size-10 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" aria-hidden="true" />
       </div>
     );
@@ -1389,7 +1903,7 @@ export function CustomerPortal() {
   // an already-logged-in customer briefly sees the login screen.
   if (authUser && customer === undefined) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center" aria-label="Cargando perfil">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center" aria-label={t[lang].loadingProfile}>
         <div className="size-10 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" aria-hidden="true" />
       </div>
     );
@@ -1409,12 +1923,12 @@ export function CustomerPortal() {
             <div className="size-20 bg-orange-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-orange-200">
               <Smartphone size={40} aria-hidden="true" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">StockFlow <span className="text-orange-600">CLIENTES</span></h1>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">{settings.businessName || "StockFlow"} <span className="text-orange-600">{t[lang].brandVersionText}</span></h1>
             <p className="text-slate-500 font-medium mt-2">
-              {mode === "login" && "Accede a tus beneficios."}
-              {mode === "register" && "Crea tu cuenta en segundos."}
-              {mode === "recover" && "Recupera el acceso a tu cuenta."}
-              {mode === "activate" && "Activa tu cuenta de cliente existente."}
+              {mode === "login" && t[lang].accountBenefits}
+              {mode === "register" && t[lang].createAccountSeconds}
+              {mode === "recover" && t[lang].recoverAccess}
+              {mode === "activate" && t[lang].activateLegacyAccount}
             </p>
           </div>
 
@@ -1427,10 +1941,10 @@ export function CustomerPortal() {
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleLogin}
                 className="space-y-4"
-                aria-label="Formulario de inicio de sesión"
+                aria-label={lang === "es" ? "Formulario de inicio de sesión" : "Login form"}
               >
                 <div className="space-y-1.5">
-                  <label htmlFor="customer-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                  <label htmlFor="customer-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].emailLabel}</label>
                   <input
                     id="customer-email"
                     autoFocus
@@ -1441,12 +1955,12 @@ export function CustomerPortal() {
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                    aria-label="Correo electrónico"
+                    aria-label={t[lang].emailLabel}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="customer-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contraseña</label>
+                  <label htmlFor="customer-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].passwordLabel}</label>
                   <div className="relative">
                     <input
                       id="customer-password"
@@ -1457,13 +1971,13 @@ export function CustomerPortal() {
                       className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      aria-label="Contraseña"
+                      aria-label={t[lang].passwordLabel}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      aria-label={showPassword ? (lang === "es" ? "Ocultar contraseña" : "Hide password") : (lang === "es" ? "Mostrar contraseña" : "Show password")}
                     >
                       {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                     </button>
@@ -1485,12 +1999,12 @@ export function CustomerPortal() {
                   type="submit"
                   disabled={loading || !email || !password}
                   className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
-                  aria-label="Iniciar sesión"
+                  aria-label={t[lang].login}
                 >
                   {loading ? (
                     <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
                   ) : (
-                    "Iniciar sesión"
+                    t[lang].login
                   )}
                 </button>
 
@@ -1499,25 +2013,25 @@ export function CustomerPortal() {
                     type="button"
                     onClick={() => { setMode("activate"); setError(""); setSuccess(""); setPassword(""); }}
                     className="text-[10px] font-bold text-amber-600 hover:text-amber-700 uppercase tracking-widest"
-                    aria-label="Activar cuenta de cliente existente con RUT"
+                    aria-label={t[lang].boughtInStoreActivate}
                   >
-                    ¿Compraste en nuestra tienda? Activar mi cuenta
+                    {t[lang].boughtInStoreActivate}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setMode("register"); setError(""); setSuccess(""); setPassword(""); }}
                     className="text-[10px] font-bold text-orange-600 hover:text-orange-700 uppercase tracking-widest"
-                    aria-label="Crear cuenta nueva"
+                    aria-label={t[lang].notRegisteredYet}
                   >
-                    ¿No tienes cuenta? Regístrate
+                    {t[lang].notRegisteredYet}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setMode("recover"); setError(""); setSuccess(""); setPassword(""); }}
                     className="text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest"
-                    aria-label="Recuperar contraseña"
+                    aria-label={t[lang].forgotPasswordQuestion}
                   >
-                    ¿Olvidaste tu contraseña?
+                    {t[lang].forgotPasswordQuestion}
                   </button>
                 </div>
               </motion.form>
@@ -1531,10 +2045,10 @@ export function CustomerPortal() {
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleRegister}
                 className="space-y-4"
-                aria-label="Formulario de registro"
+                aria-label={lang === "es" ? "Formulario de registro" : "Registration form"}
               >
                 <div className="space-y-1.5">
-                  <label htmlFor="register-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tu nombre</label>
+                  <label htmlFor="register-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].fullNameLabel}</label>
                   <input
                     id="register-name"
                     autoFocus
@@ -1542,16 +2056,16 @@ export function CustomerPortal() {
                     required
                     autoComplete="name"
                     maxLength={100}
-                    placeholder="Nombre completo"
+                    placeholder={t[lang].fullNamePlaceholder}
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                     value={name}
                     onChange={(e) => { setName(e.target.value); setError(""); }}
-                    aria-label="Nombre"
+                    aria-label={t[lang].fullNameLabel}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="register-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                  <label htmlFor="register-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].emailLabel}</label>
                   <input
                     id="register-email"
                     type="email"
@@ -1561,12 +2075,12 @@ export function CustomerPortal() {
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                    aria-label="Correo electrónico"
+                    aria-label={t[lang].emailLabel}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="register-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contraseña (mínimo 6)</label>
+                  <label htmlFor="register-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].passwordMin}</label>
                   <div className="relative">
                     <input
                       id="register-password"
@@ -1578,13 +2092,13 @@ export function CustomerPortal() {
                       className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                      aria-label="Contraseña"
+                      aria-label={t[lang].passwordLabel}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      aria-label={showPassword ? (lang === "es" ? "Ocultar contraseña" : "Hide password") : (lang === "es" ? "Mostrar contraseña" : "Show password")}
                     >
                       {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                     </button>
@@ -1606,12 +2120,12 @@ export function CustomerPortal() {
                   type="submit"
                   disabled={loading || !email || !password || !name}
                   className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
-                  aria-label="Crear cuenta"
+                  aria-label={lang === "es" ? "Crear cuenta" : "Create account"}
                 >
                   {loading ? (
                     <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
                   ) : (
-                    "Crear cuenta"
+                    lang === "es" ? "Crear cuenta" : "Create account"
                   )}
                 </button>
 
@@ -1619,9 +2133,9 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => { setMode("login"); setError(""); setSuccess(""); setPassword(""); }}
                   className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
-                  aria-label="Ya tengo cuenta, iniciar sesión"
+                  aria-label={t[lang].alreadyHaveAccount}
                 >
-                  Ya tengo cuenta — Iniciar sesión
+                  {t[lang].alreadyHaveAccount}
                 </button>
               </motion.form>
             )}
@@ -1634,16 +2148,16 @@ export function CustomerPortal() {
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleActivateRequest}
                 className="space-y-4"
-                aria-label="Formulario de activación de cuenta"
+                aria-label={lang === "es" ? "Formulario de activación de cuenta" : "Account activation form"}
               >
                 <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 mb-4">
                   <p className="text-[11px] font-bold text-amber-900 leading-relaxed">
-                    Si ya compraste en nuestra tienda y el cajero registró tus datos con tu RUT, ingrésalo aquí y te enviaremos un correo para crear tu contraseña.
+                    {t[lang].activateNotice}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="activate-rut" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">RUT</label>
+                  <label htmlFor="activate-rut" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].rut}</label>
                   <input
                     id="activate-rut"
                     autoFocus
@@ -1654,8 +2168,12 @@ export function CustomerPortal() {
                     placeholder="12.345.678-9"
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 transition-all shadow-sm"
                     value={rut}
-                    onChange={(e) => { setRut(e.target.value); setError(""); }}
-                    aria-label="RUT del cliente"
+                    onChange={(e) => {
+                      const formatted = formatRUT(e.target.value);
+                      setRut(formatted);
+                      setError("");
+                    }}
+                    aria-label={t[lang].rut}
                   />
                 </div>
 
@@ -1674,12 +2192,12 @@ export function CustomerPortal() {
                   type="submit"
                   disabled={loading || !rut.trim()}
                   className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
-                  aria-label="Enviar solicitud de activación"
+                  aria-label={t[lang].sendActivationEmail}
                 >
                   {loading ? (
                     <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
                   ) : (
-                    "Enviar correo de activación"
+                    t[lang].sendActivationEmail
                   )}
                 </button>
 
@@ -1687,9 +2205,9 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => { setMode("login"); setError(""); setSuccess(""); setRut(""); }}
                   className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
-                  aria-label="Volver al inicio de sesión"
+                  aria-label={t[lang].backToLogin}
                 >
-                  Volver al inicio de sesión
+                  {t[lang].backToLogin}
                 </button>
               </motion.form>
             )}
@@ -1702,16 +2220,16 @@ export function CustomerPortal() {
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleForgotPassword}
                 className="space-y-4"
-                aria-label="Formulario de recuperación de contraseña"
+                aria-label={lang === "es" ? "Formulario de recuperación de contraseña" : "Password recovery form"}
               >
                 <div className="bg-orange-50 p-5 rounded-2xl border border-orange-100 mb-4">
                   <p className="text-[11px] font-bold text-orange-900 leading-relaxed">
-                    Ingresa tu correo y te enviamos un enlace para restablecer tu contraseña.
+                    {t[lang].enterEmailReset}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="recover-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                  <label htmlFor="recover-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].emailLabel}</label>
                   <input
                     id="recover-email"
                     autoFocus
@@ -1722,7 +2240,7 @@ export function CustomerPortal() {
                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                    aria-label="Correo electrónico"
+                    aria-label={t[lang].emailLabel}
                   />
                 </div>
 
@@ -1741,12 +2259,12 @@ export function CustomerPortal() {
                   type="submit"
                   disabled={loading || !email}
                   className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
-                  aria-label="Enviar correo de recuperación"
+                  aria-label={t[lang].sendRecoverEmail}
                 >
                   {loading ? (
                     <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
                   ) : (
-                    "Enviar correo"
+                    t[lang].sendRecoverEmail
                   )}
                 </button>
 
@@ -1754,9 +2272,9 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => { setMode("login"); setError(""); setSuccess(""); }}
                   className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
-                  aria-label="Volver al inicio de sesión"
+                  aria-label={t[lang].backToLogin}
                 >
-                  Volver al inicio de sesión
+                  {t[lang].backToLogin}
                 </button>
               </motion.form>
             )}
@@ -1766,7 +2284,7 @@ export function CustomerPortal() {
             Sf Shop • Dy Family • {new Date().getFullYear()}
           </p>
           <p className="text-center text-[9px] text-slate-300 font-medium italic mt-1">
-            Donde cada venta construye confianza.
+            {t[lang].slogan}
           </p>
         </motion.div>
       </div>
@@ -1776,7 +2294,7 @@ export function CustomerPortal() {
   const tier = getCustomerTier(customer.points);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-24 relative overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-32 pb-[calc(6rem+env(safe-area-inset-bottom))] relative overflow-x-hidden">
       {/* Dynamic FCM Toast Notification */}
       <AnimatePresence>
         {fcmToast && (
@@ -1828,8 +2346,8 @@ export function CustomerPortal() {
               {/* Drawer Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="text-left">
-                  <h3 className="text-sm font-black text-slate-800 tracking-tight leading-none">Mi Cuenta</h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configuración y Soporte</p>
+                  <h3 className="text-sm font-black text-slate-800 tracking-tight leading-none">{t[lang].myAccount}</h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{t[lang].configAndSupport}</p>
                 </div>
                 <button type="button" 
                   onClick={() => setIsProfileSidebarOpen(false)}
@@ -1870,7 +2388,7 @@ export function CustomerPortal() {
                         }}
                         className="absolute -bottom-1 -right-1 p-1 bg-white rounded-lg border border-slate-250 shadow-md text-slate-500 hover:text-indigo-600 hover:scale-105 active:scale-95 transition-all"
                         disabled={isUploadingPhoto}
-                        title="Subir foto de perfil"
+                        title={t[lang].uploadProfilePhoto}
                       >
                         <Camera size={11} />
                       </button>
@@ -1879,14 +2397,14 @@ export function CustomerPortal() {
                       <h4 className="font-extrabold text-xs text-slate-900 truncate flex items-center gap-1.5 justify-start">
                         {customer.name}
                         {customer.photoVerified && (
-                          <CheckCircle size={13} className="text-emerald-500 fill-emerald-50 shrink-0" title="Perfil Verificado" />
+                          <CheckCircle size={13} className="text-emerald-500 fill-emerald-50 shrink-0" title={t[lang].profileVerified} />
                         )}
                       </h4>
-                      <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest leading-none mt-1">Socio {tier.name}</p>
+                      <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest leading-none mt-1">{t[lang].memberTier(tier.name)}</p>
                       {customer.photoVerified ? (
-                        <span className="text-[8px] font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 mt-1 inline-block">✓ ID Verificado</span>
+                        <span className="text-[8px] font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 mt-1 inline-block">✓ {t[lang].idVerifiedBadge}</span>
                       ) : (
-                        <p className="text-[8px] font-medium text-slate-400 mt-0.5 whitespace-normal leading-tight">Sube una foto para verificar tu ID</p>
+                        <p className="text-[8px] font-medium text-slate-400 mt-0.5 whitespace-normal leading-tight">{t[lang].uploadPhotoToVerify}</p>
                       )}
                     </div>
                   </div>
@@ -1895,15 +2413,19 @@ export function CustomerPortal() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                       <div className="text-left">
-                        <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">RUT Registrado</p>
-                        <p className="text-[11px] font-semibold text-slate-700">{customer.taxId}</p>
+                        <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">{t[lang].registeredRut}</p>
+                        <span className="text-[11px] font-semibold text-slate-700">
+                          {customer.rut || customer.taxId
+                            ? formatRUT(customer.rut || customer.taxId)
+                            : (lang === "es" ? "No registrado" : "Not registered")}
+                        </span>
                       </div>
                       <Lock size={12} className="text-slate-350" />
                     </div>
                     {customer.phone && (
                       <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                         <div className="text-left">
-                          <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">Teléfono de Enlace</p>
+                          <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">{t[lang].linkedPhone}</p>
                           <p className="text-[11px] font-semibold text-slate-700">{customer.phone}</p>
                         </div>
                         <Lock size={12} className="text-slate-350" />
@@ -1914,11 +2436,11 @@ export function CustomerPortal() {
 
                 {/* Edit Contact details inside Drawer */}
                 <div className="space-y-3.5">
-                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">Editar Datos de Contacto</h4>
+                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">{t[lang].editContactData}</h4>
                   
                   <div className="space-y-3.5 p-5 bg-slate-50 rounded-[2rem] border border-slate-150 text-left shadow-inner">
                     <div className="space-y-1">
-                      <label className="text-[7.5px] font-black text-slate-450 uppercase tracking-widest ml-0.5">Correo Electrónico (Boletas/Flow)</label>
+                      <label className="text-[7.5px] font-black text-slate-450 uppercase tracking-widest ml-0.5">{t[lang].emailInvoices}</label>
                       <input 
                         type="email" 
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
@@ -2079,12 +2601,12 @@ export function CustomerPortal() {
                   className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl text-[9px] font-black uppercase tracking-widest border border-rose-100 transition-all flex items-center justify-center gap-x-2 active:scale-95 shadow-sm shadow-rose-50"
                 >
                   <LogOut size={13} />
-                  <span>Cerrar Sesión Móvil</span>
+                  <span>{t[lang].closeSessionMobile}</span>
                 </button>
                 
                 <div className="text-center">
                   <p className="text-[8px] font-black text-slate-350 uppercase tracking-wider">
-                    StockFlow Pro v2.5.0 • Chile
+                    {settings.businessName || "StockFlow"} • CLIENTES • v2.5.0
                   </p>
                 </div>
               </div>
@@ -2111,10 +2633,10 @@ export function CustomerPortal() {
           </div>
           <div className="text-left">
             <div className="flex items-center gap-1 font-bold">
-              <h2 className="text-sm font-black text-slate-900 truncate max-w-[150px] group-hover:text-indigo-650 transition-colors">¡Hola, {customer.name?.split(' ')[0]}!</h2>
+              <h2 className="text-sm font-black text-slate-900 truncate max-w-[150px] group-hover:text-indigo-650 transition-colors">{t[lang].welcomeUser(customer.name?.split(' ')[0] || "")}</h2>
               <ChevronRight size={12} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
             </div>
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">Nivel {tier.name}</p>
+            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">{t[lang].levelLabel} {tier.name}</p>
           </div>
         </button>
 
@@ -2157,7 +2679,7 @@ export function CustomerPortal() {
                     type="button"
                     onClick={() => dismissClaim(claim.id)}
                     className="absolute top-4 right-4 text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-colors"
-                    title="Cerrar notificación"
+                    title={t[lang].closeNotification}
                   >
                     <X size={14} />
                   </button>
@@ -2167,14 +2689,14 @@ export function CustomerPortal() {
                       <CheckCircle size={18} />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Reclamo Resuelto</h4>
-                      <h3 className="text-xs font-black text-white leading-snug">Tu caso para el Pedido #{claim.orderId ? claim.orderId.substring(0,8).toUpperCase() : "S/N"} fue resuelto con éxito</h3>
-                      <p className="text-[9px] font-bold text-emerald-150 uppercase tracking-widest">Motivo: {claim.reason}</p>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-100">{t[lang].claimResolvedTitle}</h4>
+                      <h3 className="text-xs font-black text-white leading-snug">{t[lang].claimResolvedMsg(claim.orderId ? claim.orderId.substring(0,8).toUpperCase() : "S/N")}</h3>
+                      <p className="text-[9px] font-bold text-emerald-150 uppercase tracking-widest">{t[lang].reasonLabel}: {claim.reason}</p>
                     </div>
                   </div>
 
                   <div className="bg-black/10 p-4 rounded-2xl border border-white/5 space-y-1 mt-1">
-                    <span className="text-[8.5px] font-black text-emerald-250 uppercase tracking-widest leading-none">Respuesta de Bodega</span>
+                    <span className="text-[8.5px] font-black text-emerald-250 uppercase tracking-widest leading-none">{t[lang].fulfillmentResponse}</span>
                     <p className="text-xs text-white font-extrabold leading-normal">
                       "{claim.resolutionNote}"
                     </p>
@@ -2182,14 +2704,14 @@ export function CustomerPortal() {
 
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-[8px] text-emerald-200 font-bold uppercase tracking-wider">
-                      ¡Gracias por preferir {settings.businessName || "nuestra tienda"}!
+                      {lang === "es" ? `¡Gracias por preferir ${settings.businessName || "nuestra tienda"}!` : `Thank you for choosing ${settings.businessName || "our store"}!`}
                     </p>
                     <button
                       type="button"
                       onClick={() => dismissClaim(claim.id)}
                       className="px-4 py-1.5 bg-white text-emerald-700 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-50 transition-colors shadow-xs"
                     >
-                      Entendido
+                      {t[lang].understood}
                     </button>
                   </div>
                 </div>
@@ -2212,17 +2734,17 @@ export function CustomerPortal() {
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-8">
                     <Star size={24} className={tier.color} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Status {tier.name}</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">{lang === "es" ? "Categoría" : "Status"} {tier.name}</span>
                   </div>
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">Puntos Acumulados</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">{t[lang].accumulatedPoints}</p>
                   <div className="flex items-baseline gap-x-2">
                     <h3 className="text-5xl font-black">{customer.points || 0}</h3>
-                    <span className="text-sm font-black opacity-60">PTS</span>
+                    <span className="text-sm font-black opacity-60">{t[lang].pointsLower.toUpperCase()}</span>
                   </div>
                   
                   <div className="mt-10 pt-6 border-t border-slate-900/10">
                     <div className="flex items-center justify-between text-xs font-bold mb-2">
-                      <span>Progreso al siguiente nivel</span>
+                      <span>{t[lang].pointsProgress}</span>
                       <span className="opacity-60">{customer.points || 0} / 5000</span>
                     </div>
                     <div className={cn("h-2 rounded-full overflow-hidden", tier.name === "Platinum" ? "bg-white/10" : "bg-slate-900/10")}>
@@ -2237,18 +2759,18 @@ export function CustomerPortal() {
               </div>
 
               {/* FCM Push Notifications Control Card */}
-              <div className="bg-gradient-to-r from-slate-900 to-[#2a1200] text-white p-6 rounded-[2.5rem] border border-orange-500/10 shadow-xl flex items-center justify-between">
+              <div className="bg-gradient-to-r from-slate-900 to-[#2a1200] text-white p-6 rounded-[2.5rem] border border-orange-500/10 shadow-xl flex items-center justify-between gap-3">
                 <div className="flex items-center gap-x-4">
                   <div className={`size-12 rounded-2xl flex items-center justify-center border transition-all ${fcmRegistered ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse"}`}>
                     <Bell size={20} className={fcmLoading ? "animate-spin" : ""} />
                   </div>
                   <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-[#10b981]">Notificaciones Push</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-[#10b981]">{t[lang].pushNotifications}</h4>
                     <p className="text-xs text-slate-300 mt-1 font-bold">
-                      {fcmRegistered ? "Suscripción Activa v2.0" : "Recibe avisos de despacho en vivo"}
+                      {fcmRegistered ? t[lang].pushSubscribed : t[lang].pushUnsubscribed}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      {fcmRegistered ? "Notificaremos inmediatamente los cambios de tu pedido." : "Se te avisará al preparar y despachar."}
+                      {fcmRegistered ? t[lang].pushActiveNotice : t[lang].pushInactiveNotice}
                     </p>
                   </div>
                 </div>
@@ -2259,11 +2781,11 @@ export function CustomerPortal() {
                     disabled={fcmLoading}
                     className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-[10px] font-black uppercase tracking-wider rounded-2xl transition-all cursor-pointer active:scale-95 text-white shadow-lg shadow-orange-600/30"
                   >
-                    {fcmLoading ? "Conectando…" : "Activar"}
+                    {fcmLoading ? t[lang].connecting : t[lang].activateBtn}
                   </button>
                 ) : (
                   <span className="px-3.5 py-1.5 bg-emerald-500/15 text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-2xl border border-emerald-500/30 shadow-xs">
-                    ✓ Activo
+                    ✓ {t[lang].activeStatus}
                   </span>
                 )}
               </div>
@@ -2277,7 +2799,7 @@ export function CustomerPortal() {
                   <div className="size-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
                     <Gift size={24} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Canjear</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">{t[lang].redeem}</span>
                 </button>
                 <button type="button" 
                   onClick={() => setActiveTab("shop")}
@@ -2286,15 +2808,15 @@ export function CustomerPortal() {
                   <div className="size-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
                     <ShoppingCart size={24} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Comprar</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">{t[lang].buy}</span>
                 </button>
               </div>
 
               {/* Exclusive Offers */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Ofertas para ti</h3>
-                  <button type="button" onClick={() => setActiveTab("offers")} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Ver Todas</button>
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].offersForYou}</h3>
+                  <button type="button" onClick={() => setActiveTab("offers")} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{t[lang].viewAll}</button>
                 </div>
                 <div className="space-y-3">
                   {loadingCoupons ? (
@@ -2328,7 +2850,7 @@ export function CustomerPortal() {
                                 isOpen: true,
                                 type: "success",
                                 title: auto.title,
-                                message: `¡Cupón Fidelidad por Puntos Activo! Presenta el código "${auto.code}" en la caja del local para aplicar un ${auto.desc}.`
+                                message: t[lang].loyaltyCouponMessage(auto.code, auto.desc)
                               });
                             }}
                             className="w-full p-5 rounded-[2rem] text-left text-white flex items-center justify-between shadow-lg bg-emerald-600 shadow-emerald-100 transition-all active:scale-95 duration-200"
@@ -2338,7 +2860,7 @@ export function CustomerPortal() {
                               <div>
                                 <h4 className="font-bold text-sm">{auto.title}</h4>
                                 <p className="text-[9px] opacity-90 uppercase font-black tracking-widest mt-0.5">
-                                  {auto.desc} • Código: {auto.code}
+                                  {auto.desc} • {lang === "es" ? "Código" : "Code"}: {auto.code}
                                 </p>
                               </div>
                             </div>
@@ -2357,7 +2879,7 @@ export function CustomerPortal() {
                                 isOpen: true,
                                 type: "success",
                                 title: coupon.title,
-                                message: `¡Cupón de la Empresa Activo! Presenta el código "${coupon.code}" en caja para aplicar: ${coupon.desc}.`
+                                message: t[lang].businessCouponMessage(coupon.code, coupon.desc)
                               });
                             }}
                             className="w-full p-5 rounded-[2rem] text-left text-indigo-900 border border-indigo-100 bg-indigo-50 flex items-center justify-between transition-all active:scale-95 duration-200"
@@ -2367,9 +2889,9 @@ export function CustomerPortal() {
                               <div>
                                 <h4 className="font-bold text-sm text-indigo-950">{coupon.title}</h4>
                                 <p className="text-[9px] text-indigo-600 font-black uppercase tracking-widest mt-0.5 flex flex-wrap items-center gap-1.5">
-                                  <span>{coupon.desc} • Código: {coupon.code}</span>
+                                  <span>{coupon.desc} • {lang === "es" ? "Código" : "Code"}: {coupon.code}</span>
                                   <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-2 py-0.5 rounded-full">
-                                    ✓ REGISTRADO EN SISTEMA
+                                    ✓ {t[lang].registeredInSystem}
                                   </span>
                                 </p>
                               </div>
@@ -2388,7 +2910,7 @@ export function CustomerPortal() {
                               <div>
                                 <h4 className="font-bold text-xs text-slate-700">{nextLockedAutoCoupon.title}</h4>
                                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                                  Faltan {nextLockedAutoCoupon.requiredPoints - (customer?.points || 0)} pts para este cupón ({nextLockedAutoCoupon.desc})
+                                  {t[lang].pointsMissingForCoupon(nextLockedAutoCoupon.requiredPoints - (customer?.points || 0), nextLockedAutoCoupon.desc)}
                                 </p>
                                 <div className="w-48 bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
                                   <div 
@@ -2412,7 +2934,7 @@ export function CustomerPortal() {
                                 <div>
                                   <h4 className="font-bold text-xs text-slate-800">{lockedC.title}</h4>
                                   <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-0.5">
-                                    Nivel {lockedC.minTier} ({minPointsNeeded} pts)
+                                    {t[lang].levelLabel} {lockedC.minTier} ({minPointsNeeded} pts)
                                   </p>
                                 </div>
                               </div>
@@ -2424,7 +2946,7 @@ export function CustomerPortal() {
                         {!hasUnlocked && coupons.length === 0 && (
                           <div className="p-5 text-center text-slate-400 rounded-3xl bg-slate-50 border border-slate-100">
                             <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">
-                              ¡Suma puntos con tus compras para activar cupones automáticos! 🛒
+                              {t[lang].pointsNoticeCart}
                             </p>
                           </div>
                         )}
@@ -2478,7 +3000,7 @@ export function CustomerPortal() {
                   </div>
                   <input
                     type="text"
-                    placeholder="Buscar marca, nombre, SKU…"
+                    placeholder={t[lang].searchPlaceholder}
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
@@ -2505,7 +3027,7 @@ export function CustomerPortal() {
                       "p-2 rounded-xl transition-all",
                       viewMode === "grid" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                     )}
-                    title="Vista de Cuadrícula"
+                    title={t[lang].viewGrid}
                   >
                     <Grid size={16} />
                   </button>
@@ -2515,7 +3037,7 @@ export function CustomerPortal() {
                       "p-2 rounded-xl transition-all",
                       viewMode === "compact" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                     )}
-                    title="Lista de Pedido Rápido"
+                    title={t[lang].viewList}
                   >
                     <List size={16} />
                   </button>
@@ -2545,7 +3067,7 @@ export function CustomerPortal() {
                           : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
                       )}
                     >
-                      {cat === "Todos" ? "Todo" : cat} <span className={cn("text-[8px] ml-1 opacity-70", selectedCategory === cat ? "text-indigo-200" : "text-slate-400")}>({count})</span>
+                      {cat === "Todos" ? t[lang].allCategory : cat} <span className={cn("text-[8px] ml-1 opacity-70", selectedCategory === cat ? "text-indigo-200" : "text-slate-400")}>({count})</span>
                     </button>
                   );
                 })}
@@ -2553,17 +3075,17 @@ export function CustomerPortal() {
 
               {/* 3. Result Metadata and Sort selectors */}
               <div className="flex items-center justify-between text-[9px] font-black tracking-wider text-slate-400 px-1 uppercase">
-                <span>Viendo {Math.min(filteredAndSortedProducts.length, visibleCount)} de {filteredAndSortedProducts.length} productos</span>
+                <span>{t[lang].showingCountOf(Math.min(filteredAndSortedProducts.length, visibleCount), filteredAndSortedProducts.length)}</span>
                 <div className="flex items-center gap-x-1">
-                  <span>Ordenar:</span>
+                  <span>{t[lang].sortByLabel}</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
                     className="bg-transparent border-none text-[9px] font-black text-slate-700 focus:ring-0 p-0 pr-4 cursor-pointer focus:outline-none"
                   >
-                    <option value="name">Alfabético</option>
-                    <option value="price-asc">Precio: Menor a Mayor</option>
-                    <option value="price-desc">Precio: Mayor a Menor</option>
+                    <option value="name">{t[lang].sortName}</option>
+                    <option value="price-asc">{t[lang].sortPriceAsc}</option>
+                    <option value="price-desc">{t[lang].sortPriceDesc}</option>
                     <option value="discount">Mejor Oferta/Mayorista</option>
                   </select>
                 </div>
@@ -2666,7 +3188,7 @@ export function CustomerPortal() {
                             onClick={() => addToCart(product)}
                             className="mt-auto w-full py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-600 transition-colors"
                           >
-                            Añadir
+                            {t[lang].addBtn}
                           </button>
                         )}
                       </div>
@@ -2696,7 +3218,7 @@ export function CustomerPortal() {
                               </span>
                               {product.wholesalePrice && product.wholesalePrice < product.price && (
                                 <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded text-[7.5px] font-black leading-none">
-                                  {formatCurrency(product.wholesalePrice)} xMayor ({product.wholesaleMinQty || 6}+)
+                                  {t[lang].wholesaleMinUnit(formatCurrency(product.wholesalePrice), product.wholesaleMinQty || 6)} ({t[lang].xWholesale})
                                 </span>
                               )}
                             </div>
@@ -2740,8 +3262,8 @@ export function CustomerPortal() {
                                   setAlertConfig({
                                     isOpen: true,
                                     type: "warn",
-                                    title: "Límite de Stock",
-                                    message: `Únicamente hay ${product.stock} unidades de este producto en el inventario.`
+                                    title: t[lang].stockLimitTitle,
+                                    message: t[lang].stockLimitMessage(product.stock)
                                   });
                                 }
                               }}
@@ -2755,7 +3277,7 @@ export function CustomerPortal() {
                             onClick={() => addToCart(product)}
                             className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-600 shrink-0 transition-colors"
                           >
-                            Añadir
+                            {t[lang].addBtn}
                           </button>
                         )}
                       </div>
@@ -2771,7 +3293,7 @@ export function CustomerPortal() {
                     onClick={() => setVisibleCount(idx => idx + 24)}
                     className="px-6 py-3 bg-white border border-slate-100 hover:bg-slate-50 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5"
                   >
-                    <span>Cargar más artículos</span>
+                    <span>{t[lang].loadMoreBtn}</span>
                     <Plus size={14} />
                   </button>
                 </div>
@@ -2808,7 +3330,7 @@ export function CustomerPortal() {
                       </div>
                       <div className="text-left">
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 text-indigo-300">
-                          {loading ? "PROCESANDO…" : "REVISAR PEDIDO"}
+                          {loading ? t[lang].processingBtn : t[lang].reviewOrderBtn}
                         </p>
                         <p className="text-lg font-black">{formatCurrency(cartTotal)}</p>
                       </div>
@@ -2836,9 +3358,9 @@ export function CustomerPortal() {
                 <Wallet size={28} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Tu Tarjeta Digital</h3>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">{t[lang].digitalCardTitle}</h3>
                 <p className="text-[11px] font-bold text-slate-500 mt-1 max-w-[280px] mx-auto leading-relaxed">
-                  Presenta este código seguro en caja para identificarte y usar tus cupones sin dictar tu RUT.
+                  {t[lang].digitalCardNotice}
                 </p>
               </div>
 
@@ -2864,9 +3386,9 @@ export function CustomerPortal() {
                   <div className="flex justify-between items-center text-[9px] font-black tracking-wider text-slate-400">
                     <span className="flex items-center gap-1">
                       <Clock size={10} className="text-indigo-500 animate-spin [animation-duration:8s]" />
-                      CÓDIGO DINÁMICO SEGURO
+                      {t[lang].secureDynamicCode}
                     </span>
-                    <span className="text-indigo-600 font-extrabold">Se actualiza en {timeLeft}s</span>
+                    <span className="text-indigo-600 font-extrabold">{t[lang].updateInSeconds(timeLeft)}</span>
                   </div>
                   <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                     <div 
@@ -2878,10 +3400,10 @@ export function CustomerPortal() {
 
                  {/* 6-Digit visual OTP pin fallback */}
                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center space-y-1 shadow-inner">
-                   <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase">Token Numérico de Entrada</p>
+                   <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase">{t[lang].numericOtpToken}</p>
                    <p className="font-mono text-2xl font-black text-indigo-600 tracking-[0.2em]">{securePin.slice(0,3)} {securePin.slice(3)}</p>
                    <p className="text-[8px] font-bold text-slate-400 leading-normal">
-                     Ingreso manual en caja si el lector óptico está apagado
+                     {t[lang].manualEntryNotice}
                    </p>
                  </div>
                </div>
@@ -2890,7 +3412,7 @@ export function CustomerPortal() {
                <div className="bg-white p-6 rounded-[2.5rem] border border-slate-150 shadow-sm max-w-[320px] mx-auto text-left space-y-4">
                  <div className="flex items-center justify-between">
                    <div>
-                     <p className="text-[9px] font-black tracking-wider text-slate-400 uppercase">Billetera Prepago Digital</p>
+                     <p className="text-[9px] font-black tracking-wider text-slate-400 uppercase">{t[lang].prepaidDigitalWallet}</p>
                      <h4 className="text-xl font-black text-slate-900 mt-1">
                        {formatCurrency(customer.balance !== undefined ? customer.balance : 25000)}
                      </h4>
@@ -2913,8 +3435,8 @@ export function CustomerPortal() {
                          setAlertConfig({
                            isOpen: true,
                            type: "success",
-                           title: "Carga Exitosa",
-                           message: "Se han cargado $10.000 CLP de forma simulada vía Flow. ¡Tu saldo se actualizó al instante!"
+                           title: t[lang].chargeSuccessTitle,
+                           message: t[lang].chargeSuccessMessage
                          });
                        } catch (err) {
                          console.error(err);
@@ -2936,8 +3458,8 @@ export function CustomerPortal() {
                          setAlertConfig({
                            isOpen: true,
                            type: "success",
-                           title: "Carga Exitosa",
-                           message: "Se han cargado $50.000 CLP de forma simulada vía Flow. ¡Tu saldo se actualizó al instante!"
+                           title: t[lang].chargeSuccessTitle,
+                           message: t[lang].chargeSuccessMessage50
                          });
                        } catch (err) {
                          console.error(err);
@@ -2949,20 +3471,20 @@ export function CustomerPortal() {
                    </button>
                  </div>
                  <p className="text-[8px] font-bold text-slate-400 text-center leading-normal">
-                   Recarga instantánea simulada para validar la unificación del saldo electrónico con el punto de venta (POS) en tiempo real.
+                   {t[lang].simulationNotice}
                  </p>
                </div>
 
               <div className="flex flex-col space-y-2 max-w-[280px] mx-auto">
                 <p className="text-[9px] font-bold text-emerald-600 bg-emerald-50 py-1.5 px-3 rounded-full flex items-center justify-center gap-1 border border-emerald-100">
                   <span>🛡️</span>
-                  <span>Protegido contra capturas de pantalla y suplantación</span>
+                  <span>{t[lang].screenshotProtected}</span>
                 </p>
                 <button type="button" 
                   onClick={() => setActiveTab("home")}
                   className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors py-2"
                 >
-                  Cerrar Tarjeta
+                  {t[lang].closeCard}
                 </button>
               </div>
             </motion.div>
@@ -2992,7 +3514,7 @@ export function CustomerPortal() {
                       : "text-slate-400 hover:text-slate-700"
                   )}
                 >
-                  {lang === "es" ? "Mis Boletas" : "My Receipts"}
+                  {t[lang].myReceipts}
                 </button>
                 <button
                   type="button"
@@ -3032,10 +3554,10 @@ export function CustomerPortal() {
                             <h4 className="font-bold text-xs truncate text-slate-800 pr-1" title={displayTitle}>
                               {receipt.items.length === 1 
                                 ? receipt.items[0].productName 
-                                : `${receipt.items[0].productName} y ${receipt.items.length - 1} más`}
+                                : `${receipt.items[0].productName} ${lang === "es" ? "y" : "and"} ${receipt.items.length - 1} ${lang === "es" ? "más" : "more"}`}
                             </h4>
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                              {toDate(receipt.timestamp).toLocaleDateString('es-CL')} • {receipt.documentType}
+                              {toDate(receipt.timestamp).toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US')} • {receipt.documentType}
                             </p>
                           </div>
                         </div>
@@ -3045,7 +3567,7 @@ export function CustomerPortal() {
                               {formatCurrency(receipt.finalOrderTotal)}
                             </p>
                             <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">
-                              +{displayPoints} Puntos
+                              +{displayPoints} {lang === "es" ? "Puntos" : "Points"}
                             </p>
                           </div>
                           <ChevronRight size={16} className="text-slate-350 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
@@ -3056,7 +3578,7 @@ export function CustomerPortal() {
                   {groupedTransactions.length === 0 && (
                     <div className="text-center py-20 opacity-30">
                       <Search size={48} className="mx-auto mb-4" />
-                      <p className="text-xs font-black uppercase tracking-widest">Aún no tienes compras</p>
+                      <p className="text-xs font-black uppercase tracking-widest">{lang === "es" ? "Aún no tienes compras" : "You have no purchases yet"}</p>
                     </div>
                   )}
                 </div>
@@ -3121,7 +3643,14 @@ export function CustomerPortal() {
                               {lang === "es" ? "Reclamo de Compra" : "Purchase Claim"}
                             </span>
                             <h4 className="text-xs font-black text-slate-900 tracking-tight mt-1">
-                              {lang === "es" ? "Motivo" : "Reason"}: {claim.reason}
+                              {lang === "es" ? "Motivo" : "Reason"}: {
+                                claim.reason === "Llegó roto" ? (lang === "es" ? "Llegó roto / dañado" : "Arrived broken / damaged") :
+                                claim.reason === "Faltó un producto" ? (lang === "es" ? "Faltó un producto en el envío" : "Missing item in delivery") :
+                                claim.reason === "Producto incorrecto" ? (lang === "es" ? "Recibí un producto equivocado" : "Received wrong item") :
+                                claim.reason === "Defecto de fábrica" ? (lang === "es" ? "Defecto de calidad/fábrica" : "Quality/Factory defect") :
+                                claim.reason === "Otro motivo" ? (lang === "es" ? "Otro inconveniente" : "Other issue") :
+                                claim.reason
+                              }
                             </h4>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                               {lang === "es" ? "Orden" : "Order"}: #{claim.orderId.substring(0,8).toUpperCase()} • {toDate(claim.timestamp).toLocaleDateString(lang === "es" ? 'es-CL' : 'en-US')}
@@ -3144,7 +3673,7 @@ export function CustomerPortal() {
                         <div className="flex flex-col gap-3">
                           {claim.photo && (
                             <div className="space-y-1.5 text-left">
-                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Evidencia Adjunta</p>
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t[lang].attachedEvidenceLabel}</p>
                               <div className="relative size-24 rounded-2xl overflow-hidden border border-slate-150 shadow-sm bg-slate-50 group shrink-0">
                                 <img 
                                   src={claim.photo} 
@@ -3154,8 +3683,8 @@ export function CustomerPortal() {
                                     setAlertConfig({
                                       isOpen: true,
                                       type: "info",
-                                      title: "Evidencia de Reclamo",
-                                      message: "Fotografía cargada por el cliente como evidencia física del problema."
+                                      title: t[lang].claimEvidenceTitle,
+                                      message: t[lang].claimEvidenceDesc
                                     });
                                   }}
                                 />
@@ -3165,7 +3694,7 @@ export function CustomerPortal() {
 
                           {claim.resolutionNote && (
                             <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-1.5 text-left">
-                              <p className="text-[8.5px] font-black text-indigo-700 uppercase tracking-widest leading-none">Respuesta de Bodega</p>
+                              <p className="text-[8.5px] font-black text-indigo-700 uppercase tracking-widest leading-none">{t[lang].fulfillmentResponse}</p>
                               <p className="text-xs text-indigo-900 font-extrabold leading-normal">
                                 "{claim.resolutionNote}"
                               </p>
@@ -3179,7 +3708,7 @@ export function CustomerPortal() {
                   {claimsList.length === 0 && (
                     <div className="text-center py-16 opacity-30">
                       <AlertCircle size={40} className="mx-auto mb-3" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">No has ingresado ningún reclamo</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest">{t[lang].noClaimsLogged}</p>
                     </div>
                   )}
                 </div>
@@ -3203,8 +3732,8 @@ export function CustomerPortal() {
                   <ArrowLeft size={18}/>
                 </button>
                 <div className="text-left">
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight leading-tight">Canje de Premios Físicos</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Fidelidad y Regalos Directos</p>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight leading-tight">{t[lang].rewardsTitle}</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{t[lang].rewardsSubtitle}</p>
                 </div>
               </div>
 
@@ -3215,15 +3744,15 @@ export function CustomerPortal() {
                 </div>
                 <div className="relative z-10 flex items-center justify-between">
                   <div className="text-left">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tus Puntos Disponibles</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t[lang].pointsAvailable}</h4>
                     <div className="flex items-baseline gap-x-1.5 mt-2">
                       <span className="text-5xl font-black text-amber-400 tracking-tight">{customer.points || 0}</span>
                       <span className="text-xs font-black text-slate-350">PTS</span>
                     </div>
                   </div>
                   <div className="bg-white/10 px-4 py-2.5 rounded-2xl border border-white/15 backdrop-blur-md text-right">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-amber-300">Equivalencia aproximada</p>
-                    <p className="text-xs font-bold text-white mt-1">10 PTS = $100 CLP en productos</p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-amber-300">{t[lang].pointsEquivTitle}</p>
+                    <p className="text-xs font-bold text-white mt-1">{t[lang].pointsEquivDesc}</p>
                   </div>
                 </div>
               </div>
@@ -3241,7 +3770,7 @@ export function CustomerPortal() {
                   )}
                 >
                   <Gift size={13} />
-                  <span>Catálogo</span>
+                  <span>{lang === "es" ? "Catálogo" : "Catalog"}</span>
                 </button>
                 <button
                   type="button"
@@ -3254,7 +3783,7 @@ export function CustomerPortal() {
                   )}
                 >
                   <Wallet size={13} />
-                  <span>Mis Vales</span>
+                  <span>{t[lang].myVouchers}</span>
                   {redemptions.filter(r => r.status === "pending").length > 0 && (
                     <span className="absolute -top-1 -right-1 size-5 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white animate-soft-bounce">
                       {redemptions.filter(r => r.status === "pending").length}
@@ -3272,7 +3801,7 @@ export function CustomerPortal() {
                   )}
                 >
                   <Trophy size={13} className="text-amber-500" />
-                  <span>Logros y Desafíos</span>
+                  <span>{lang === "es" ? "Logros y Desafíos" : "Achievements & Challenges"}</span>
                 </button>
               </div>
 
@@ -3295,7 +3824,7 @@ export function CustomerPortal() {
                               : "bg-white text-slate-500 border-slate-150 hover:bg-slate-50"
                           )}
                         >
-                          {cat} ({count})
+                          {lang === "es" ? cat : (cat === "Todos" ? "All" : cat === "Bebidas" ? "Drinks" : cat === "Lácteos" ? "Dairy" : cat === "Otros" ? "Others" : cat)} ({count})
                         </button>
                       );
                     })}
@@ -3318,7 +3847,7 @@ export function CustomerPortal() {
                               </div>
                               <div className="text-left">
                                 <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
-                                  {item.category}
+                                  {lang === "es" ? item.category : (item.category === "Bebidas" ? "Drinks" : item.category === "Lácteos" ? "Dairy" : item.category === "Otros" ? "Others" : item.category)}
                                 </span>
                                 <h4 className="text-sm font-black text-slate-800 tracking-tight mt-1">{item.name}</h4>
                                 <p className="text-xs font-bold text-slate-400 mt-0.5">{item.description}</p>
@@ -3341,7 +3870,7 @@ export function CustomerPortal() {
                                     : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                                 )}
                               >
-                                {canRedeem ? "Canjear Regalo" : `Faltan ${item.pointsCost - (customer.points || 0)} pts`}
+                                {canRedeem ? t[lang].redeemRewardBtn : t[lang].pointsMissingReward(item.pointsCost - (customer.points || 0))}
                               </button>
                             </div>
                           </div>
@@ -3358,12 +3887,12 @@ export function CustomerPortal() {
                       <div className="size-14 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-3">
                         <Gift size={24} />
                       </div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aún no tienes canjes acumulados</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t[lang].noRedemptions}</p>
                       <button type="button" 
                         onClick={() => setRewardViewTab("available")} 
                         className="mt-4 px-4 py-2 text-indigo-600 text-[10px] font-black uppercase tracking-widest bg-indigo-50 rounded-xl"
                       >
-                        Ver Catálogo de Premios
+                        {t[lang].viewRewardsCatalog}
                       </button>
                     </div>
                   ) : (
@@ -3387,7 +3916,7 @@ export function CustomerPortal() {
                                 <div className="text-left">
                                   <h4 className="text-sm font-black text-slate-800 tracking-tight">{item.productName}</h4>
                                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                    Canjeado el {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleDateString('es-CL') : new Date(item.timestamp).toLocaleDateString('es-CL')}
+                                    {t[lang].redeemedOn(item.timestamp?.toDate ? item.timestamp.toDate().toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US') : new Date(item.timestamp).toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US'))}
                                   </p>
                                 </div>
                               </div>
@@ -3396,11 +3925,11 @@ export function CustomerPortal() {
                                 {item.status === "pending" ? (
                                   <span className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-x-1 animate-pulse">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1" />
-                                    Por Retirar
+                                    {t[lang].pendingPickup}
                                   </span>
                                 ) : (
                                   <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest inline-flex items-center">
-                                    ✓ Entregado
+                                    ✓ {t[lang].delivered}
                                   </span>
                                 )}
                               </div>
@@ -3422,8 +3951,8 @@ export function CustomerPortal() {
                               </div>
                               <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-wider mt-4 leading-relaxed max-w-[240px]">
                                 {item.status === "pending" 
-                                  ? "Presenta este código QR o tu RUT en caja para retirar tu producto físico inmediatamente."
-                                  : "Este producto ya te fue entregado por un vendedor en la tienda de forma exitosa."}
+                                  ? t[lang].redemptionPickupNotice
+                                  : t[lang].redemptionDeliveredNotice}
                               </p>
                             </div>
                           </div>
@@ -3443,8 +3972,8 @@ export function CustomerPortal() {
                         <Trophy size={18} />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black tracking-tight text-white">Academia de Desafíos Semanales</h4>
-                        <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">¡Completa misiones y suma puntos!</p>
+                        <h4 className="text-sm font-black tracking-tight text-white">{t[lang].challengesTitle}</h4>
+                        <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">{t[lang].challengesSubtitle}</p>
                       </div>
                     </div>
                   </div>
@@ -3453,8 +3982,8 @@ export function CustomerPortal() {
                   {[
                     {
                       id: "comprador_estrella",
-                      title: "Comprador Estrella ⭐",
-                      desc: "Acumula un mínimo de $50.000 CLP en compras totales en el local.",
+                      title: t[lang].chCompradorEstrella,
+                      desc: t[lang].chCompradorEstrellaDesc,
                       target: 50000,
                       current: customer.totalSpent || 0,
                       pointsAward: 500,
@@ -3463,8 +3992,8 @@ export function CustomerPortal() {
                     },
                     {
                       id: "eco_boleta",
-                      title: "Eco-Comprador Boleta Digital 🌱",
-                      desc: "Mantén un correo registrado para recibir tus boletas y facturas 100% digitales.",
+                      title: t[lang].chEcoBoleta,
+                      desc: t[lang].chEcoBoletaDesc,
                       target: 1,
                       current: customer.email ? 1 : 0,
                       pointsAward: 150,
@@ -3473,8 +4002,8 @@ export function CustomerPortal() {
                     },
                     {
                       id: "mayorista_pro",
-                      title: "Inversionista Mayorista 📦",
-                      desc: "Suma un acumulado histórico de 1.000 Puntos de Fidelidad.",
+                      title: t[lang].chMayoristaPro,
+                      desc: t[lang].chMayoristaProDesc,
                       target: 1000,
                       current: customer.points || 0,
                       pointsAward: 300,
@@ -3483,8 +4012,8 @@ export function CustomerPortal() {
                     },
                     {
                       id: "socio_pionero",
-                      title: "Socio Pionero Dorado 🏆",
-                      desc: "Registra al menos 3 transacciones o boletas en el historial.",
+                      title: t[lang].chSocioPionero,
+                      desc: t[lang].chSocioPioneroDesc,
                       target: 3,
                       current: transactions.length,
                       pointsAward: 400,
@@ -3524,7 +4053,7 @@ export function CustomerPortal() {
 
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                            <span>{pct === 100 ? "Completado" : `Progreso: ${pct}%`}</span>
+                            <span>{pct === 100 ? t[lang].completed : `${t[lang].progressLabel}: ${pct}%`}</span>
                             <span>
                               {ch.id === "comprador_estrella" 
                                 ? `$${ch.current.toLocaleString('es-CL')} / $${ch.target.toLocaleString('es-CL')}`
@@ -3544,7 +4073,7 @@ export function CustomerPortal() {
 
                         {isClaimed ? (
                           <div className="w-full py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-center text-slate-400 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
-                            ✓ Desafío Reclamado con Éxito
+                            {t[lang].challengeClaimedSuccess}
                           </div>
                         ) : (
                           <button
@@ -3562,8 +4091,8 @@ export function CustomerPortal() {
                                 setAlertConfig({
                                   isOpen: true,
                                   type: "success",
-                                  title: "✨ ¡Desafío Reclamado! ✨",
-                                  message: `Felicidades, has desbloqueado "${ch.title}" y ganado un bono de +${ch.pointsAward} Puntos extra para canjear regalos.`
+                                  title: t[lang].challengeClaimedAlertTitle,
+                                  message: t[lang].challengeClaimedAlertMessage(ch.title, ch.pointsAward)
                                 });
                               } catch (e) {
                                 console.error("Error claiming points:", e);
@@ -3576,7 +4105,7 @@ export function CustomerPortal() {
                                 : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
                             )}
                           >
-                            {canClaim ? "Reclamar Premio Extra" : "Bloqueado"}
+                            {canClaim ? t[lang].claimExtraRewardBtn : t[lang].locked}
                           </button>
                         )}
                       </div>
@@ -3597,10 +4126,10 @@ export function CustomerPortal() {
                       className="bg-white w-full max-w-lg rounded-t-[3rem] border-t border-slate-200 shadow-2xl p-8 space-y-6"
                     >
                       <div className="flex items-center justify-between">
-                        <h4 className="text-lg font-black text-slate-800 tracking-tight">Confirmar Canje de Regalo</h4>
+                        <h4 className="text-lg font-black text-slate-800 tracking-tight">{t[lang].confirmRewardTitle}</h4>
                         <button type="button" 
                           onClick={() => setConfirmReward(null)}
-                          className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-full transition-all"
+                          className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-450 rounded-full transition-all"
                         >
                           <X size={18} />
                         </button>
@@ -3612,7 +4141,7 @@ export function CustomerPortal() {
                         </div>
                         <div className="text-left">
                           <p className="text-[8px] font-black uppercase text-indigo-600 tracking-wider bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 inline-block mb-1">
-                            {confirmReward.category}
+                            {lang === "es" ? confirmReward.category : (confirmReward.category === "Bebidas" ? "Drinks" : confirmReward.category === "Lácteos" ? "Dairy" : confirmReward.category === "Otros" ? "Others" : confirmReward.category)}
                           </p>
                           <h5 className="font-black text-sm text-slate-800 tracking-tight">{confirmReward.name}</h5>
                           <p className="text-xs font-bold text-slate-400">{confirmReward.description}</p>
@@ -3621,11 +4150,11 @@ export function CustomerPortal() {
 
                       <div className="grid grid-cols-2 gap-4 text-center">
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Puntos Requeridos</p>
+                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">{t[lang].pointsRequired}</p>
                           <p className="text-xl font-black text-rose-600 tracking-tight mt-1">{confirmReward.pointsCost} PTS</p>
                         </div>
                         <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-indigo-400">Puntos Restantes</p>
+                          <p className="text-[8px] font-black uppercase tracking-widest text-indigo-400">{t[lang].pointsRemaining}</p>
                           <p className="text-xl font-black text-indigo-600 tracking-tight mt-1">{(customer.points || 0) - confirmReward.pointsCost} PTS</p>
                         </div>
                       </div>
@@ -3635,14 +4164,14 @@ export function CustomerPortal() {
                           onClick={() => setConfirmReward(null)}
                           className="flex-1 py-4 bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
                         >
-                          Cancelar
+                          {t[lang].cancelBtn}
                         </button>
                         <button type="button" 
                           onClick={() => handleRedeemReward(confirmReward)}
                           className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100 flex items-center justify-center gap-x-2"
                         >
                           <Gift size={14} />
-                          <span>Confirmar Canje</span>
+                          <span>{t[lang].confirmRedeemBtn}</span>
                         </button>
                       </div>
                     </motion.div>
@@ -3662,7 +4191,7 @@ export function CustomerPortal() {
             >
               <div className="flex items-center gap-x-3 mb-6">
                 <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">Mis Beneficios y Cupones</h3>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">{lang === "es" ? "Mis Beneficios y Cupones" : "My Benefits & Coupons"}</h3>
               </div>
 
               {/* 1. SECCIÓN: CUPONES DE LA EMPRESA */}
@@ -3670,10 +4199,10 @@ export function CustomerPortal() {
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                     <Tag size={12} className="text-indigo-500" />
-                    Cupones de la Empresa
+                    {lang === "es" ? "Cupones de la Empresa" : "Company Coupons"}
                   </h4>
                   <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-black">
-                    {coupons.length} ACTIVOS
+                    {coupons.length} {lang === "es" ? "ACTIVOS" : "ACTIVE"}
                   </span>
                 </div>
 
@@ -3693,14 +4222,14 @@ export function CustomerPortal() {
                                 isOpen: true,
                                 type: "info",
                                 title: offer.title,
-                                message: `Este beneficio ya está activo. Muestra el código "${offer.code}" en caja.`
+                                message: lang === "es" ? `Este beneficio ya está activo. Muestra el código "${offer.code}" en caja.` : `This benefit is already active. Present code "${offer.code}" at checkout.`
                               });
                             } else {
                               setAlertConfig({
                                 isOpen: true,
                                 type: "success",
                                 title: offer.title,
-                                message: `¡Oferta Disponible! Presenta el código "${offer.code}" en la caja del local para aplicar el beneficio: ${offer.desc}.`,
+                                message: lang === "es" ? `¡Oferta Disponible! Presenta el código "${offer.code}" en la caja del local para aplicar el beneficio: ${offer.desc}.` : `Offer Available! Present code "${offer.code}" at checkout to apply: ${offer.desc}.`,
                                 onConfirm: () => setActivatedOffers(prev => [...prev, offer.id])
                               });
                             }
@@ -3719,29 +4248,29 @@ export function CustomerPortal() {
                             {!isEligible ? (
                               <div className="mt-2 flex items-center gap-x-1 text-[8px] font-black uppercase tracking-widest text-slate-500">
                                 <Lock size={10} />
-                                <span>Disponible en nivel {offer.minTier}</span>
+                                <span>{lang === "es" ? `Disponible en nivel ${offer.minTier}` : `Available at level ${offer.minTier}`}</span>
                               </div>
                             ) : isUsed ? (
                               <div className="mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-500 flex-wrap">
                                 <span className="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-black tracking-normal flex items-center gap-1">
-                                  ✓ YA UTILIZADO EN SU HISTORIAL
+                                  ✓ {lang === "es" ? "YA UTILIZADO EN SU HISTORIAL" : "ALREADY USED IN YOUR HISTORY"}
                                 </span>
                               </div>
                             ) : activatedOffers.includes(offer.id) ? (
                               <div className="mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-indigo-600 flex-wrap">
                                 <span className="flex items-center gap-x-1">
                                   <Star size={10} className="fill-current" />
-                                  <span>Cupón Activo: {offer.code}</span>
+                                  <span>{lang === "es" ? `Cupón Activo: ${offer.code}` : `Active Coupon: ${offer.code}`}</span>
                                 </span>
-                                <span className="bg-indigo-100 text-indigo-850 px-1.5 py-0.2 rounded font-black tracking-normal">✓ LISTO PARA CAJA</span>
+                                <span className="bg-indigo-100 text-indigo-850 px-1.5 py-0.2 rounded font-black tracking-normal">✓ {lang === "es" ? "LISTO PARA CAJA" : "READY FOR CHECKOUT"}</span>
                               </div>
                             ) : (
                               <div className="mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-emerald-600 flex-wrap">
                                 <span className="flex items-center gap-x-1">
                                   <Star size={10} />
-                                  <span>¡Disponible para canje! Código: {offer.code}</span>
+                                  <span>{lang === "es" ? `¡Disponible para canje! Código: ${offer.code}` : `Available for redemption! Code: ${offer.code}`}</span>
                                 </span>
-                                <span className="bg-emerald-100 text-emerald-850 px-1.5 py-0.2 rounded font-black tracking-normal">✓ SISTEMA OK</span>
+                                <span className="bg-emerald-100 text-emerald-850 px-1.5 py-0.2 rounded font-black tracking-normal">✓ {lang === "es" ? "SISTEMA OK" : "SYSTEM OK"}</span>
                               </div>
                             )}
                           </div>
@@ -3755,7 +4284,7 @@ export function CustomerPortal() {
                 ) : (
                   <div className="p-6 rounded-[2rem] border border-dashed border-slate-200 text-center bg-slate-50/50">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      La empresa no cuenta con cupones promocionales configurados en este momento.
+                      {lang === "es" ? "La empresa no cuenta con cupones promocionales configurados en este momento." : "The company does not have promotional coupons configured at this time."}
                     </p>
                   </div>
                 )}
@@ -3766,10 +4295,10 @@ export function CustomerPortal() {
                 <div className="space-y-1">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                     <Star size={12} className="text-amber-500 fill-amber-500" />
-                    Mis Cupones Automáticos por Puntos
+                    {lang === "es" ? "Mis Cupones Automáticos por Puntos" : "My Automatic Coupons by Points"}
                   </h4>
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                    Se activan inmediatamente según tus puntos acumulados por compra ({customer.points || 0} pts actuales)
+                    {lang === "es" ? `Se activan inmediatamente según tus puntos acumulados por compra (${customer.points || 0} pts actuales)` : `Activated immediately based on your accumulated purchase points (${customer.points || 0} current pts)`}
                   </p>
                 </div>
 
@@ -3787,7 +4316,7 @@ export function CustomerPortal() {
                             isOpen: true,
                             type: "success",
                             title: offer.title,
-                            message: `¡Puntos acumulados suficientes! Cupón Fidelidad activado automáticamente por tu historial de compras. Presenta el código "${offer.code}" en caja para aplicar un ${offer.desc}.`
+                            message: lang === "es" ? `¡Puntos acumulados suficientes! Cupón Fidelidad activado automáticamente por tu historial de compras. Presenta el código "${offer.code}" en caja para aplicar un ${offer.desc}.` : `Sufficient accumulated points! Loyalty Coupon activated automatically based on your purchase history. Present code "${offer.code}" at checkout to apply: ${offer.desc}.`
                           });
                         }}
                         className={cn(
@@ -3803,16 +4332,16 @@ export function CustomerPortal() {
                           {!isEligible ? (
                             <div className="mt-2 flex items-center gap-x-1.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
                               <Lock size={10} />
-                              <span>Requiere {offer.requiredPoints} pts (te faltan {offer.requiredPoints - (customer.points || 0)} pts)</span>
+                              <span>{lang === "es" ? `Requiere ${offer.requiredPoints} pts (te faltan ${offer.requiredPoints - (customer.points || 0)} pts)` : `Requires ${offer.requiredPoints} pts (${offer.requiredPoints - (customer.points || 0)} pts missing)`}</span>
                             </div>
                           ) : isUsed ? (
                             <div className="mt-2 flex items-center gap-1.5 text-[8.5px] font-black uppercase tracking-widest text-slate-500 flex-wrap">
-                              <span className="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-black tracking-normal">✓ YA UTILIZADO EN SU HISTORIAL</span>
+                              <span className="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-black tracking-normal">{lang === "es" ? "✓ YA UTILIZADO EN SU HISTORIAL" : "✓ ALREADY USED IN YOUR HISTORY"}</span>
                             </div>
                           ) : (
                             <div className="mt-2 flex items-center gap-x-1.5 text-[8.5px] font-black uppercase tracking-widest text-emerald-600">
                               <Star size={10} className="fill-current" />
-                              <span>¡Activo por Puntos! Código: {offer.code}</span>
+                              <span>{lang === "es" ? `¡Activo por Puntos! Código: ${offer.code}` : `Active by Points! Code: ${offer.code}`}</span>
                             </div>
                           )}
                         </div>
@@ -3833,14 +4362,15 @@ export function CustomerPortal() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-6 pb-24"
+              className="space-y-6 pb-32 pb-[calc(6rem+env(safe-area-inset-bottom))]"
             >
               <div className="bg-indigo-600 text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 size-32 bg-white/10 blur-3xl rounded-full" />
-                <h3 className="text-xl font-black">🚚 Seguimiento de Despachos</h3>
+                <h3 className="text-xl font-black">🚚 {lang === "es" ? "Seguimiento de Despachos" : "Delivery Tracking"}</h3>
                 <p className="text-xs font-medium text-indigo-100 mt-2 leading-relaxed">
-                  Monitorea tus encomiendas y despachos georreferenciados en tiempo real. 
-                  Encuentra el estado de tu pedido (#), la comuna de entrega y el trayecto calculado.
+                  {lang === "es" 
+                    ? "Monitorea tus encomiendas y despachos georreferenciados en tiempo real. Encuentra el estado de tu pedido (#), la comuna de entrega y el trayecto calculado."
+                    : "Monitor your georeferenced shipments and deliveries in real time. Find the status of your order (#), the delivery commune, and the calculated route."}
                 </p>
               </div>
 
@@ -3853,20 +4383,20 @@ export function CustomerPortal() {
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 py-4 flex items-center justify-between z-50 gap-1">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between z-50 gap-1">
         <button type="button" 
           onClick={() => setActiveTab("home")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "home" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Star size={18} />
-          <span className="text-[7.5px] font-black uppercase tracking-wider">Inicio</span>
+          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].startNav}</span>
         </button>
         <button type="button" 
           onClick={() => setActiveTab("history")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "history" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <History size={18} />
-          <span className="text-[7.5px] font-black uppercase tracking-wider">Boletas</span>
+          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].receiptsNav}</span>
         </button>
         <button type="button" 
           onClick={() => setActiveTab("wallet")}
@@ -3879,7 +4409,7 @@ export function CustomerPortal() {
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "offers" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Tag size={18} />
-          <span className="text-[7.5px] font-black uppercase tracking-wider">Cupones</span>
+          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].couponsNav}</span>
         </button>
         {settings.deliveryEnabled !== false && (
           <button type="button" 
@@ -3887,7 +4417,7 @@ export function CustomerPortal() {
             className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "delivery" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
           >
             <Truck size={18} />
-            <span className="text-[7.5px] font-black uppercase tracking-wider">Envíos</span>
+            <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].deliveryNav}</span>
           </button>
         )}
       </nav>
@@ -3913,9 +4443,11 @@ export function CustomerPortal() {
                 <div className="absolute inset-0 rounded-[2.5rem] border-4 border-orange-600 border-t-transparent animate-spin" />
               </div>
               
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">Preparando tu Pago</h3>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{lang === "es" ? "Preparando tu Pago" : "Preparing your Payment"}</h3>
               <p className="text-sm font-bold text-slate-400 mt-4 leading-relaxed">
-                Estamos conectando con el portal de Flow para procesar tu pedido de forma segura.
+                {lang === "es" 
+                  ? "Estamos conectando con el portal de Flow para procesar tu pedido de forma segura."
+                  : "We are connecting with Flow to process your order securely."}
               </p>
               
               <div className="w-full h-1.5 bg-slate-100 rounded-full mt-8 overflow-hidden">
@@ -3926,7 +4458,7 @@ export function CustomerPortal() {
                   className="h-full bg-orange-600 rounded-full"
                 />
               </div>
-              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-4">Conexión Segura Encriptada</p>
+              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-4">{lang === "es" ? "Conexión Segura Encriptada" : "Secure Encrypted Connection"}</p>
             </motion.div>
           </motion.div>
         )}
@@ -3951,7 +4483,7 @@ export function CustomerPortal() {
                   <div className="size-10 bg-orange-600 rounded-xl flex items-center justify-center text-white">
                     <ShoppingCart size={20} />
                   </div>
-                  <h3 className="text-xl font-black text-slate-800">Tu Pedido</h3>
+                  <h3 className="text-xl font-black text-slate-800">{t[lang].orderCartTitle}</h3>
                 </div>
                 <button type="button" onClick={() => setShowCart(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">
                   <ArrowLeft size={18} className="-rotate-90" />
@@ -3961,7 +4493,7 @@ export function CustomerPortal() {
               <div className="flex-1 overflow-y-auto space-y-4 pr-2 -mx-2 px-2 pb-4">
                 {cart.length === 0 ? (
                   <div className="text-center py-12">
-                    <p className="text-slate-400 font-bold">Tu carrito está vacío</p>
+                    <p className="text-slate-400 font-bold">{t[lang].cartEmptyText}</p>
                   </div>
                 ) : (
                   cart.map((item) => {
@@ -3983,7 +4515,7 @@ export function CustomerPortal() {
                           <h4 className="text-[11px] font-black text-slate-800 line-clamp-1">{item.name}</h4>
                           <p className="text-[9px] font-bold text-slate-500">{formatCurrency(itemPrice)} / un</p>
                           {isWholesale && (
-                            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-tighter">Precio Mayorista</span>
+                            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-tighter">{t[lang].wholesalePricingBadge}</span>
                           )}
                         </div>
                         <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5">
@@ -4029,7 +4561,7 @@ export function CustomerPortal() {
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100/80 space-y-3">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                       <Tag size={12} className="text-indigo-600" />
-                      <span>¿Tienes un cupón?</span>
+                      <span>{t[lang].hasCouponLabel}</span>
                     </p>
                     {appliedCoupon ? (
                       <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100/50 p-3 rounded-xl">
@@ -4044,7 +4576,7 @@ export function CustomerPortal() {
                           onClick={() => setAppliedCoupon(null)}
                           className="text-slate-400 hover:text-rose-500 font-black text-xs px-2 py-1"
                         >
-                          Quitar
+                          {t[lang].removeLabel}
                         </button>
                       </div>
                     ) : (
@@ -4052,7 +4584,7 @@ export function CustomerPortal() {
                         <div className="flex gap-2">
                           <input 
                             type="text"
-                            placeholder="CÓDIGO (ej. SUMMER15)"
+                            placeholder={t[lang].couponPlaceholder}
                             value={couponInput}
                             onChange={(e) => setCouponInput(e.target.value)}
                             className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-black focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 uppercase"
@@ -4061,7 +4593,7 @@ export function CustomerPortal() {
                             onClick={() => handleApplyCoupon(couponInput)}
                             className="bg-indigo-600 text-white uppercase tracking-widest text-[9px] font-black px-4 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shrink-0"
                           >
-                            Aplicar
+                            {t[lang].applyLabel}
                           </button>
                         </div>
                         {couponError && (
@@ -4075,17 +4607,17 @@ export function CustomerPortal() {
                     {appliedCoupon && (
                       <>
                         <div className="flex justify-between items-center text-xs font-bold text-slate-500">
-                          <span>Subtotal</span>
+                          <span>{t[lang].subtotalLabel}</span>
                           <span>{formatCurrency(cartTotal)}</span>
                         </div>
                         <div className="flex justify-between items-center text-xs font-bold text-indigo-600">
-                          <span className="flex items-center gap-1">🎟️ Descuento ({appliedCoupon.code})</span>
+                          <span className="flex items-center gap-1">🎟️ {t[lang].discountLabel} ({appliedCoupon.code})</span>
                           <span>-{formatCurrency(couponDiscount)}</span>
                         </div>
                       </>
                     )}
                     <div className="flex justify-between items-center pt-1.5">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Estimado</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t[lang].estimatedTotalLabel}</span>
                       <span className="text-xl font-black text-slate-900">{formatCurrency(finalCartTotal)}</span>
                     </div>
                   </div>
@@ -4096,14 +4628,14 @@ export function CustomerPortal() {
                       setAlertConfig({
                         isOpen: true,
                         type: "info",
-                        title: "Confirmar Pedido",
-                        message: `Estás a punto de procesar tu compra por ${formatCurrency(finalCartTotal)}. Serás redirigido a Flow para realizar el pago de forma segura.`,
+                        title: t[lang].confirmOrderTitle,
+                        message: t[lang].confirmOrderMsg(formatCurrency(finalCartTotal)),
                         onConfirm: handleCheckout
                       });
                     }}
                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-x-2"
                   >
-                    <span>Finalizar Compra</span>
+                    <span>{t[lang].finishCheckoutBtn}</span>
                     <ChevronRight size={16} />
                   </button>
                 </div>
@@ -4128,7 +4660,7 @@ export function CustomerPortal() {
               className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 space-y-6"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-black text-slate-800">Notificaciones</h3>
+                <h3 className="text-xl font-black text-slate-800">{t[lang].notificationsTitle}</h3>
                 <button type="button" onClick={() => setShowNotifications(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">
                   <ArrowLeft size={18} className="-rotate-90" />
                 </button>
@@ -4148,7 +4680,7 @@ export function CustomerPortal() {
                   </div>
                 ))}
                 {clientNotifications.length === 0 && (
-                  <p className="text-center text-xs font-medium text-slate-400 py-6">No tienes notificaciones por ahora</p>
+                  <p className="text-center text-xs font-medium text-slate-400 py-6">{t[lang].notificationsEmpty}</p>
                 )}
               </div>
               
@@ -4156,7 +4688,7 @@ export function CustomerPortal() {
                 onClick={() => setShowNotifications(false)}
                 className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px]"
               >
-                Cerrar
+                {t[lang].closeBtn}
               </button>
             </motion.div>
           </motion.div>
@@ -4188,8 +4720,8 @@ export function CustomerPortal() {
                 <div className="size-12 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <Receipt size={24} className="text-emerald-400" />
                 </div>
-                <h3 className="text-lg font-black tracking-tight">{settings.businessName || "Nuestra Tienda"}</h3>
-                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest mt-1">Comprobante de Compra</p>
+                <h3 className="text-lg font-black tracking-tight">{settings.businessName || (lang === "es" ? "Nuestra Tienda" : "Our Store")}</h3>
+                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest mt-1">{t[lang].receiptTitle}</p>
               </div>
 
               {/* Scrollable Receipt Body */}
@@ -4198,50 +4730,50 @@ export function CustomerPortal() {
                 {/* Meta details */}
                 <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] text-slate-600 font-bold">
                   <div className="space-y-1">
-                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">Documento</p>
+                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">{t[lang].docLabel}</p>
                     <p className="text-slate-800">
                       {selectedReceipt.documentType === "Factura" || selectedReceipt.documentType === "Factura Electrónica" 
-                        ? "Factura Electrónica" 
-                        : "Boleta Electrónica"}
+                        ? (lang === "es" ? "Factura Electrónica" : "Electronic Invoice") 
+                        : (lang === "es" ? "Boleta Electrónica" : "Electronic Receipt")}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">Código de Orden</p>
+                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">{t[lang].orderCodeLabel}</p>
                     <p className="font-mono text-slate-800 truncate max-w-[130px]" title={selectedReceipt.orderId}>
                       #{selectedReceipt.orderId.substring(0, 10).toUpperCase()}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">Fecha & Hora</p>
+                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">{t[lang].dateTimeLabel}</p>
                     <p className="text-slate-800">
-                      {toDate(selectedReceipt.timestamp).toLocaleString('es-CL')}
+                      {toDate(selectedReceipt.timestamp).toLocaleString(lang === "es" ? 'es-CL' : 'en-US')}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">Atendido por</p>
+                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">{t[lang].attendedByLabel}</p>
                     <p className="text-slate-800 truncate">
                       {selectedReceipt.type === "app_purchase" 
-                        ? "Auto-Atención App" 
-                        : (selectedReceipt.userName ? `Cajero: ${selectedReceipt.userName}` : "Cajero de Turno")}
+                        ? t[lang].attendedAutoApp 
+                        : (selectedReceipt.userName ? t[lang].attendedCashier(selectedReceipt.userName) : t[lang].attendedCashierDefault)}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">Tipo de Compra</p>
+                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">{t[lang].purchaseTypeLabel}</p>
                     <p className="text-slate-800">
-                      {selectedReceipt.type === "app_purchase" ? "Pedido Online (App)" : "Compra Presencial (POS)"}
+                      {selectedReceipt.type === "app_purchase" ? t[lang].purchaseTypeApp : t[lang].purchaseTypePos}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">Método de Entrega</p>
+                    <p className="text-[8px] font-black text-slate-450 uppercase tracking-wider">{t[lang].deliveryMethodLabel}</p>
                     <p className="text-slate-800">
-                      {selectedReceipt.type === "app_purchase" ? "Retiro en Local 🏬" : "Entrega Presencial 🤝"}
+                      {selectedReceipt.type === "app_purchase" ? t[lang].deliveryMethodApp : t[lang].deliveryMethodPos}
                     </p>
                   </div>
                 </div>
 
                 {/* Items List */}
                 <div className="space-y-3">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Detalle de Productos</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">{t[lang].productDetailHeader}</p>
                   
                   <div className="divide-y divide-slate-100 bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                     {selectedReceipt.items.map((item: any) => {
@@ -4252,7 +4784,7 @@ export function CustomerPortal() {
                           <div className="space-y-1 max-w-[65%]">
                             <p className="font-bold text-slate-800 truncate">{item.productName}</p>
                             <p className="text-[10px] font-semibold text-slate-400">
-                              {qty} unidad{qty > 1 ? "s" : ""} x {formatCurrency(unitPrice)}
+                              {t[lang].qtyUnitsTimes(qty, qty > 1 ? t[lang].pluralSuffix : t[lang].singularSuffix, formatCurrency(unitPrice))}
                             </p>
                             {(() => {
                               const sourceBranch = item.branchId && item.branchId !== DEFAULT_BRANCH_ID
@@ -4264,7 +4796,7 @@ export function CustomerPortal() {
                                   aria-label={`Despachado desde sucursal ${sourceBranch.name}`}
                                 >
                                   <Truck size={12} aria-hidden="true" />
-                                  <span>Despachado desde {sourceBranch.name}</span>
+                                  <span>{t[lang].shippedFromBranch(sourceBranch.name)}</span>
                                 </p>
                               );
                             })()}
@@ -4288,7 +4820,7 @@ export function CustomerPortal() {
                 {/* Financial breakdown & summary */}
                 <div className="space-y-2.5 px-1 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-xs">
                   <div className="flex justify-between font-bold text-slate-600">
-                    <span>Subtotal de Compra:</span>
+                    <span>{t[lang].receiptSubtotal}</span>
                     <span className="text-slate-800">
                       {formatCurrency(
                         selectedReceipt.items.reduce((sum: number, it: any) => sum + it.amount, 0)
@@ -4298,13 +4830,13 @@ export function CustomerPortal() {
                   
                   {selectedReceipt.couponCode && (
                     <div className="flex justify-between font-bold text-amber-600">
-                      <span className="flex items-center gap-1">🏷️ Descuento ({selectedReceipt.couponCode}):</span>
+                      <span className="flex items-center gap-1">🏷️ {t[lang].discountLabel} ({selectedReceipt.couponCode}):</span>
                       <span>-{formatCurrency(selectedReceipt.discountApplied)}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-slate-100 text-slate-900">
-                    <span>Total Pagado:</span>
+                    <span>{t[lang].receiptTotalPaid}</span>
                     <span className="text-slate-950 font-mono text-base">{formatCurrency(selectedReceipt.finalOrderTotal)}</span>
                   </div>
                 </div>
@@ -4316,8 +4848,8 @@ export function CustomerPortal() {
                       <Star size={16} className="fill-current text-emerald-600" />
                     </div>
                     <div>
-                      <p className="font-black text-emerald-900">Puntos de Fidelidad</p>
-                      <p className="text-[10px] text-emerald-600 font-semibold">Acumulados con este recibo</p>
+                      <p className="font-black text-emerald-900">{t[lang].fidelityPointsReward}</p>
+                      <p className="text-[10px] text-emerald-600 font-semibold">{t[lang].fidelityPointsMessage}</p>
                     </div>
                   </div>
                   <p className="text-base font-black font-mono text-emerald-600">
@@ -4328,22 +4860,22 @@ export function CustomerPortal() {
                 {/* Proof of delivery Signature */}
                 {selectedReceiptShipment && selectedReceiptShipment.status === "delivered" && selectedReceiptShipment.customerSignature && (
                   <div className="p-4 rounded-[1.8rem] bg-indigo-50/45 border border-indigo-100/60 flex flex-col space-y-2 text-xs text-slate-800 text-left">
-                    <p className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">📦 Comprobante de Entrega Digital</p>
+                    <p className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">{t[lang].deliveryProofTitle}</p>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">Recibido por:</p>
-                        <p className="font-extrabold text-slate-800 mt-0.5">{selectedReceiptShipment.customerSignedName || "Cliente"}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">{t[lang].receivedByLabel}</p>
+                        <p className="font-extrabold text-slate-800 mt-0.5">{selectedReceiptShipment.customerSignedName || (lang === "es" ? "Cliente" : "Customer")}</p>
                       </div>
                       <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase tracking-wider rounded-full text-center">
-                        Entregado ✓
+                        {t[lang].deliveredBadge}
                       </div>
                     </div>
                     <div className="h-px bg-indigo-150 my-1" />
                     <div className="flex flex-col items-center justify-center p-2 bg-white rounded-xl border border-slate-150">
-                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 pointer-events-none self-start">Firma digital registrada:</p>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 pointer-events-none self-start">{t[lang].digitalSignatureTitle}</p>
                       <img 
                         src={selectedReceiptShipment.customerSignature} 
-                        alt="Firma del Cliente" 
+                        alt={t[lang].digitalSignatureAlt} 
                         className="max-h-20 max-w-full object-contain filter contrast-125 select-none" 
                         referrerPolicy="no-referrer"
                       />
@@ -4362,7 +4894,7 @@ export function CustomerPortal() {
                 {selectedReceipt.isMock ? (
                   <div className="p-4 bg-amber-50/50 text-amber-800 rounded-2.5xl border-2 border-amber-300 border-dashed text-center font-mono space-y-1.5 shadow-inner">
                     <p className="text-[10px] font-black tracking-widest text-amber-900 leading-normal">
-                      COMPROBANTE INTERNO DE COMPRA — NO VÁLIDO COMO BOLETA ELECTRÓNICA
+                      {t[lang].internalReceiptWarning}
                     </p>
                     <div className="py-2 flex justify-center">
                       <QRCodeCanvas 
@@ -4375,9 +4907,9 @@ export function CustomerPortal() {
                   </div>
                 ) : selectedReceipt.documentType?.includes("Boleta") || selectedReceipt.folio ? (
                   <div className="p-4 bg-red-50/50 text-red-700 rounded-2.5xl border-2 border-red-200 border-dashed text-center font-mono space-y-1.5 shadow-inner">
-                    <p className="text-[9px] font-black tracking-widest text-red-650">TIMBRE ELECTRÓNICO SII</p>
+                    <p className="text-[9px] font-black tracking-widest text-red-650">{t[lang].siiStampHeader}</p>
                     <p className="text-[7.5px] font-bold text-red-500 uppercase tracking-widest leading-none">
-                      DTE Boleta Electrónica - Folio {selectedReceipt.folio || Math.floor(Math.random() * 5000) + 151240}
+                      {t[lang].siiStampDesc(String(selectedReceipt.folio || Math.floor(Math.random() * 5000) + 151240))}
                     </p>
                     <div className="py-2 flex justify-center">
                       <QRCodeCanvas 
@@ -4388,7 +4920,7 @@ export function CustomerPortal() {
                       />
                     </div>
                     <p className="text-[6.5px] tracking-tight text-slate-400 select-all font-sans leading-tight break-all max-h-[30px] overflow-hidden">
-                      {selectedReceipt.tedXml || "SOLICITE EL COMPROBANTE SII TRAS LA SINCRONIZACIÓN EN LÍNEA"}
+                      {selectedReceipt.tedXml || t[lang].siiPendingWarning}
                     </p>
                   </div>
                 ) : (
@@ -4401,7 +4933,7 @@ export function CustomerPortal() {
                         className="size-16 opacity-80"
                       />
                     </div>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Código de Verificación</span>
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{t[lang].verificationCodeLabel}</span>
                   </div>
                 )}
 
@@ -4415,7 +4947,7 @@ export function CustomerPortal() {
                     setClaimOrderId(selectedReceipt.orderId);
                     setClaimCustomerTaxId(customer?.taxId || "");
                     setTaxIdError("");
-                    setClaimReason("Llegó roto");
+                    setClaimReason(lang === "es" ? "Llegó roto" : "Arrived broken");
                     setClaimDescription("");
                     setClaimPhoto("");
                     setShowClaimModal(true);
@@ -4424,7 +4956,7 @@ export function CustomerPortal() {
                   className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white transition-all rounded-xl font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-1.5 shadow-md shadow-rose-100 dark:shadow-none hover:translate-y-[-1px] active:translate-y-0"
                 >
                   <AlertCircle size={14} />
-                  Iniciar Reclamo / Soporte
+                  {lang === "es" ? "Iniciar Reclamo / Soporte" : "Start Claim / Support"}
                 </button>
                 <div className="flex gap-x-3 w-full">
                   <button type="button"
@@ -4435,45 +4967,47 @@ export function CustomerPortal() {
                       ).join('\n');
                       
                       const docTypeLabel = selectedReceipt.documentType === "Factura" || selectedReceipt.documentType === "Factura Electrónica" 
-                        ? "FACTURA ELECTRÓNICA" 
-                        : "BOLETA ELECTRÓNICA";
+                        ? (lang === "es" ? "FACTURA ELECTRÓNICA" : "ELECTRONIC INVOICE") 
+                        : (lang === "es" ? "BOLETA ELECTRÓNICA" : "ELECTRONIC RECEIPT");
                       
                       const deliveryMethodText = selectedReceipt.type === "app_purchase" 
-                        ? "Retiro en Local" 
-                        : "Entrega Presencial en Caja";
+                        ? (lang === "es" ? "Retiro en Local" : "In-Store Pickup") 
+                        : (lang === "es" ? "Entrega Presencial en Caja" : "Hand Delivery at Checkout");
                       
                       const purchaseTypeText = selectedReceipt.type === "app_purchase" 
-                        ? "Pedido Online (App)" 
-                        : "Compra Presencial (POS)";
+                        ? (lang === "es" ? "Pedido Online (App)" : "Online Order (App)") 
+                        : (lang === "es" ? "Compra Presencial (POS)" : "In-Store Purchase (POS)");
                       
                       const attendedByText = selectedReceipt.type === "app_purchase" 
-                        ? "Auto-Atención App" 
-                        : (selectedReceipt.userName ? `Cajero: ${selectedReceipt.userName}` : "Cajero de Turno");
+                        ? (lang === "es" ? "Auto-Atención App" : "App Self-Service") 
+                        : (selectedReceipt.userName 
+                            ? `${lang === "es" ? "Cajero" : "Cashier"}: ${selectedReceipt.userName}` 
+                            : (lang === "es" ? "Cajero de Turno" : "Cashier on Duty"));
 
                       const receiptText = `
 ----------------------------------------
-   ${(settings.businessName || "NUESTRA TIENDA").toUpperCase()}
+   ${(settings.businessName || (lang === "es" ? "NUESTRA TIENDA" : "OUR STORE")).toUpperCase()}
 ----------------------------------------
-Documento:     ${docTypeLabel}
-Orden ID:      #${selectedReceipt.orderId}
-Fecha:         ${toDate(selectedReceipt.timestamp).toLocaleString('es-CL')}
-Cliente:       ${selectedReceipt.customerName}
-RUT Cliente:   ${selectedReceipt.customerTaxId || "N/A"}
+${lang === "es" ? "Documento:" : "Document:"}     ${docTypeLabel}
+${lang === "es" ? "Orden ID:" : "Order ID:"}      #${selectedReceipt.orderId}
+${lang === "es" ? "Fecha:" : "Date:"}         ${toDate(selectedReceipt.timestamp).toLocaleString(lang === "es" ? 'es-CL' : 'en-US')}
+${lang === "es" ? "Cliente:" : "Customer:"}       ${selectedReceipt.customerName}
+${lang === "es" ? "RUT Cliente:" : "Customer RUT:"}   ${selectedReceipt.customerTaxId || "N/A"}
 ----------------------------------------
-Canal Compra:  ${purchaseTypeText}
-Entrega:       ${deliveryMethodText}
-Atendido Por:  ${attendedByText}
+${lang === "es" ? "Canal Compra:" : "Purchase Ch:"}  ${purchaseTypeText}
+${lang === "es" ? "Entrega:" : "Delivery:"}       ${deliveryMethodText}
+${lang === "es" ? "Atendido Por:" : "Attended By:"}  ${attendedByText}
 ----------------------------------------
-DETALLE DE PRODUCTOS:
+${lang === "es" ? "DETALLE DE PRODUCTOS:" : "PRODUCT DETAILS:"}
 ${itemLines}
 ----------------------------------------
 Subtotal:      ${formatCurrency(selectedReceipt.items.reduce((sum: number, it: any) => sum + it.amount, 0))}
-Descuento:     ${selectedReceipt.couponCode ? `(${selectedReceipt.couponCode}) -${formatCurrency(selectedReceipt.discountApplied)}` : 'N/A'}
+${lang === "es" ? "Descuento" : "Discount"}:     ${selectedReceipt.couponCode ? `(${selectedReceipt.couponCode}) -${formatCurrency(selectedReceipt.discountApplied)}` : 'N/A'}
 TOTAL NETO:    ${formatCurrency(selectedReceipt.finalOrderTotal)}
 ----------------------------------------
-Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de Fidelidad
+${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} ${lang === "es" ? "Puntos de Fidelidad" : "Fidelity Points"}
 ----------------------------------------
-      ¡Gracias por tu preferencia!
+      ${lang === "es" ? "¡Gracias por tu preferencia!" : "Thank you for shopping with us!"}
 ----------------------------------------
                       `;
                       const win = window.open("", "_blank");
@@ -4486,13 +5020,13 @@ Beneficio:     +${Math.floor(selectedReceipt.finalOrderTotal / 1000)} Puntos de 
                     className="flex-1 py-3 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-colors rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5"
                   >
                     <Printer size={14} />
-                    Imprimir
+                    {t[lang].printBtn}
                   </button>
                   <button type="button"
                     onClick={() => setSelectedReceipt(null)}
                     className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white transition-colors rounded-xl font-black uppercase tracking-widest text-[10px]"
                   >
-                    Cerrar
+                    {t[lang].closeBtn}
                   </button>
                 </div>
               </div>
