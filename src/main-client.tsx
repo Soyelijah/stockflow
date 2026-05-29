@@ -24,7 +24,7 @@ import "./index.css";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <MotionConfig reducedMotion="user">
+      <MotionConfig reducedMotion="user" transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.35 }}>
         <AuthProvider>
           <SettingsProvider>
             <BranchProvider>

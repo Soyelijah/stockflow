@@ -1,8 +1,189 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import "@fontsource-variable/inter";
 @import "tailwindcss";
+@import "./shared/styles/sf-utilities.css";
+
+:root {
+  /* ----- Brand / primary ----- */
+  --sf-indigo-50:  #eef2ff;
+  --sf-indigo-100: #e0e7ff;
+  --sf-indigo-200: #c7d2fe;
+  --sf-indigo-300: #a5b4fc;
+  --sf-indigo-400: #818cf8;
+  --sf-indigo-500: #6366f1;
+  --sf-indigo-600: #4f46e5;
+  --sf-indigo-700: #4338ca;
+  --sf-indigo-800: #3730a3;
+  --sf-indigo-900: #312e81;
+  --sf-indigo-950: #1e1b4b;
+
+  /* ----- Neutrals (Slate) ----- */
+  --sf-slate-50:  #f8fafc;
+  --sf-slate-100: #f1f5f9;
+  --sf-slate-200: #e2e8f0;
+  --sf-slate-300: #cbd5e1;
+  --sf-slate-400: #94a3b8;
+  --sf-slate-500: #64748b;
+  --sf-slate-600: #475569;
+  --sf-slate-700: #334155;
+  --sf-slate-800: #1e293b;
+  --sf-slate-900: #0f172a;
+  --sf-slate-950: #020617;
+
+  /* ----- Custom surface (page bg) ----- */
+  --sf-page-bg: #f8f9fc;
+  --sf-login-bg: #060608;
+  --sf-login-card-bg: #0b0b0e;
+
+  /* ----- Semantic accents ----- */
+  --sf-success: #059669;
+  --sf-success-bg: #ecfdf5;
+  --sf-success-border: #a7f3d0;
+
+  --sf-danger: #f43f5e;
+  --sf-danger-bg: #fff1f2;
+  --sf-danger-border: #fecdd3;
+
+  --sf-warning: #f59e0b;
+  --sf-warning-bg: #fffbeb;
+  --sf-warning-border: #fde68a;
+
+  --sf-info: #3b82f6;
+  --sf-info-bg: #eff6ff;
+  --sf-info-border: #bfdbfe;
+
+  --sf-customer: #a855f7;
+  --sf-customer-bg: #faf5ff;
+  --sf-customer-border: #e9d5ff;
+
+  /* ----- Foreground semantic ----- */
+  --sf-fg-1: #0f172a;
+  --sf-fg-2: #1e293b;
+  --sf-fg-3: #64748b;
+  --sf-fg-4: #94a3b8;
+  --sf-fg-inv: #ffffff;
+
+  /* ----- Surfaces / strokes ----- */
+  --sf-surface-0: #ffffff;
+  --sf-surface-1: #f8fafc;
+  --sf-surface-page: var(--sf-page-bg);
+  --sf-surface-dark: #0f172a;
+  --sf-stroke-1: #f1f5f9;
+  --sf-stroke-2: #e2e8f0;
+  --sf-stroke-inv: rgba(255,255,255,0.05);
+
+  /* ----- Radii (chunky-round scale) ----- */
+  --sf-radius-sm: 8px;
+  --sf-radius-md: 12px;
+  --sf-radius-lg: 16px;
+  --sf-radius-xl: 24px;
+  --sf-radius-2xl: 32px;
+  --sf-radius-3xl: 40px;
+  --sf-radius-pill: 9999px;
+
+  /* ----- Spacing scale ----- */
+  --sf-space-1: 4px;
+  --sf-space-2: 8px;
+  --sf-space-3: 12px;
+  --sf-space-4: 16px;
+  --sf-space-5: 20px;
+  --sf-space-6: 24px;
+  --sf-space-8: 32px;
+  --sf-space-10: 40px;
+
+  /* ----- Shadows ----- */
+  --sf-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --sf-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --sf-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --sf-shadow-indigo: 0 8px 24px -8px rgba(79, 70, 229, 0.25);
+  --sf-shadow-indigo-soft: 0 4px 16px -4px rgba(79, 70, 229, 0.15);
+  --sf-shadow-emerald: 0 8px 24px -8px rgba(16, 185, 129, 0.25);
+  --sf-shadow-modal: 0 25px 60px rgba(0, 0, 0, 0.4);
+  --sf-shadow-phone: 0 25px 60px -15px rgba(0, 0, 0, 0.95);
+
+  /* ----- Motion (Alineación con Enmienda #2 / OBS #1) ----- */
+  --sf-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --sf-ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --sf-ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --sf-dur-fast: 150ms;
+  --sf-dur-base: 200ms;
+  --sf-dur-slow: 350ms;
+}
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Mapeo de colores semánticos y personalizados con prefijo sf- */
+  --color-sf-indigo-50: var(--sf-indigo-50);
+  --color-sf-indigo-100: var(--sf-indigo-100);
+  --color-sf-indigo-200: var(--sf-indigo-200);
+  --color-sf-indigo-300: var(--sf-indigo-300);
+  --color-sf-indigo-400: var(--sf-indigo-400);
+  --color-sf-indigo-500: var(--sf-indigo-500);
+  --color-sf-indigo-600: var(--sf-indigo-600);
+  --color-sf-indigo-700: var(--sf-indigo-700);
+  --color-sf-indigo-800: var(--sf-indigo-800);
+  --color-sf-indigo-900: var(--sf-indigo-900);
+  --color-sf-indigo-950: var(--sf-indigo-950);
+
+  --color-sf-slate-50: var(--sf-slate-50);
+  --color-sf-slate-100: var(--sf-slate-100);
+  --color-sf-slate-200: var(--sf-slate-200);
+  --color-sf-slate-300: var(--sf-slate-300);
+  --color-sf-slate-400: var(--sf-slate-400);
+  --color-sf-slate-500: var(--sf-slate-500);
+  --color-sf-slate-600: var(--sf-slate-600);
+  --color-sf-slate-700: var(--sf-slate-700);
+  --color-sf-slate-800: var(--sf-slate-800);
+  --color-sf-slate-900: var(--sf-slate-900);
+  --color-sf-slate-950: var(--sf-slate-950);
+
+  --color-sf-page-bg: var(--sf-page-bg);
+  --color-sf-login-bg: var(--sf-login-bg);
+  --color-sf-login-card-bg: var(--sf-login-card-bg);
+
+  --color-sf-success: var(--sf-success);
+  --color-sf-success-bg: var(--sf-success-bg);
+  --color-sf-success-border: var(--sf-success-border);
+
+  --color-sf-danger: var(--sf-danger);
+  --color-sf-danger-bg: var(--sf-danger-bg);
+  --color-sf-danger-border: var(--sf-danger-border);
+
+  --color-sf-warning: var(--sf-warning);
+  --color-sf-warning-bg: var(--sf-warning-bg);
+  --color-sf-warning-border: var(--sf-warning-border);
+
+  --color-sf-info: var(--sf-info);
+  --color-sf-info-bg: var(--sf-info-bg);
+  --color-sf-info-border: var(--sf-info-border);
+
+  --color-sf-customer: var(--sf-customer);
+  --color-sf-customer-bg: var(--sf-customer-bg);
+  --color-sf-customer-border: var(--sf-customer-border);
+
+  /* Radios de borde chunky */
+  --radius-sf-sm: var(--sf-radius-sm);
+  --radius-sf-md: var(--sf-radius-md);
+  --radius-sf-lg: var(--sf-radius-lg);
+  --radius-sf-xl: var(--sf-radius-xl);
+  --radius-sf-2xl: var(--sf-radius-2xl);
+  --radius-sf-3xl: var(--sf-radius-3xl);
+  --radius-sf-pill: var(--sf-radius-pill);
+
+  /* Sombras con colores de brillo específicos */
+  --shadow-sf-sm: var(--sf-shadow-sm);
+  --shadow-sf-md: var(--sf-shadow-md);
+  --shadow-sf-card: var(--sf-shadow-card);
+  --shadow-sf-indigo: var(--sf-shadow-indigo);
+  --shadow-sf-indigo-soft: var(--sf-shadow-indigo-soft);
+  --shadow-sf-emerald: var(--sf-shadow-emerald);
+  --shadow-sf-modal: var(--sf-shadow-modal);
+  --shadow-sf-phone: var(--sf-shadow-phone);
+
+  /* Easing y curvas de animación */
+  --ease-sf-out-expo: var(--sf-ease-out-expo);
+  --ease-sf-snap: var(--sf-ease-snap);
+  --ease-sf-spring: var(--sf-ease-spring);
 }
 
 @layer base {

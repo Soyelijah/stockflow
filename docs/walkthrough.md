@@ -178,16 +178,14 @@ Commit: `0aa3143`.
 **Evidencia**: lint + build + bundle:check verde. CC-mobile smoke runtime
 pendiente con HEAD `0aa3143`.
 
-## Tier 5.C.8 — LOCAL pending push (congelado por decisión CEO)
+## Tier 5.C.8 — i18n cleanup CustomerPortal
 
-Sin commit todavía. Diff verificado por CC-auditor coincide 1:1 con plan v3 de
-Antigravity:
+Commit: `28b4f29`.
 
 - 2 keys nuevas en `t.es` y `t.en`: `viewReceipts` + `accountSecurity`.
 - 14 sustituciones de strings hardcoded a `t[lang].*` en Mi Cuenta drawer +
   Tienda Online tab + footer.
-
-Congelado por decisión Pierre hasta nueva instrucción. **No se debe revertir.**
+- Traducida la sección completa para asegurar coherencia en el cambio de idiomas.
 
 ## Tier 5.D — Create employee API + Settings inline modal
 
@@ -203,3 +201,20 @@ utils).
 - A11y modal completo (role dialog + aria-modal + focus management).
 
 **Evidencia**: Antigravity probe + Pierre smoke manual.
+
+## Tier 6.A — UX Premium Polish — Foundations
+
+Commit: `[6.A-commit-hash]`.
+
+**Cambios principales**:
+- **Tipografía Autohospedada**: Instalación de la tipografía variable Inter (`@fontsource-variable/inter` ^5.1.0) para asegurar compatibilidad offline en Capacitor. El CSS importa la versión `latin.css` (OBS #2 aplicada para forzar empaquetado del subset latin de ~102 KB).
+- **Mapeo de Tokens de Diseño (Tailwind v4)**: Declaración de las variables semánticas `--sf-*` en `:root` y mapeo en el bloque `@theme` dentro de `src/index.css` (duraciones, sombras, easings).
+- **Clases de Utilidad Estandarizadas**: Creación del archivo `src/shared/styles/sf-utilities.css` que incluye `.sf-microlabel`, `.sf-tap` (active scale 0.96), `.sf-press` (active scale 0.99 con Y-translate, OBS #1 aplicada), `.sf-spring` (transición elástica global) y `.sf-tabular-nums`.
+- **8 Componentes Atómicos Primitivos**: Creados en `src/shared/components/ui/sf/` con tipado TypeScript y named imports de Lucide para tree-shaking (Pill, IconChip, Avatar, ProgressRing, MoneyTicker, Sparkline, StatTile, Divider).
+- **Control de Iconos Inexistentes (Safeguard)**: Guard en `IconChip.tsx` que advierte en consola de desarrollo si se intenta cargar un icono no registrado en la whitelist, previniendo excepciones en runtime.
+- **MotionConfig Global**: Inyección de dinámicas de resorte centralizadas (`ease: [0.32, 0.72, 0, 1]`, `duration: 0.35`) en `main-staff.tsx`, `main-client.tsx` y `main-driver.tsx`.
+
+**Evidencia**:
+- `pnpm lint`: 0 errores.
+- `pnpm build:all`: Compilación de producción exitosa en dist-staff, dist-client y dist-driver.
+- `pnpm bundle:check`: 100% verde con driver totalizando **1360.6 KB** (bajo el límite de 1400 KB).

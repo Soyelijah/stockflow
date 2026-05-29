@@ -1,0 +1,42 @@
+/* ============================================================
+   StockFlow Design System — Utility Classes
+   ------------------------------------------------------------
+   Estandariza los estilos y transiciones en toda la app.
+   ============================================================ */
+
+.sf-microlabel {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sf-slate-400);
+  line-height: 1.2;
+}
+
+/* Efecto activo de escala al presionar botones principales */
+.sf-tap {
+  transition: transform var(--sf-dur-fast, 150ms) var(--sf-ease-spring, cubic-bezier(0.32, 0.72, 0, 1));
+}
+.sf-tap:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Efecto de prensa de tarjetas y tiles de KPI */
+.sf-press {
+  transition: transform var(--sf-dur-base, 200ms) var(--sf-ease-spring, cubic-bezier(0.32, 0.72, 0, 1)), box-shadow var(--sf-dur-base, 200ms) var(--sf-ease-spring, cubic-bezier(0.32, 0.72, 0, 1));
+  cursor: pointer;
+}
+.sf-press:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Transición de resorte elástica global */
+.sf-spring {
+  transition: all var(--sf-dur-slow, 350ms) var(--sf-ease-spring, cubic-bezier(0.32, 0.72, 0, 1));
+}
+
+/* Números tabulares alineados en monospaciado para dinero */
+.sf-tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
