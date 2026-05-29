@@ -59,3 +59,11 @@ dist-driver/
 # Signing keystores — NEVER commit. Loss = loss of Play Store update ability.
 *.jks
 *.keystore
+
+# Tier 5.C.4 — design system handoffs locales (referencia visual, NO código a commitear)
+StockFlow Design System*.zip
+StockFlow Design System-handoff.tar.gz
+Copia de StockFlow Design System*.zip
+
+# CC-mobile / Codex smoke screenshots locales (no commitear: pueden contener UI live + RUTs/emails de smoke)
+.codex-smoke/
