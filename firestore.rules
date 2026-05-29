@@ -368,7 +368,25 @@ service cloud.firestore {
          (incoming().status != 'failed' || (
            incoming().get('failedDeliveryReason', '') is string && 
            incoming().get('failedDeliveryReason', '').size() > 0
-         )));
+         )) &&
+         // Transiciones de estado válidas (impide deshacer entregas)
+         ((existing().status == 'assigned' && incoming().status == 'in_route') ||
+          (existing().status == 'in_route' && incoming().status in ['delivered', 'failed']) ||
+          (existing().status == incoming().status)) &&
+         // failedDeliveryReason debe ser un código válido (whitelist) o
+         // "other:" + descripción libre con límite de tamaño
+         (incoming().status != 'failed' || (
+           incoming().failedDeliveryReason in [
+             'address_not_found', 'recipient_not_available', 'recipient_rejected',
+             'force_majeure', 'closed_or_no_access', 'wrong_address_data'
+           ] ||
+           (incoming().failedDeliveryReason.matches('^other:.+') &&
+            incoming().failedDeliveryReason.size() < 250)
+         )) &&
+         // Si status=failed, photoEvidenceUrl es obligatorio (no solo en UI)
+         (incoming().status != 'failed' ||
+          (incoming().photoEvidenceUrl is string &&
+           incoming().photoEvidenceUrl.matches('^https://.*'))));
     }
 
     match /fcm_tokens/{tokenId} {

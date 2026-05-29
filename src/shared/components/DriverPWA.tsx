@@ -5,8 +5,8 @@ import { db, storage, handleFirestoreError, OperationType } from "../../lib/fire
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
-import { 
-  MapPin, Navigation, Truck, User, Phone, CheckCircle, Package, 
+import {
+  MapPin, Navigation, Truck, User, Phone, CheckCircle, Package,
   Loader2, Sparkles, LogOut, ArrowRight, ShieldCheck, QrCode, ClipboardList, Award, Home, Bell,
   Camera, X, AlertTriangle
 } from "lucide-react";
@@ -137,14 +137,14 @@ export function DriverPWA() {
         id: doc.id,
         ...doc.data()
       })) as any[];
-      
+
       // Sort shipments by routeIndex or orderId to enforce sequential transit
       const sorted = allShipments.sort((a, b) => {
         const idxA = a.routeIndex !== undefined ? a.routeIndex : 999;
         const idxB = b.routeIndex !== undefined ? b.routeIndex : 999;
         return idxA - idxB;
       });
-      
+
       setShipments(sorted);
       setLoading(false);
     }, (error) => {
@@ -311,9 +311,9 @@ export function DriverPWA() {
 
   // Handle sequential tactical Deliver completion
   const handleDeliverStop = async (
-    stopId: string, 
-    signatureDataUrl?: string, 
-    receivedByName?: string, 
+    stopId: string,
+    signatureDataUrl?: string,
+    receivedByName?: string,
     signatureMetadata?: { signedAt: string; latitude: number | null; longitude: number | null }
   ) => {
     try {
@@ -380,7 +380,7 @@ export function DriverPWA() {
             </p>
           </div>
         </div>
-        <button type="button" 
+        <button type="button"
           onClick={() => logout()}
           className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full transition-colors font-bold text-white/80 active:scale-95 flex items-center"
           title="Cerrar Sesión"
@@ -468,11 +468,11 @@ export function DriverPWA() {
                     </Pin>
                   </AdvancedMarker>
 
-                  <DriverPolyline 
+                  <DriverPolyline
                     origin={WAREHOUSE_COORDS}
                     destination={{ lat: activeNextStop.lat, lng: activeNextStop.lng }}
                   />
-                  
+
                   {activeNextStop.status === "in_route" && activeNextStop.currentLat && (
                     <AdvancedMarker position={{ lat: activeNextStop.currentLat, lng: activeNextStop.currentLng }}>
                       <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
@@ -611,7 +611,7 @@ export function DriverPWA() {
             <div className="size-20 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
               <Award size={40} className="animate-wiggle" />
             </div>
-              
+
             <div className="space-y-2">
               <h3 className="text-lg font-black tracking-tight font-sans uppercase">¡Ruta Completada!</h3>
               <p className="text-xs text-indigo-200/70 font-bold max-w-xs mx-auto leading-relaxed">
@@ -628,31 +628,31 @@ export function DriverPWA() {
         {/* SEQUENCE STOPS ACCORDION LIST */}
         <div className="space-y-2 text-left">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Secuencia completa de paradas ({shipments.length})</p>
-          
+
           <div className="space-y-2 bg-white rounded-[2rem] p-4 border border-slate-100 shadow-sm max-h-[220px] overflow-y-auto">
             {shipments.map((stop, idx) => {
               const isCurrent = activeNextStop?.id === stop.id;
               const isDelivered = stop.status === "delivered";
-              
+
               return (
-                <div 
-                  key={stop.id} 
+                <div
+                  key={stop.id}
                   className={cn(
                     "p-3 rounded-2xl flex items-center justify-between text-xs transition-colors border",
-                    isCurrent 
-                      ? "bg-rose-50/50 border-rose-100 text-rose-950" 
-                      : isDelivered 
-                      ? "bg-slate-50/40 border-slate-100 text-slate-450 opacity-60" 
+                    isCurrent
+                      ? "bg-rose-50/50 border-rose-100 text-rose-950"
+                      : isDelivered
+                      ? "bg-slate-50/40 border-slate-100 text-slate-450 opacity-60"
                       : "bg-white border-slate-100 text-slate-700"
                   )}
                 >
                   <div className="flex items-center gap-x-2.5 min-w-0">
                     <span className={cn(
                       "size-6 rounded-full flex items-center justify-center font-bold text-[10px] font-mono shrink-0",
-                      isCurrent 
-                        ? "bg-rose-500 text-white" 
-                        : isDelivered 
-                        ? "bg-emerald-100 text-emerald-600" 
+                      isCurrent
+                        ? "bg-rose-500 text-white"
+                        : isDelivered
+                        ? "bg-emerald-100 text-emerald-600"
                         : "bg-slate-100 text-slate-500"
                     )}>
                       {idx + 1}
@@ -664,10 +664,10 @@ export function DriverPWA() {
                   </div>
                   <span className={cn(
                     "text-[8px] font-black uppercase shrink-0 px-2 py-0.5 rounded-full border",
-                    isCurrent 
-                      ? "bg-rose-100 text-rose-600 border-rose-200/30" 
-                      : isDelivered 
-                      ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                    isCurrent
+                      ? "bg-rose-100 text-rose-600 border-rose-200/30"
+                      : isDelivered
+                      ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                       : "bg-amber-50 text-amber-500 border-amber-100"
                   )}>
                     {isDelivered ? "Entregada ✔" : isCurrent ? "Siguiente stop" : "Esperando"}
@@ -682,7 +682,7 @@ export function DriverPWA() {
       {/* RENDER QR BARCODE SCANNER OVERLAY IF TOGGLED */}
       <AnimatePresence>
         {isScanning && (
-          <BarcodeScanner 
+          <BarcodeScanner
             onScan={handleBarcodeScan}
             onClose={() => setIsScanning(false)}
           />
@@ -738,19 +738,87 @@ interface FailedDeliveryModalProps {
 }
 
 function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: FailedDeliveryModalProps) {
+  const lang = "es";
   const [reason, setReason] = useState("");
   const [otherDetails, setOtherDetails] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   const reasons = [
     { code: "address_not_found", label: "Dirección no encontrada" },
     { code: "recipient_not_available", label: "Cliente ausente / no disponible" },
     { code: "recipient_rejected", label: "Cliente rechazó el pedido" },
-    { code: "force_majeure", label: "Problema de fuerza mayor (accidente/taco)" },
+    { code: "force_majeure", label: "Problema de fuerza mayor (accidente/atasco vial)" },
+    { code: "closed_or_no_access",  label: "Local cerrado / sin acceso al edificio" },
+    { code: "wrong_address_data",   label: "Dirección incorrecta en el sistema" },
     { code: "other", label: "Otro motivo (especificar)" }
   ];
+
+  // Enmienda #1: Retorno de foco al cerrar el modal
+  useEffect(() => {
+    if (isOpen) {
+      triggerRef.current = document.activeElement as HTMLElement;
+    }
+    return () => {
+      if (!isOpen && triggerRef.current) {
+        triggerRef.current.focus();
+      }
+    };
+  }, [isOpen]);
+
+  // Tecla Escape + Focus Trap + Auto-focus al abrir
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      if (e.key === "Tab" && modalRef.current) {
+        const allFocusable = Array.from(
+          modalRef.current.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]'
+          )
+        ) as HTMLElement[];
+        const focusableElements = allFocusable.filter(el => {
+          // Excluir elementos invisibles/ocultos (como el input de archivos oculto)
+          return el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0;
+        });
+
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+      const timer = setTimeout(() => {
+        selectRef.current?.focus();
+      }, 50);
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        clearTimeout(timer);
+      };
+    }
+  }, [isOpen, onClose]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -769,9 +837,15 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[150] overflow-y-auto flex items-end sm:items-center justify-center p-4">
-      <div 
-        className="fixed inset-0 bg-slate-950/85 backdrop-blur-xs transition-opacity" 
+    <div
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="failed-delivery-title"
+      className="fixed inset-0 z-[150] overflow-y-auto flex items-end sm:items-center justify-center p-4"
+    >
+      <div
+        className="fixed inset-0 bg-slate-950/85 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
@@ -790,13 +864,14 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
               <AlertTriangle size={16} />
             </div>
             <div>
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Reportar Falla</h3>
+              <h3 id="failed-delivery-title" className="text-xs font-black uppercase tracking-widest text-slate-800">Reportar Falla</h3>
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Orden #{orderId.slice(0, 8).toUpperCase()}</p>
             </div>
           </div>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={onClose}
+            aria-label="Cerrar modal"
             className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-colors cursor-pointer"
           >
             <X size={15} />
@@ -810,6 +885,9 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
             <label htmlFor="failureReason" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Motivo del Fallo:</label>
             <select
               id="failureReason"
+              ref={selectRef}
+              autoFocus
+              aria-required="true"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full h-11 px-3 bg-slate-50/50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 rounded-2xl transition-all"
@@ -839,7 +917,7 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
           {/* Camera upload */}
           <div className="space-y-1.5">
             <span className="block text-[9px] font-black uppercase text-slate-400 tracking-wider">Foto-Evidencia Obligatoria:</span>
-            
+
             <input
               type="file"
               accept="image/*"
@@ -852,7 +930,7 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
             <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl min-h-[140px] relative overflow-hidden">
               {photoPreview ? (
                 <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-                  <img src={photoPreview} alt="Evidence Preview" className="w-full h-full object-cover" />
+                  <img src={photoPreview} alt={lang === "es" ? "Vista previa de la foto" : "Photo preview"} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => { setPhoto(null); setPhotoPreview(null); }}
@@ -889,6 +967,7 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
             type="button"
             onClick={handleConfirmClick}
             disabled={isSaving || !reason || !photo || (reason === "other" && !otherDetails.trim())}
+            aria-disabled={isSaving || !reason || !photo || (reason === "other" && !otherDetails.trim())}
             className="h-12 w-full bg-rose-500 hover:bg-rose-650 active:scale-95 text-white rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all cursor-pointer disabled:opacity-50 shadow-lg shadow-rose-200"
           >
             {isSaving ? "Guardando..." : "Reportar Falla"}
