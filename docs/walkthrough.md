@@ -204,7 +204,7 @@ utils).
 
 ## Tier 6.A — UX Premium Polish — Foundations
 
-Commit: `[6.A-commit-hash]`.
+Commit: `9b4312c`.
 
 **Cambios principales**:
 - **Tipografía Autohospedada**: Instalación de la tipografía variable Inter (`@fontsource-variable/inter` ^5.1.0) para asegurar compatibilidad offline en Capacitor. El CSS importa la versión `latin.css` (OBS #2 aplicada para forzar empaquetado del subset latin de ~102 KB).
