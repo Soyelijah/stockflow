@@ -208,6 +208,8 @@ export function CustomerPortal() {
       activeCouponsMenu: "Mis Cupones Activos",
       closeSessionMobile: "Cerrar Sesión Móvil",
       noRegistered: "No registrado",
+      viewReceipts: "Ver Mis Boletas",
+      accountSecurity: "Seguridad de la Cuenta",
       // E-commerce Online Shop Tab
       itemsCount: (count: number, label: string) => `${count} ${label}`,
       itemsPlural: "Artículos",
@@ -490,6 +492,8 @@ export function CustomerPortal() {
       activeCouponsMenu: "My Active Coupons",
       closeSessionMobile: "Log Out Mobile",
       noRegistered: "Not registered",
+      viewReceipts: "View My Receipts",
+      accountSecurity: "Account Security",
       // E-commerce Online Shop Tab
       itemsCount: (count: number, label: string) => `${count} ${label}`,
       itemsPlural: "Items",
@@ -2451,14 +2455,14 @@ export function CustomerPortal() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[7.5px] font-black text-slate-450 uppercase tracking-widest ml-0.5">Tipo de Facturación</label>
+                      <label className="text-[7.5px] font-black text-slate-450 uppercase tracking-widest ml-0.5">{t[lang].billingType}</label>
                       <select 
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm appearance-none"
                         value={profileType}
                         onChange={(e) => setProfileType(e.target.value as any)}
                       >
-                        <option value="retail">Persona Natural (Minorista)</option>
-                        <option value="wholesale">Empresa (Mayorista)</option>
+                        <option value="retail">{t[lang].retailPerson}</option>
+                        <option value="wholesale">{t[lang].wholesaleCompany}</option>
                       </select>
                     </div>
 
@@ -2518,7 +2522,7 @@ export function CustomerPortal() {
                       ) : (
                         <>
                           <Star size={12} />
-                          <span>Guardar Cambios</span>
+                          <span>{t[lang].saveChanges}</span>
                         </>
                       )}
                     </motion.button>
@@ -2527,7 +2531,7 @@ export function CustomerPortal() {
 
                 {/* Account Navigation Shortcuts */}
                 <div className="space-y-2.5">
-                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">Accesos Cuenta</h4>
+                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">{t[lang].accountAccessHeader}</h4>
                   
                   <button type="button"
                     onClick={() => {
@@ -2540,7 +2544,7 @@ export function CustomerPortal() {
                       <div className="size-8 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100 shadow-inner shrink-0">
                         <Gift size={15} />
                       </div>
-                      <span className="group-hover:text-amber-700 font-black">Canje de Premios</span>
+                      <span className="group-hover:text-amber-700 font-black">{t[lang].rewardsRedemptionMenu}</span>
                     </div>
                     <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                   </button>
@@ -2556,7 +2560,7 @@ export function CustomerPortal() {
                       <div className="size-8 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100 shadow-inner shrink-0">
                         <Tag size={15} />
                       </div>
-                      <span className="group-hover:text-indigo-750 font-black">Mis Cupones Activos</span>
+                      <span className="group-hover:text-indigo-750 font-black">{t[lang].activeCouponsMenu}</span>
                     </div>
                     <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                   </button>
@@ -2572,7 +2576,7 @@ export function CustomerPortal() {
                       <div className="size-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100 shadow-inner shrink-0">
                         <History size={15} />
                       </div>
-                      <span className="group-hover:text-emerald-700 font-black">Ver Mis Boletas</span>
+                      <span className="group-hover:text-emerald-700 font-black">{t[lang].viewReceipts}</span>
                     </div>
                     <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                   </button>
@@ -2580,7 +2584,7 @@ export function CustomerPortal() {
 
                 {/* Configuration / Password Info card inside menu */}
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-150 text-left space-y-1.5">
-                  <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">Seguridad de la Cuenta</p>
+                  <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">{t[lang].accountSecurity}</p>
                   <p className="text-[10px] font-black text-slate-700 flex items-center gap-1">
                     <Lock size={12} className="text-slate-400" />
                     Contraseña de Acceso
@@ -2606,7 +2610,7 @@ export function CustomerPortal() {
                 
                 <div className="text-center">
                   <p className="text-[8px] font-black text-slate-350 uppercase tracking-wider">
-                    {settings.businessName || "StockFlow"} • CLIENTES • v2.5.0
+                    {settings.businessName || "StockFlow"} • {t[lang].brandVersionText} • v2.5.0
                   </p>
                 </div>
               </div>
@@ -2969,7 +2973,7 @@ export function CustomerPortal() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-x-3">
                   <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Tienda Online</h3>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">{t[lang].shop}</h3>
                 </div>
                 {cart.length > 0 && (
                   <button type="button" 
@@ -3086,7 +3090,7 @@ export function CustomerPortal() {
                     <option value="name">{t[lang].sortName}</option>
                     <option value="price-asc">{t[lang].sortPriceAsc}</option>
                     <option value="price-desc">{t[lang].sortPriceDesc}</option>
-                    <option value="discount">Mejor Oferta/Mayorista</option>
+                    <option value="discount">{t[lang].sortDiscount}</option>
                   </select>
                 </div>
               </div>
@@ -3095,8 +3099,8 @@ export function CustomerPortal() {
               {filteredAndSortedProducts.length === 0 ? (
                 <div className="p-12 text-center bg-white rounded-3xl border border-slate-100 shadow-sm space-y-3">
                   <div className="text-4xl text-slate-300">🔎</div>
-                  <h4 className="font-bold text-sm text-slate-700">Sin coincidencias</h4>
-                  <p className="text-xs text-slate-400">Prueba ajustando la búsqueda o seleccionando otra de tus categorías.</p>
+                  <h4 className="font-bold text-sm text-slate-700">{t[lang].noMatchesTitle}</h4>
+                  <p className="text-xs text-slate-400">{t[lang].noMatchesDesc}</p>
                   <button type="button"
                     onClick={() => {
                       setSearchTerm("");
@@ -3104,7 +3108,7 @@ export function CustomerPortal() {
                     }}
                     className="mt-2 px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
                   >
-                    Restablecer Filtros
+                    {t[lang].resetFilters}
                   </button>
                 </div>
               ) : viewMode === "grid" ? (
