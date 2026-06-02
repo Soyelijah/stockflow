@@ -2382,7 +2382,7 @@ export function CustomerPortal() {
               <Bell size={18} className="animate-soft-bounce" />
             </div>
             <div className="flex-1 text-left">
-              <p className="text-[9px] font-black text-[#10b981] uppercase tracking-widest">{fcmToast.title}</p>
+              <p className="sf-microlabel text-[#10b981]">{fcmToast.title}</p>
               <p className="text-xs text-slate-200 mt-1 font-semibold leading-normal">{fcmToast.body}</p>
             </div>
             <button 
@@ -2421,7 +2421,7 @@ export function CustomerPortal() {
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="text-left">
                   <h3 className="text-sm font-black text-slate-800 tracking-tight leading-none">{t[lang].myAccount}</h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{t[lang].configAndSupport}</p>
+                  <p className="sf-microlabel mt-1">{t[lang].configAndSupport}</p>
                 </div>
                 <button type="button" 
                   onClick={() => setIsProfileSidebarOpen(false)}
@@ -2474,7 +2474,7 @@ export function CustomerPortal() {
                           <CheckCircle size={13} className="text-emerald-500 fill-emerald-50 shrink-0" title={t[lang].profileVerified} />
                         )}
                       </h4>
-                      <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest leading-none mt-1">{t[lang].memberTier(tier.name)}</p>
+                      <p className="sf-microlabel text-indigo-600 leading-none mt-1">{t[lang].memberTier(tier.name)}</p>
                       {customer.photoVerified ? (
                         <span className="text-[8px] font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 mt-1 inline-block">✓ {t[lang].idVerifiedBadge}</span>
                       ) : (
@@ -2487,7 +2487,7 @@ export function CustomerPortal() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                       <div className="text-left">
-                        <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">{t[lang].registeredRut}</p>
+                        <p className="sf-microlabel">{t[lang].registeredRut}</p>
                         <span className="text-[11px] font-semibold text-slate-700">
                           {customer.rut || customer.taxId
                             ? formatRUT(customer.rut || customer.taxId)
@@ -2499,7 +2499,7 @@ export function CustomerPortal() {
                     {customer.phone && (
                       <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                         <div className="text-left">
-                          <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">{t[lang].linkedPhone}</p>
+                          <p className="sf-microlabel">{t[lang].linkedPhone}</p>
                           <p className="text-[11px] font-semibold text-slate-700">{customer.phone}</p>
                         </div>
                         <Lock size={12} className="text-slate-350" />
@@ -2510,11 +2510,11 @@ export function CustomerPortal() {
 
                 {/* Edit Contact details inside Drawer */}
                 <div className="space-y-3.5">
-                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">{t[lang].editContactData}</h4>
+                  <h4 className="sf-microlabel ml-1 text-left">{t[lang].editContactData}</h4>
                   
                   <div className="space-y-3.5 p-5 bg-slate-50 rounded-[2rem] border border-slate-150 text-left shadow-inner">
                     <div className="space-y-1">
-                      <label className="text-[7.5px] font-black text-slate-450 uppercase tracking-widest ml-0.5">{t[lang].emailInvoices}</label>
+                      <label className="sf-microlabel ml-0.5">{t[lang].emailInvoices}</label>
                       <input 
                         type="email" 
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
@@ -2525,7 +2525,7 @@ export function CustomerPortal() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[7.5px] font-black text-slate-450 uppercase tracking-widest ml-0.5">{t[lang].billingType}</label>
+                      <label className="sf-microlabel ml-0.5">{t[lang].billingType}</label>
                       <select 
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm appearance-none"
                         value={profileType}
@@ -2581,7 +2581,7 @@ export function CustomerPortal() {
                       }}
                       disabled={isSavingProfile || (profileEmail === customer.email && profileType === customer.type)}
                       className={cn(
-                        "w-full py-3 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-x-1.5 border shadow-sm mt-3",
+                        "w-full py-3 rounded-xl sf-microlabel transition-all flex items-center justify-center gap-x-1.5 border shadow-sm mt-3",
                         (profileEmail === customer.email && profileType === customer.type)
                           ? "bg-slate-150 text-slate-350 border-slate-200 cursor-not-allowed shadow-none"
                           : "bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700 active:scale-95"
@@ -2601,7 +2601,7 @@ export function CustomerPortal() {
 
                 {/* Account Navigation Shortcuts */}
                 <div className="space-y-2.5">
-                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">{t[lang].accountAccessHeader}</h4>
+                  <h4 className="sf-microlabel ml-1 text-left">{t[lang].accountAccessHeader}</h4>
                   
                   <button type="button"
                     onClick={() => {
@@ -2657,7 +2657,7 @@ export function CustomerPortal() {
 
                 {/* Configuration / Password Info card inside menu */}
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-150 text-left space-y-1.5">
-                  <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">{t[lang].accountSecurity}</p>
+                  <p className="sf-microlabel">{t[lang].accountSecurity}</p>
                   <p className="text-[10px] font-black text-slate-700 flex items-center gap-1">
                     <Lock size={12} className="text-slate-400" />
                     Contraseña de Acceso
@@ -2713,7 +2713,7 @@ export function CustomerPortal() {
               <h2 className="text-sm font-black text-slate-900 truncate max-w-[150px] group-hover:text-indigo-650 transition-colors">{t[lang].welcomeUser(customer.name?.split(' ')[0] || "")}</h2>
               <ChevronRight size={12} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
             </div>
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">{t[lang].levelLabel} {tier.name}</p>
+            <p className="sf-microlabel mt-0.5">{t[lang].levelLabel} {tier.name}</p>
           </div>
         </button>
 
@@ -2766,14 +2766,14 @@ export function CustomerPortal() {
                       <CheckCircle size={18} />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-100">{t[lang].claimResolvedTitle}</h4>
+                      <h4 className="sf-microlabel text-emerald-100">{t[lang].claimResolvedTitle}</h4>
                       <h3 className="text-xs font-black text-white leading-snug">{t[lang].claimResolvedMsg(claim.orderId ? claim.orderId.substring(0,8).toUpperCase() : "S/N")}</h3>
-                      <p className="text-[9px] font-bold text-emerald-150 uppercase tracking-widest">{t[lang].reasonLabel}: {claim.reason}</p>
+                      <p className="sf-microlabel text-emerald-150">{t[lang].reasonLabel}: {claim.reason}</p>
                     </div>
                   </div>
 
                   <div className="bg-black/10 p-4 rounded-2xl border border-white/5 space-y-1 mt-1">
-                    <span className="text-[8.5px] font-black text-emerald-250 uppercase tracking-widest leading-none">{t[lang].fulfillmentResponse}</span>
+                    <span className="sf-microlabel text-emerald-250 leading-none">{t[lang].fulfillmentResponse}</span>
                     <p className="text-xs text-white font-extrabold leading-normal">
                       "{claim.resolutionNote}"
                     </p>
@@ -2786,7 +2786,7 @@ export function CustomerPortal() {
                     <button
                       type="button"
                       onClick={() => dismissClaim(claim.id)}
-                      className="px-4 py-1.5 bg-white text-emerald-700 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-50 transition-colors shadow-xs"
+                      className="px-4 py-1.5 bg-white text-emerald-700 rounded-xl sf-microlabel hover:bg-emerald-50 transition-colors shadow-xs"
                     >
                       {t[lang].understood}
                     </button>
@@ -2834,7 +2834,7 @@ export function CustomerPortal() {
                     <Bell size={20} className={fcmLoading ? "animate-spin" : ""} />
                   </div>
                   <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-[#10b981]">{t[lang].pushNotifications}</h4>
+                    <h4 className="sf-microlabel text-[#10b981]">{t[lang].pushNotifications}</h4>
                     <p className="text-xs text-slate-300 mt-1 font-bold">
                       {fcmRegistered ? t[lang].pushSubscribed : t[lang].pushUnsubscribed}
                     </p>
@@ -2871,7 +2871,7 @@ export function CustomerPortal() {
                   <div className="size-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
                     <Gift size={24} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">{t[lang].redeem}</span>
+                  <span className="sf-microlabel text-slate-800">{t[lang].redeem}</span>
                 </button>
                 <button type="button" 
                   onClick={() => setActiveTab("shop")}
@@ -2880,18 +2880,18 @@ export function CustomerPortal() {
                   <div className="size-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
                     <ShoppingCart size={24} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">{t[lang].buy}</span>
+                  <span className="sf-microlabel text-slate-800">{t[lang].buy}</span>
                 </button>
               </div>
 
               {/* Exclusive Offers */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].offersForYou}</h3>
+                  <h3 className="sf-microlabel ml-1">{t[lang].offersForYou}</h3>
                   <button type="button" onClick={() => {
                     setActiveTab("coupons");
                     setCouponsSubTab("offers");
-                  }} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{t[lang].viewAll}</button>
+                  }} className="sf-microlabel text-indigo-600">{t[lang].viewAll}</button>
                 </div>
                 <div className="space-y-3">
                   {loadingCoupons ? (
@@ -2963,7 +2963,7 @@ export function CustomerPortal() {
                               <div className="text-2xl">{coupon.img || "🎟️"}</div>
                               <div>
                                 <h4 className="font-bold text-sm text-indigo-950">{coupon.title}</h4>
-                                <p className="text-[9px] text-indigo-600 font-black uppercase tracking-widest mt-0.5 flex flex-wrap items-center gap-1.5">
+                                <p className="sf-microlabel text-indigo-600 mt-0.5 flex flex-wrap items-center gap-1.5">
                                   <span>{coupon.desc} • {lang === "es" ? "Código" : "Code"}: {coupon.code}</span>
                                   <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-2 py-0.5 rounded-full">
                                     ✓ {t[lang].registeredInSystem}
@@ -3008,7 +3008,7 @@ export function CustomerPortal() {
                                 <div className="text-2xl">{lockedC.img || "🎟️"}</div>
                                 <div>
                                   <h4 className="font-bold text-xs text-slate-800">{lockedC.title}</h4>
-                                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-0.5">
+                                  <p className="sf-microlabel text-slate-500 mt-0.5">
                                     {t[lang].levelLabel} {lockedC.minTier} ({minPointsNeeded} pts)
                                   </p>
                                 </div>
@@ -3020,7 +3020,7 @@ export function CustomerPortal() {
 
                         {!hasUnlocked && coupons.length === 0 && (
                           <div className="p-5 text-center text-slate-400 rounded-3xl bg-slate-50 border border-slate-100">
-                            <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">
+                            <p className="sf-microlabel leading-relaxed">
                               {t[lang].pointsNoticeCart}
                             </p>
                           </div>
@@ -3437,7 +3437,7 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => setCouponsSubTab("offers")}
                   className={cn(
-                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    "flex-1 py-3 rounded-xl sf-microlabel transition-all",
                     couponsSubTab === "offers"
                       ? "bg-white text-indigo-600 shadow-sm"
                       : "text-slate-400 hover:text-slate-700"
@@ -3449,7 +3449,7 @@ export function CustomerPortal() {
                   type="button"
                   onClick={() => setCouponsSubTab("rewards")}
                   className={cn(
-                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    "flex-1 py-3 rounded-xl sf-microlabel transition-all",
                     couponsSubTab === "rewards"
                       ? "bg-white text-indigo-600 shadow-sm"
                       : "text-slate-400 hover:text-slate-700"
@@ -3465,7 +3465,7 @@ export function CustomerPortal() {
                   {/* 1. SECCIÓN: CUPONES DE LA EMPRESA */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 text-left">
+                      <h4 className="sf-microlabel flex items-center gap-1.5 text-left">
                         <Tag size={12} className="text-indigo-500" />
                         {lang === "es" ? "Cupones de la Empresa" : "Company Coupons"}
                       </h4>
@@ -3526,7 +3526,7 @@ export function CustomerPortal() {
                       </div>
                     ) : (
                       <div className="p-6 rounded-[2rem] border border-dashed border-slate-200 text-center bg-slate-50/50">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <p className="sf-microlabel">
                           {lang === "es" ? "La empresa no cuenta con cupones promocionales configurados en este momento." : "The company does not have promotional coupons configured at this time."}
                         </p>
                       </div>
@@ -3536,7 +3536,7 @@ export function CustomerPortal() {
                   {/* 2. SECCIÓN: CUPONES AUTOMÁTICOS POR PUNTOS */}
                   <div className="space-y-3 pt-4 border-t border-slate-100">
                     <div className="space-y-1 text-left">
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <h4 className="sf-microlabel flex items-center gap-1.5">
                         <Star size={12} className="text-amber-500 fill-amber-500" />
                         {lang === "es" ? "Mis Cupones Automáticos por Puntos" : "My Automatic Coupons by Points"}
                       </h4>
@@ -3596,14 +3596,14 @@ export function CustomerPortal() {
                     </div>
                     <div className="relative z-10 flex items-center justify-between">
                       <div className="text-left">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t[lang].pointsAvailable}</h4>
+                        <h4 className="sf-microlabel">{t[lang].pointsAvailable}</h4>
                         <div className="flex items-baseline gap-x-1.5 mt-2">
                           <span className="text-5xl font-black text-amber-400 tracking-tight">{customer.points || 0}</span>
                           <span className="text-xs font-black text-slate-350">PTS</span>
                         </div>
                       </div>
                       <div className="bg-white/10 px-4 py-2.5 rounded-2xl border border-white/15 backdrop-blur-md text-right font-sans">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-amber-300">{t[lang].pointsEquivTitle}</p>
+                        <p className="sf-microlabel text-amber-300">{t[lang].pointsEquivTitle}</p>
                         <p className="text-xs font-bold text-white mt-1">{t[lang].pointsEquivDesc}</p>
                       </div>
                     </div>
@@ -4191,20 +4191,20 @@ export function CustomerPortal() {
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between z-50 gap-1">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 pt-3.5 pb-[calc(1.2rem+env(safe-area-inset-bottom))] flex items-center justify-between z-50 gap-1">
         <button type="button" 
           onClick={() => setActiveTab("home")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "home" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Star size={18} />
-          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].startNav}</span>
+          <span className="sf-microlabel">{t[lang].startNav}</span>
         </button>
         <button type="button" 
           onClick={() => setActiveTab("shop")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "shop" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <ShoppingBag size={18} />
-          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].shop}</span>
+          <span className="sf-microlabel">{t[lang].shop}</span>
         </button>
         <button type="button" 
           onClick={() => setIsQRSheetOpen(true)}
@@ -4217,14 +4217,14 @@ export function CustomerPortal() {
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "coupons" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Tag size={18} />
-          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].couponsNav}</span>
+          <span className="sf-microlabel">{t[lang].couponsNav}</span>
         </button>
         <button type="button" 
           onClick={() => setActiveTab("orders")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "orders" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Truck size={18} />
-          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].ordersNav}</span>
+          <span className="sf-microlabel">{t[lang].ordersNav}</span>
         </button>
       </nav>
 
