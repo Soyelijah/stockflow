@@ -58,7 +58,8 @@ import {
   Trophy,
   Mail,
   Landmark,
-  Ticket
+  Ticket,
+  Crown
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../../lib/utils";
@@ -77,6 +78,7 @@ import { ModernAlert } from "./ui/ModernAlert";
 import { QRCodeCanvas } from "qrcode.react";
 import { DeliveryMap } from "./DeliveryMap";
 import { useSettings } from "../../contexts/SettingsContext";
+import { LoyaltyCard } from "./client/LoyaltyCard";
 
 export function CustomerPortal() {
   const { settings } = useSettings();
@@ -751,6 +753,7 @@ export function CustomerPortal() {
   const [redemptions, setRedemptions] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [isQRSheetOpen, setIsQRSheetOpen] = useState(false);
   const [activatedOffers, setActivatedOffers] = useState<string[]>([]);
   const [hasUnread, setHasUnread] = useState(true);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -2733,34 +2736,26 @@ export function CustomerPortal() {
               className="space-y-8"
             >
               {/* Point Card */}
-              <div className={cn("rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl", tier.bg, tier.textColor)}>
-                <div className="absolute top-0 right-0 size-32 bg-orange-600/5 blur-3xl rounded-full -mr-16 -mt-16" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-8">
-                    <Star size={24} className={tier.color} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">{lang === "es" ? "Categoría" : "Status"} {tier.name}</span>
-                  </div>
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">{t[lang].accumulatedPoints}</p>
-                  <div className="flex items-baseline gap-x-2">
-                    <h3 className="text-5xl font-black">{customer.points || 0}</h3>
-                    <span className="text-sm font-black opacity-60">{t[lang].pointsLower.toUpperCase()}</span>
-                  </div>
-                  
-                  <div className="mt-10 pt-6 border-t border-slate-900/10">
-                    <div className="flex items-center justify-between text-xs font-bold mb-2">
-                      <span>{t[lang].pointsProgress}</span>
-                      <span className="opacity-60">{customer.points || 0} / 5000</span>
-                    </div>
-                    <div className={cn("h-2 rounded-full overflow-hidden", tier.name === "Platinum" ? "bg-white/10" : "bg-slate-900/10")}>
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(100, (customer.points || 0) / 5000 * 100)}%` }}
-                        className={cn("h-full shadow-lg", tier.name === "Platinum" ? "bg-white" : "bg-slate-900")}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <LoyaltyCard
+                points={customer.points || 0}
+                tierName={tier.name as any}
+                pointsToNext={
+                  tier.name === "Platinum" ? 0 :
+                  tier.name === "Gold" ? 5000 - (customer.points || 0) :
+                  tier.name === "Silver" ? 2000 - (customer.points || 0) :
+                  500 - (customer.points || 0)
+                }
+                nextTier={
+                  tier.name === "Platinum" ? "" :
+                  tier.name === "Gold" ? "Platinum" :
+                  tier.name === "Silver" ? "Gold" :
+                  "Silver"
+                }
+                rut={customer.taxId || ""}
+                memberSince={customer.timestamp ? toDate(customer.timestamp).getFullYear().toString() : "2024"}
+                onShowQR={() => setIsQRSheetOpen(true)}
+                lang={lang}
+              />
 
               {/* FCM Push Notifications Control Card */}
               <div className="bg-gradient-to-r from-slate-900 to-[#2a1200] text-white p-6 rounded-[2.5rem] border border-orange-500/10 shadow-xl flex items-center justify-between gap-3">
@@ -4463,6 +4458,79 @@ export function CustomerPortal() {
                 />
               </div>
               <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-4">{lang === "es" ? "Conexión Segura Encriptada" : "Secure Encrypted Connection"}</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Temporary QR Sheet modal (Commit 6.B.1) */}
+      <AnimatePresence>
+        {isQRSheetOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-end sm:items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 flex flex-col max-h-[90vh] text-center"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none">{lang === "es" ? "Mi código de socio" : "My Member Code"}</h3>
+                <button type="button" onClick={() => setIsQRSheetOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-450">
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="text-[11px] font-bold text-slate-500 max-w-[240px] mx-auto leading-relaxed">
+                {lang === "es" ? "Muéstralo en caja para sumar puntos e identificarte" : "Show it at checkout to earn points and identify yourself"}
+              </p>
+
+              <div className="my-6 p-6 bg-white rounded-3xl border border-slate-100 shadow-lg max-w-[240px] mx-auto">
+                <QRCodeCanvas 
+                  value={secureToken || customer.taxId || customer.email} 
+                  size={180}
+                  level="H"
+                  includeMargin={false}
+                  className="w-full h-auto"
+                />
+              </div>
+
+              {/* Countdown timer */}
+              <div className="space-y-1.5 mb-5 px-4 text-left">
+                <div className="flex justify-between items-center text-[9px] font-black tracking-wider text-slate-450">
+                  <span className="flex items-center gap-1">
+                    <Clock size={10} className="text-indigo-500 animate-spin [animation-duration:8s]" />
+                    {lang === "es" ? "CÓDIGO DINÁMICO SEGURO" : "SECURE DYNAMIC CODE"}
+                  </span>
+                  <span className="text-indigo-600 font-extrabold">
+                    {lang === "es" ? `Se actualiza en ${timeLeft}s` : `Updates in ${timeLeft}s`}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-indigo-600 h-full rounded-full transition-all duration-1000 ease-linear"
+                    style={{ width: `${(timeLeft / 30) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Numeric OTP pin fallback */}
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center space-y-1 shadow-inner font-sans">
+                <p className="text-[9px] font-black tracking-widest text-slate-450 uppercase">{lang === "es" ? "Token Numérico de Entrada" : "Numeric Input Token"}</p>
+                <p className="font-mono text-2xl font-black text-indigo-600 tracking-[0.2em]">{securePin.slice(0,3)} {securePin.slice(3)}</p>
+                <p className="text-[8px] font-bold text-slate-400 leading-normal">
+                  {lang === "es" ? "Ingreso manual en caja si el lector óptico está apagado" : "Manual entry if optical scanner is off"}
+                </p>
+              </div>
+
+              {/* Verified member pill */}
+              <div className="mt-5 flex items-center justify-center gap-1.5 py-2 px-4 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-wider border border-indigo-100/50">
+                <Crown size={12} fill="indigo" className="text-indigo-700" strokeWidth={0} />
+                <span>{customer.name} · {customer.points || 0} pts</span>
+              </div>
             </motion.div>
           </motion.div>
         )}
