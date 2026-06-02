@@ -59,7 +59,8 @@ import {
   Mail,
   Landmark,
   Ticket,
-  Crown
+  Crown,
+  QrCode
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../../lib/utils";
@@ -79,6 +80,22 @@ import { QRCodeCanvas } from "qrcode.react";
 import { DeliveryMap } from "./DeliveryMap";
 import { useSettings } from "../../contexts/SettingsContext";
 import { LoyaltyCard } from "./client/LoyaltyCard";
+import { CouponCard } from "./client/CouponCard";
+import { OrderTrackerSteps } from "./client/OrderTrackerSteps";
+
+function getCouponHexColor(colorStr: string) {
+  if (!colorStr) return "#4f46e5";
+  if (colorStr.startsWith("#") || colorStr.startsWith("var(")) return colorStr;
+  const s = colorStr.toLowerCase();
+  if (s.includes("orange")) return "#f97316";
+  if (s.includes("rose") || s.includes("red")) return "#f43f5e";
+  if (s.includes("blue") || s.includes("sky")) return "#3b82f6";
+  if (s.includes("indigo")) return "#4f46e5";
+  if (s.includes("amber") || s.includes("gold") || s.includes("yellow")) return "#f59e0b";
+  if (s.includes("emerald") || s.includes("green")) return "#10b981";
+  if (s.includes("slate") || s.includes("gray")) return "#64748b";
+  return "#4f46e5";
+}
 
 export function CustomerPortal() {
   const { settings } = useSettings();
@@ -306,6 +323,7 @@ export function CustomerPortal() {
       receiptsNav: "Boletas",
       couponsNav: "Cupones",
       deliveryNav: "Envíos",
+      ordersNav: "Pedidos",
       myReceipts: "Mis Boletas",
       satisfactionGuarantee: "Garantía de Satisfacción",
       satisfactionGuaranteeDesc: "¿Un producto llegó dañado o faltó en tu envío? No te preocupes. Selecciona una boleta en \"Mis Boletas\" e inicia tu reclamo con foto de evidencia para reembolso inmediato.",
@@ -590,6 +608,7 @@ export function CustomerPortal() {
       receiptsNav: "Receipts",
       couponsNav: "Coupons",
       deliveryNav: "Delivery",
+      ordersNav: "Orders",
       myReceipts: "My Receipts",
       satisfactionGuarantee: "Satisfaction Guarantee",
       satisfactionGuaranteeDesc: "Did a product arrive damaged or was it missing from your shipment? Don't worry. Select any receipt in \"My Receipts\" and file a claim with photos for immediate replacement.",
@@ -749,7 +768,9 @@ export function CustomerPortal() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [cart, setCart] = useState<{id: string, name: string, price: number, quantity: number, image?: string}[]>([]);
-  const [activeTab, setActiveTab] = useState<"home" | "history" | "offers" | "profile" | "wallet" | "shop" | "payment" | "delivery" | "rewards">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "shop" | "coupons" | "orders">("home");
+  const [ordersSubTab, setOrdersSubTab] = useState<"tracking" | "history">("tracking");
+  const [couponsSubTab, setCouponsSubTab] = useState<"offers" | "rewards">("offers");
   const [redemptions, setRedemptions] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCart, setShowCart] = useState(false);
@@ -760,6 +781,23 @@ export function CustomerPortal() {
   const [loadingCoupons, setLoadingCoupons] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [selectedReceiptShipment, setSelectedReceiptShipment] = useState<any>(null);
+
+  // Load all shipments for the logged-in customer to track live packages
+  const [customerShipments, setCustomerShipments] = useState<any[]>([]);
+  useEffect(() => {
+    if (!customer?.id) return;
+    const q = query(
+      collection(db, "shipments"),
+      where("customerId", "==", customer.id)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCustomerShipments(list);
+    }, (err) => {
+      console.error("Error loading shipments for customer:", err);
+    });
+    return () => unsub();
+  }, [customer?.id]);
 
   useEffect(() => {
     if (!selectedReceipt?.orderId) {
@@ -1137,7 +1175,7 @@ export function CustomerPortal() {
 
   // Rotating Dynamic QR Code security token logic
   useEffect(() => {
-    if (activeTab !== "wallet" || !customer?.id) return;
+    if (!isQRSheetOpen || !customer?.id) return;
 
     const generateNewToken = async () => {
       const expiresAt = Date.now() + 30000;
@@ -1172,7 +1210,7 @@ export function CustomerPortal() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [activeTab, customer?.id, customer?.taxId]);
+  }, [isQRSheetOpen, customer?.id, customer?.taxId]);
 
   // Profile Edit State
   const [profileEmail, setProfileEmail] = useState("");
@@ -2538,7 +2576,8 @@ export function CustomerPortal() {
                   
                   <button type="button"
                     onClick={() => {
-                      setActiveTab("rewards");
+                      setActiveTab("coupons");
+                      setCouponsSubTab("rewards");
                       setIsProfileSidebarOpen(false);
                     }}
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
@@ -2554,7 +2593,8 @@ export function CustomerPortal() {
 
                   <button type="button"
                     onClick={() => {
-                      setActiveTab("offers");
+                      setActiveTab("coupons");
+                      setCouponsSubTab("offers");
                       setIsProfileSidebarOpen(false);
                     }}
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
@@ -2570,7 +2610,8 @@ export function CustomerPortal() {
 
                   <button type="button"
                     onClick={() => {
-                      setActiveTab("history");
+                      setActiveTab("orders");
+                      setOrdersSubTab("history");
                       setIsProfileSidebarOpen(false);
                     }}
                     className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 border border-slate-150 rounded-2xl transition-all text-left group active:scale-[0.98]"
@@ -2792,7 +2833,10 @@ export function CustomerPortal() {
               {/* Quick Actions */}
               <div className="grid grid-cols-2 gap-4">
                 <button type="button" 
-                  onClick={() => setActiveTab("rewards")}
+                  onClick={() => {
+                    setActiveTab("coupons");
+                    setCouponsSubTab("rewards");
+                  }}
                   className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center space-y-3 hover:bg-slate-50 transition-all active:scale-95"
                 >
                   <div className="size-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
@@ -2815,7 +2859,10 @@ export function CustomerPortal() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].offersForYou}</h3>
-                  <button type="button" onClick={() => setActiveTab("offers")} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{t[lang].viewAll}</button>
+                  <button type="button" onClick={() => {
+                    setActiveTab("coupons");
+                    setCouponsSubTab("offers");
+                  }} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{t[lang].viewAll}</button>
                 </div>
                 <div className="space-y-3">
                   {loadingCoupons ? (
@@ -3488,870 +3535,745 @@ export function CustomerPortal() {
               </div>
             </motion.div>
           )}
-          {activeTab === "history" && (
-            <motion.div 
-              key="history"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6 text-left"
-            >
-              <div className="flex items-center gap-x-3 mb-4">
-                <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">{t[lang].history}</h3>
-              </div>
 
-              {/* History Sub-Tabs */}
+          {activeTab === "coupons" && (
+            <motion.div 
+              key="coupons"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="space-y-6"
+            >
+              {/* Segmented Selector for Coupons vs Rewards */}
               <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
                 <button
                   type="button"
-                  onClick={() => setActiveHistorySubTab("receipts")}
+                  onClick={() => setCouponsSubTab("offers")}
                   className={cn(
                     "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    activeHistorySubTab === "receipts"
+                    couponsSubTab === "offers"
                       ? "bg-white text-indigo-600 shadow-sm"
                       : "text-slate-400 hover:text-slate-700"
                   )}
                 >
-                  {t[lang].myReceipts}
+                  {lang === "es" ? "Cupones" : "Coupons"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveHistorySubTab("claims")}
+                  onClick={() => setCouponsSubTab("rewards")}
                   className={cn(
-                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative flex items-center justify-center gap-1.5",
-                    activeHistorySubTab === "claims"
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    couponsSubTab === "rewards"
                       ? "bg-white text-indigo-600 shadow-sm"
                       : "text-slate-400 hover:text-slate-700"
                   )}
                 >
-                  {t[lang].claimsForm}
-                  {claimsList.length > 0 && (
-                    <span className="size-2 rounded-full bg-rose-500 border border-white" />
-                  )}
+                  {lang === "es" ? "Canjes y Premios" : "Redeem Rewards"}
                 </button>
               </div>
 
-              {activeHistorySubTab === "receipts" ? (
-                <div className="space-y-3">
-                  {groupedTransactions.map(receipt => {
-                    const qtyTotal = receipt.items.reduce((sum: number, i: any) => sum + i.quantity, 0);
-                    const displayTitle = receipt.items.map((i: any) => i.productName).join(", ");
-                    const displayPoints = Math.floor(receipt.finalOrderTotal / 1000);
-
-                    return (
-                      <button type="button" 
-                        key={receipt.orderId}
-                        onClick={() => setSelectedReceipt(receipt)}
-                        className="w-full text-left bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-100 hover:shadow-md transition-all active:scale-[0.99] duration-200"
-                      >
-                        <div className="flex items-center gap-x-4 min-w-0 flex-1">
-                          <div className="size-12 bg-indigo-50/50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
-                            <Receipt size={20} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="font-bold text-xs truncate text-slate-800 pr-1" title={displayTitle}>
-                              {receipt.items.length === 1 
-                                ? receipt.items[0].productName 
-                                : `${receipt.items[0].productName} ${lang === "es" ? "y" : "and"} ${receipt.items.length - 1} ${lang === "es" ? "más" : "more"}`}
-                            </h4>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                              {toDate(receipt.timestamp).toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US')} • {receipt.documentType}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0 flex items-center gap-x-3 ml-2">
-                          <div>
-                            <p className="text-xs font-black text-slate-800">
-                              {formatCurrency(receipt.finalOrderTotal)}
-                            </p>
-                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">
-                              +{displayPoints} {lang === "es" ? "Puntos" : "Points"}
-                            </p>
-                          </div>
-                          <ChevronRight size={16} className="text-slate-350 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {groupedTransactions.length === 0 && (
-                    <div className="text-center py-20 opacity-30">
-                      <Search size={48} className="mx-auto mb-4" />
-                      <p className="text-xs font-black uppercase tracking-widest">{lang === "es" ? "Aún no tienes compras" : "You have no purchases yet"}</p>
+              {couponsSubTab === "offers" ? (
+                // Coupons Content (old offers tab, updated with CouponCard)
+                <div className="space-y-8">
+                  {/* 1. SECCIÓN: CUPONES DE LA EMPRESA */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 text-left">
+                        <Tag size={12} className="text-indigo-500" />
+                        {lang === "es" ? "Cupones de la Empresa" : "Company Coupons"}
+                      </h4>
+                      <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-black">
+                        {coupons.length} {lang === "es" ? "ACTIVOS" : "ACTIVE"}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Botón para radicar reclamos con validación */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setClaimOrderId("");
-                      setClaimCustomerTaxId(customer?.taxId || "");
-                      setClaimReason("Llegó roto");
-                      setClaimDescription("");
-                      setClaimPhoto("");
-                      setTaxIdError("");
-                      setShowClaimModal(true);
-                    }}
-                    className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    <Plus size={14} />
-                    {lang === "es" ? "Radicar Nuevo Reclamo" : "File New Claim"}
-                  </button>
 
-                  {/* Informational intro card */}
-                  <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-950 shadow-md">
-                    <div className="flex items-start gap-x-3.5">
-                      <div className="size-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-amber-400">
-                        <AlertCircle size={20} />
-                      </div>
-                      <div className="text-left space-y-1">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
-                          {lang === "es" ? "Garantía de Satisfacción" : "Satisfaction Guarantee"}
-                        </h4>
-                        <p className="text-[10px] font-medium leading-relaxed opacity-80">
-                          {lang === "es" 
-                            ? "¿Un producto llegó dañado o faltó en tu envío? No te preocupes. Selecciona una boleta en \"Mis Boletas\" e inicia tu reclamo con foto de evidencia para reembolso inmediato." 
-                            : "Did a product arrive damaged or was it missing from your shipment? Don't worry. Select any receipt in \"My Receipts\" and file a claim with photos for immediate replacement."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {claimsList.map(claim => {
-                    const statusText = 
-                      claim.status === "resolved" || claim.status === "approved" ? (lang === "es" ? "Resuelto / Solucionado" : "Resolved / Approved") :
-                      claim.status === "rejected" ? (lang === "es" ? "Cerrado - Rechazado" : "Closed - Rejected") :
-                      (lang === "es" ? "Pendiente de Revisión" : "Pending Review");
-
-                    const statusColor = 
-                      claim.status === "resolved" || claim.status === "approved" ? "bg-emerald-50 text-emerald-700 border-emerald-250 shadow-sm" :
-                      claim.status === "rejected" ? "bg-rose-50 text-rose-700 border-rose-250" :
-                      "bg-amber-50 text-amber-700 border-amber-250";
-
-                    return (
-                      <div 
-                        key={claim.id} 
-                        className="bg-white p-5 rounded-[2rem] border border-slate-150 shadow-sm flex flex-col gap-4 text-left hover:border-slate-300 transition-all"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest inline-block">
-                              {lang === "es" ? "Reclamo de Compra" : "Purchase Claim"}
-                            </span>
-                            <h4 className="text-xs font-black text-slate-900 tracking-tight mt-1">
-                              {lang === "es" ? "Motivo" : "Reason"}: {
-                                claim.reason === "Llegó roto" ? (lang === "es" ? "Llegó roto / dañado" : "Arrived broken / damaged") :
-                                claim.reason === "Faltó un producto" ? (lang === "es" ? "Faltó un producto en el envío" : "Missing item in delivery") :
-                                claim.reason === "Producto incorrecto" ? (lang === "es" ? "Recibí un producto equivocado" : "Received wrong item") :
-                                claim.reason === "Defecto de fábrica" ? (lang === "es" ? "Defecto de calidad/fábrica" : "Quality/Factory defect") :
-                                claim.reason === "Otro motivo" ? (lang === "es" ? "Otro inconveniente" : "Other issue") :
-                                claim.reason
-                              }
-                            </h4>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                              {lang === "es" ? "Orden" : "Order"}: #{claim.orderId.substring(0,8).toUpperCase()} • {toDate(claim.timestamp).toLocaleDateString(lang === "es" ? 'es-CL' : 'en-US')}
-                            </p>
-                          </div>
+                    {coupons.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-4">
+                        {coupons.map((offer, idx) => {
+                          const isEligible = customer.points >= (LOYALTY_TIERS as any)[offer.minTier].min;
+                          const isUsed = customer?.usedCoupons && customer.usedCoupons.includes(offer.code);
                           
-                          <span className={cn("px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border", statusColor)}>
-                            {statusText}
-                          </span>
-                        </div>
+                          const mappedCoupon = {
+                            id: offer.id,
+                            code: offer.code,
+                            title: offer.title,
+                            desc: offer.desc,
+                            cost: 0,
+                            expiry: lang === "es" ? "Sin expira" : "No expiry",
+                            color: getCouponHexColor(offer.color),
+                            icon: offer.img === "🍎" ? "percent" : offer.img === "🧼" ? "gift" : "percent",
+                            claimed: activatedOffers.includes(offer.id)
+                          };
 
-                        {/* Description */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                          <p className="text-xs text-slate-650 font-bold leading-normal break-words">
-                            "{claim.description}"
-                          </p>
-                        </div>
-
-                        {/* Thumbnail & Resolution Note */}
-                        <div className="flex flex-col gap-3">
-                          {claim.photo && (
-                            <div className="space-y-1.5 text-left">
-                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t[lang].attachedEvidenceLabel}</p>
-                              <div className="relative size-24 rounded-2xl overflow-hidden border border-slate-150 shadow-sm bg-slate-50 group shrink-0">
-                                <img 
-                                  src={claim.photo} 
-                                  alt="Evidencia" 
-                                  className="w-full h-full object-cover cursor-zoom-in hover:scale-105 transition-transform" 
-                                  onClick={() => {
-                                    setAlertConfig({
-                                      isOpen: true,
-                                      type: "info",
-                                      title: t[lang].claimEvidenceTitle,
-                                      message: t[lang].claimEvidenceDesc
-                                    });
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {claim.resolutionNote && (
-                            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-1.5 text-left">
-                              <p className="text-[8.5px] font-black text-indigo-700 uppercase tracking-widest leading-none">{t[lang].fulfillmentResponse}</p>
-                              <p className="text-xs text-indigo-900 font-extrabold leading-normal">
-                                "{claim.resolutionNote}"
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {claimsList.length === 0 && (
-                    <div className="text-center py-16 opacity-30">
-                      <AlertCircle size={40} className="mx-auto mb-3" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">{t[lang].noClaimsLogged}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {activeTab === "rewards" && (
-            <motion.div 
-              key="rewards"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center gap-x-3 mb-4">
-                <button type="button" 
-                  onClick={() => setActiveTab("home")} 
-                  className="p-2.5 bg-white rounded-2xl border border-slate-150 shadow-sm active:scale-95 transition-all text-slate-600 hover:text-slate-900"
-                >
-                  <ArrowLeft size={18}/>
-                </button>
-                <div className="text-left">
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight leading-tight">{t[lang].rewardsTitle}</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{t[lang].rewardsSubtitle}</p>
-                </div>
-              </div>
-
-              {/* Points Summary Card */}
-              <div className="bg-slate-900 text-white p-6 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-slate-950/10">
-                <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-10">
-                  <Gift size={160} className="text-white" />
-                </div>
-                <div className="relative z-10 flex items-center justify-between">
-                  <div className="text-left">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t[lang].pointsAvailable}</h4>
-                    <div className="flex items-baseline gap-x-1.5 mt-2">
-                      <span className="text-5xl font-black text-amber-400 tracking-tight">{customer.points || 0}</span>
-                      <span className="text-xs font-black text-slate-350">PTS</span>
-                    </div>
-                  </div>
-                  <div className="bg-white/10 px-4 py-2.5 rounded-2xl border border-white/15 backdrop-blur-md text-right">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-amber-300">{t[lang].pointsEquivTitle}</p>
-                    <p className="text-xs font-bold text-white mt-1">{t[lang].pointsEquivDesc}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sub Tab Buttons */}
-              <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto no-scrollbar gap-1">
-                <button
-                  type="button"
-                  onClick={() => setRewardViewTab("available")}
-                  className={cn(
-                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all whitespace-nowrap",
-                    rewardViewTab === "available"
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  <Gift size={13} />
-                  <span>{lang === "es" ? "Catálogo" : "Catalog"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRewardViewTab("vouchers")}
-                  className={cn(
-                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all relative whitespace-nowrap",
-                    rewardViewTab === "vouchers"
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  <Wallet size={13} />
-                  <span>{t[lang].myVouchers}</span>
-                  {redemptions.filter(r => r.status === "pending").length > 0 && (
-                    <span className="absolute -top-1 -right-1 size-5 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white animate-soft-bounce">
-                      {redemptions.filter(r => r.status === "pending").length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRewardViewTab("desafios")}
-                  className={cn(
-                    "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all whitespace-nowrap",
-                    rewardViewTab === "desafios"
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  <Trophy size={13} className="text-amber-500" />
-                  <span>{lang === "es" ? "Logros y Desafíos" : "Achievements & Challenges"}</span>
-                </button>
-              </div>
-
-              {rewardViewTab === "available" && (
-                <div className="space-y-6">
-                  {/* Category chips */}
-                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4">
-                    {["Todos", "Bebidas", "Lácteos", "Merch", "Otros"].map((cat) => {
-                      const count = cat === "Todos" 
-                        ? PHYSICAL_REWARDS_CATALOGUE.length
-                        : PHYSICAL_REWARDS_CATALOGUE.filter(r => r.category === cat).length;
-                      return (
-                        <button type="button"
-                          key={cat}
-                          onClick={() => setRewardCategory(cat)}
-                          className={cn(
-                            "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border",
-                            rewardCategory === cat
-                              ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100"
-                              : "bg-white text-slate-500 border-slate-150 hover:bg-slate-50"
-                          )}
-                        >
-                          {lang === "es" ? cat : (cat === "Todos" ? "All" : cat === "Bebidas" ? "Drinks" : cat === "Lácteos" ? "Dairy" : cat === "Otros" ? "Others" : cat)} ({count})
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Catalogue Grid */}
-                  <div className="grid grid-cols-1 gap-4">
-                    {PHYSICAL_REWARDS_CATALOGUE
-                      .filter((item) => rewardCategory === "Todos" || item.category === rewardCategory)
-                      .map((item) => {
-                        const canRedeem = (customer.points || 0) >= item.pointsCost;
-                        return (
-                          <div 
-                            key={item.id} 
-                            className="bg-white p-5 rounded-[2.5rem] border border-slate-150 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-md"
-                          >
-                            <div className="flex items-center gap-x-4">
-                              <div className="size-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-4xl shadow-inner shrink-0 border border-slate-100">
-                                {item.emoji}
-                              </div>
-                              <div className="text-left">
-                                <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
-                                  {lang === "es" ? item.category : (item.category === "Bebidas" ? "Drinks" : item.category === "Lácteos" ? "Dairy" : item.category === "Otros" ? "Others" : item.category)}
-                                </span>
-                                <h4 className="text-sm font-black text-slate-800 tracking-tight mt-1">{item.name}</h4>
-                                <p className="text-xs font-bold text-slate-400 mt-0.5">{item.description}</p>
-                              </div>
-                            </div>
-
-                            <div className="flex md:flex-col items-center justify-between gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0">
-                              <div className="flex items-baseline gap-x-1">
-                                <span className="text-2xl font-black text-slate-800 tracking-tight">{item.pointsCost}</span>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PTS</span>
-                              </div>
-
-                              <button type="button"
-                                disabled={!canRedeem || loading}
-                                onClick={() => setConfirmReward(item)}
-                                className={cn(
-                                  "py-3 px-5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all",
-                                  canRedeem 
-                                    ? "bg-slate-900 text-white hover:bg-orange-600 cursor-pointer shadow-md"
-                                    : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
-                                )}
-                              >
-                                {canRedeem ? t[lang].redeemRewardBtn : t[lang].pointsMissingReward(item.pointsCost - (customer.points || 0))}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
-
-              {rewardViewTab === "vouchers" && (
-                <div className="space-y-4">
-                  {redemptions.length === 0 ? (
-                    <div className="p-12 text-center bg-white rounded-[2.5rem] border border-slate-150 shadow-sm">
-                      <div className="size-14 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Gift size={24} />
-                      </div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t[lang].noRedemptions}</p>
-                      <button type="button" 
-                        onClick={() => setRewardViewTab("available")} 
-                        className="mt-4 px-4 py-2 text-indigo-600 text-[10px] font-black uppercase tracking-widest bg-indigo-50 rounded-xl"
-                      >
-                        {t[lang].viewRewardsCatalog}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-6 text-left">
-                      {redemptions.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className="bg-white rounded-[2.5rem] border border-slate-150 shadow-sm overflow-hidden"
-                        >
-                          {/* Inner Ticket Card */}
-                          <div className="p-6 relative">
-                            {/* Decorative punches on sides representing real lottery ticket */}
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[6px] w-3 h-6 bg-slate-50 rounded-r-full border-r border-y border-slate-150 z-20" />
-                            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-150 z-20" />
-                            
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-x-3">
-                                <div className="size-12 bg-slate-50 rounded-[1.2rem] flex items-center justify-center text-2xl shadow-inner border border-slate-100 shrink-0">
-                                  {PHYSICAL_REWARDS_CATALOGUE.find(r => r.id === item.productId)?.emoji || "🎁"}
-                                </div>
-                                <div className="text-left">
-                                  <h4 className="text-sm font-black text-slate-800 tracking-tight">{item.productName}</h4>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                    {t[lang].redeemedOn(item.timestamp?.toDate ? item.timestamp.toDate().toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US') : new Date(item.timestamp).toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US'))}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="shrink-0">
-                                {item.status === "pending" ? (
-                                  <span className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-x-1 animate-pulse">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1" />
-                                    {t[lang].pendingPickup}
-                                  </span>
-                                ) : (
-                                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest inline-flex items-center">
-                                    ✓ {t[lang].delivered}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Ticket barcode container */}
-                            <div className="mt-6 pt-5 border-t border-dashed border-slate-200 flex flex-col items-center">
-                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center justify-center min-w-[150px]">
-                                <QRCodeCanvas 
-                                  value={JSON.stringify({ code: item.validationCode, rut: item.customerRUT, type: 'redemption' })}
-                                  size={100}
-                                  level="M"
-                                  includeMargin={false}
-                                  className="mx-auto"
-                                />
-                                <span className="font-mono text-sm font-black text-slate-800 tracking-wider mt-3 select-all bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-inner">
-                                  {item.validationCode}
-                                </span>
-                              </div>
-                              <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-wider mt-4 leading-relaxed max-w-[240px]">
-                                {item.status === "pending" 
-                                  ? t[lang].redemptionPickupNotice
-                                  : t[lang].redemptionDeliveredNotice}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {rewardViewTab === "desafios" && (
-                <div className="space-y-4 text-left">
-                  <div className="bg-gradient-to-br from-indigo-900 to-slate-900 p-6 rounded-[2.5rem] text-white space-y-2 shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 size-32 bg-amber-450/15 blur-3xl rounded-full -mr-12 -mt-12 animate-pulse" />
-                    <div className="flex items-center gap-x-3 relative z-10">
-                      <div className="size-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-400 border border-white/10 shrink-0">
-                        <Trophy size={18} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black tracking-tight text-white">{t[lang].challengesTitle}</h4>
-                        <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">{t[lang].challengesSubtitle}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* List of Challenges */}
-                  {[
-                    {
-                      id: "comprador_estrella",
-                      title: t[lang].chCompradorEstrella,
-                      desc: t[lang].chCompradorEstrellaDesc,
-                      target: 50000,
-                      current: customer.totalSpent || 0,
-                      pointsAward: 500,
-                      icon: ShoppingBag,
-                      style: "indigo"
-                    },
-                    {
-                      id: "eco_boleta",
-                      title: t[lang].chEcoBoleta,
-                      desc: t[lang].chEcoBoletaDesc,
-                      target: 1,
-                      current: customer.email ? 1 : 0,
-                      pointsAward: 150,
-                      icon: Mail,
-                      style: "emerald"
-                    },
-                    {
-                      id: "mayorista_pro",
-                      title: t[lang].chMayoristaPro,
-                      desc: t[lang].chMayoristaProDesc,
-                      target: 1000,
-                      current: customer.points || 0,
-                      pointsAward: 300,
-                      icon: Landmark,
-                      style: "amber"
-                    },
-                    {
-                      id: "socio_pionero",
-                      title: t[lang].chSocioPionero,
-                      desc: t[lang].chSocioPioneroDesc,
-                      target: 3,
-                      current: transactions.length,
-                      pointsAward: 400,
-                      icon: Ticket,
-                      style: "purple"
-                    }
-                  ].map((ch) => {
-                    const isClaimed = customer.claimedChallenges && customer.claimedChallenges.includes(ch.id);
-                    const pct = Math.min(100, Math.round((ch.current / ch.target) * 100));
-                    const canClaim = pct >= 100 && !isClaimed;
-
-                    return (
-                      <div 
-                        key={ch.id} 
-                        className="bg-white rounded-[2.5rem] border border-slate-150 p-6 shadow-sm flex flex-col space-y-4"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-x-3.5">
-                            <div className={cn(
-                              "size-12 rounded-[1.2rem] flex items-center justify-center shrink-0 border border-slate-100",
-                              ch.style === "indigo" ? "bg-indigo-50 text-indigo-600" :
-                              ch.style === "emerald" ? "bg-emerald-50 text-emerald-600" :
-                              ch.style === "amber" ? "bg-amber-50 text-amber-600" :
-                              "bg-purple-50 text-purple-600"
-                            )}>
-                              <ch.icon size={22} />
-                            </div>
-                            <div>
-                              <h5 className="font-black text-slate-800 text-sm tracking-tight leading-snug">{ch.title}</h5>
-                              <p className="text-[10px] font-bold text-slate-400 mt-1 leading-normal max-w-[210px]">{ch.desc}</p>
-                            </div>
-                          </div>
-                          <div className="bg-amber-50 border border-amber-250 px-2.5 py-1 rounded-full text-right shrink-0">
-                            <span className="text-[9px] font-black text-amber-700">+{ch.pointsAward} PTS</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                            <span>{pct === 100 ? t[lang].completed : `${t[lang].progressLabel}: ${pct}%`}</span>
-                            <span>
-                              {ch.id === "comprador_estrella" 
-                                ? `$${ch.current.toLocaleString('es-CL')} / $${ch.target.toLocaleString('es-CL')}`
-                                : `${ch.current} / ${ch.target}`}
-                            </span>
-                          </div>
-                          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                              className={cn(
-                                "h-full rounded-full transition-all duration-500",
-                                pct === 100 ? "bg-emerald-500" : "bg-indigo-600"
-                              )}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {isClaimed ? (
-                          <div className="w-full py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-center text-slate-400 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
-                            {t[lang].challengeClaimedSuccess}
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={!canClaim}
-                            onClick={async () => {
-                              if (!canClaim) return;
-                              try {
-                                const currentPoints = customer.points || 0;
-                                const claimed = customer.claimedChallenges || [];
-                                await updateDoc(doc(db, "customers", customer.id), {
-                                  points: currentPoints + ch.pointsAward,
-                                  claimedChallenges: [...claimed, ch.id]
-                                });
+                          return (
+                            <CouponCard
+                              key={offer.id || idx}
+                              coupon={mappedCoupon}
+                              customerPoints={customer.points || 0}
+                              onClaim={() => {
+                                if (!isEligible || isUsed) return;
                                 setAlertConfig({
                                   isOpen: true,
                                   type: "success",
-                                  title: t[lang].challengeClaimedAlertTitle,
-                                  message: t[lang].challengeClaimedAlertMessage(ch.title, ch.pointsAward)
+                                  title: offer.title,
+                                  message: lang === "es" 
+                                    ? `¡Oferta Disponible! Presenta el código "${offer.code}" en la caja del local para aplicar el beneficio: ${offer.desc}.` 
+                                    : `Offer Available! Present code "${offer.code}" at checkout to apply: ${offer.desc}.`,
+                                  onConfirm: () => setActivatedOffers(prev => [...prev, offer.id])
                                 });
-                              } catch (e) {
-                                console.error("Error claiming points:", e);
-                              }
-                            }}
-                            className={cn(
-                              "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-all",
-                              canClaim 
-                                ? "bg-slate-900 hover:bg-slate-850 text-white shadow-xl active:scale-95 cursor-pointer animate-soft-bounce" 
-                                : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
-                            )}
-                          >
-                            {canClaim ? t[lang].claimExtraRewardBtn : t[lang].locked}
-                          </button>
-                        )}
+                              }}
+                              onUse={() => {
+                                setAlertConfig({
+                                  isOpen: true,
+                                  type: "info",
+                                  title: offer.title,
+                                  message: lang === "es" 
+                                    ? `Este beneficio ya está activo. Muestra el código "${offer.code}" en caja.` 
+                                    : `This benefit is already active. Present code "${offer.code}" at checkout.`
+                                });
+                              }}
+                              lang={lang}
+                            />
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Confirmation Bottom Modal Sheet */}
-              <AnimatePresence>
-                {confirmReward && (
-                  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end justify-center">
-                    <motion.div 
-                      initial={{ y: "100%" }}
-                      animate={{ y: 0 }}
-                      exit={{ y: "100%" }}
-                      transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                      className="bg-white w-full max-w-lg rounded-t-[3rem] border-t border-slate-200 shadow-2xl p-8 space-y-6"
-                    >
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-lg font-black text-slate-800 tracking-tight">{t[lang].confirmRewardTitle}</h4>
-                        <button type="button" 
-                          onClick={() => setConfirmReward(null)}
-                          className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-450 rounded-full transition-all"
-                        >
-                          <X size={18} />
-                        </button>
+                    ) : (
+                      <div className="p-6 rounded-[2rem] border border-dashed border-slate-200 text-center bg-slate-50/50">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          {lang === "es" ? "La empresa no cuenta con cupones promocionales configurados en este momento." : "The company does not have promotional coupons configured at this time."}
+                        </p>
                       </div>
-
-                      <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-x-4">
-                        <div className="size-16 bg-white rounded-2xl flex items-center justify-center border border-slate-200 shadow-sm text-4xl shrink-0">
-                          {confirmReward.emoji}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-[8px] font-black uppercase text-indigo-600 tracking-wider bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 inline-block mb-1">
-                            {lang === "es" ? confirmReward.category : (confirmReward.category === "Bebidas" ? "Drinks" : confirmReward.category === "Lácteos" ? "Dairy" : confirmReward.category === "Otros" ? "Others" : confirmReward.category)}
-                          </p>
-                          <h5 className="font-black text-sm text-slate-800 tracking-tight">{confirmReward.name}</h5>
-                          <p className="text-xs font-bold text-slate-400">{confirmReward.description}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">{t[lang].pointsRequired}</p>
-                          <p className="text-xl font-black text-rose-600 tracking-tight mt-1">{confirmReward.pointsCost} PTS</p>
-                        </div>
-                        <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-indigo-400">{t[lang].pointsRemaining}</p>
-                          <p className="text-xl font-black text-indigo-600 tracking-tight mt-1">{(customer.points || 0) - confirmReward.pointsCost} PTS</p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-4">
-                        <button type="button" 
-                          onClick={() => setConfirmReward(null)}
-                          className="flex-1 py-4 bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
-                        >
-                          {t[lang].cancelBtn}
-                        </button>
-                        <button type="button" 
-                          onClick={() => handleRedeemReward(confirmReward)}
-                          className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100 flex items-center justify-center gap-x-2"
-                        >
-                          <Gift size={14} />
-                          <span>{t[lang].confirmRedeemBtn}</span>
-                        </button>
-                      </div>
-                    </motion.div>
+                    )}
                   </div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
 
-          {activeTab === "offers" && (
-            <motion.div 
-              key="offers"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-8"
-            >
-              <div className="flex items-center gap-x-3 mb-6">
-                <button type="button" onClick={() => setActiveTab("home")} className="p-2 bg-white rounded-xl shadow-sm"><ArrowLeft size={18}/></button>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">{lang === "es" ? "Mis Beneficios y Cupones" : "My Benefits & Coupons"}</h3>
-              </div>
+                  {/* 2. SECCIÓN: CUPONES AUTOMÁTICOS POR PUNTOS */}
+                  <div className="space-y-3 pt-4 border-t border-slate-100">
+                    <div className="space-y-1 text-left">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <Star size={12} className="text-amber-500 fill-amber-500" />
+                        {lang === "es" ? "Mis Cupones Automáticos por Puntos" : "My Automatic Coupons by Points"}
+                      </h4>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                        {lang === "es" ? `Se activan inmediatamente según tus puntos acumulados por compra (${customer.points || 0} pts actuales)` : `Activated immediately based on your accumulated purchase points (${customer.points || 0} current pts)`}
+                      </p>
+                    </div>
 
-              {/* 1. SECCIÓN: CUPONES DE LA EMPRESA */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Tag size={12} className="text-indigo-500" />
-                    {lang === "es" ? "Cupones de la Empresa" : "Company Coupons"}
-                  </h4>
-                  <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-black">
-                    {coupons.length} {lang === "es" ? "ACTIVOS" : "ACTIVE"}
-                  </span>
-                </div>
+                    <div className="grid grid-cols-1 gap-4">
+                      {AUTOMATIC_POINT_COUPONS.map((offer) => {
+                        const isEligible = (customer.points || 0) >= offer.requiredPoints;
+                        const isUsed = customer?.usedCoupons && customer.usedCoupons.includes(offer.code);
+                        
+                        const mappedCoupon = {
+                          id: offer.id,
+                          code: offer.code,
+                          title: offer.title,
+                          desc: offer.desc,
+                          cost: offer.requiredPoints,
+                          expiry: lang === "es" ? "Permanente" : "Permanent",
+                          color: getCouponHexColor(offer.color),
+                          icon: "crown",
+                          claimed: isEligible
+                        };
 
-                {coupons.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-4">
-                    {coupons.map((offer, idx) => {
-                      const isEligible = customer.points >= (LOYALTY_TIERS as any)[offer.minTier].min;
-                      const isUsed = customer?.usedCoupons && customer.usedCoupons.includes(offer.code);
-                      
-                      return (
-                        <button type="button" 
-                          key={offer.id || idx} 
-                          disabled={!isEligible || isUsed}
-                          onClick={() => {
-                            if (activatedOffers.includes(offer.id)) {
-                              setAlertConfig({
-                                isOpen: true,
-                                type: "info",
-                                title: offer.title,
-                                message: lang === "es" ? `Este beneficio ya está activo. Muestra el código "${offer.code}" en caja.` : `This benefit is already active. Present code "${offer.code}" at checkout.`
-                              });
-                            } else {
+                        return (
+                          <CouponCard
+                            key={offer.id}
+                            coupon={mappedCoupon}
+                            customerPoints={customer.points || 0}
+                            onClaim={() => {}}
+                            onUse={() => {
+                              if (isUsed) return;
                               setAlertConfig({
                                 isOpen: true,
                                 type: "success",
                                 title: offer.title,
-                                message: lang === "es" ? `¡Oferta Disponible! Presenta el código "${offer.code}" en la caja del local para aplicar el beneficio: ${offer.desc}.` : `Offer Available! Present code "${offer.code}" at checkout to apply: ${offer.desc}.`,
-                                onConfirm: () => setActivatedOffers(prev => [...prev, offer.id])
+                                message: lang === "es" 
+                                  ? `¡Puntos acumulados suficientes! Cupón Fidelidad activado automáticamente por tu historial de compras. Presenta el código "${offer.code}" en caja para aplicar un ${offer.desc}.` 
+                                  : `Sufficient accumulated points! Loyalty Coupon activated automatically based on your purchase history. Present code "${offer.code}" at checkout to apply: ${offer.desc}.`
                               });
-                            }
-                          }}
-                          className={cn(
-                            "p-6 rounded-[2.5rem] border flex items-center gap-x-6 relative overflow-hidden text-left w-full group transition-all active:scale-[0.98]", 
-                            offer.color || "bg-indigo-50 border-indigo-100 text-indigo-600",
-                            activatedOffers.includes(offer.id) && "ring-4 ring-indigo-500/20 opacity-80",
-                            (!isEligible || isUsed) && "grayscale opacity-40 bg-slate-100 border-slate-200 text-slate-400"
-                          )}
-                        >
-                          <div className="text-4xl">{offer.img || "🎟️"}</div>
-                          <div>
-                            <h4 className="font-black text-sm">{offer.title}</h4>
-                            <p className="text-xs font-bold opacity-80 mt-1">{offer.desc}</p>
-                            {!isEligible ? (
-                              <div className="mt-2 flex items-center gap-x-1 text-[8px] font-black uppercase tracking-widest text-slate-500">
-                                <Lock size={10} />
-                                <span>{lang === "es" ? `Disponible en nivel ${offer.minTier}` : `Available at level ${offer.minTier}`}</span>
+                            }}
+                            lang={lang}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Rewards Content (old rewards tab content)
+                <div className="space-y-6">
+                  {/* Points Summary Card */}
+                  <div className="bg-slate-900 text-white p-6 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-slate-950/10">
+                    <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-10">
+                      <Gift size={160} className="text-white" />
+                    </div>
+                    <div className="relative z-10 flex items-center justify-between">
+                      <div className="text-left">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t[lang].pointsAvailable}</h4>
+                        <div className="flex items-baseline gap-x-1.5 mt-2">
+                          <span className="text-5xl font-black text-amber-400 tracking-tight">{customer.points || 0}</span>
+                          <span className="text-xs font-black text-slate-350">PTS</span>
+                        </div>
+                      </div>
+                      <div className="bg-white/10 px-4 py-2.5 rounded-2xl border border-white/15 backdrop-blur-md text-right font-sans">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-amber-300">{t[lang].pointsEquivTitle}</p>
+                        <p className="text-xs font-bold text-white mt-1">{t[lang].pointsEquivDesc}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sub Tab Buttons */}
+                  <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto no-scrollbar gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setRewardViewTab("available")}
+                      className={cn(
+                        "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all whitespace-nowrap",
+                        rewardViewTab === "available"
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      )}
+                    >
+                      <Gift size={13} />
+                      <span>{lang === "es" ? "Catálogo" : "Catalog"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRewardViewTab("vouchers")}
+                      className={cn(
+                        "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all relative whitespace-nowrap",
+                        rewardViewTab === "vouchers"
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      )}
+                    >
+                      <Wallet size={13} />
+                      <span>{t[lang].myVouchers}</span>
+                      {redemptions.filter(r => r.status === "pending").length > 0 && (
+                        <span className="absolute -top-1 -right-1 size-5 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white animate-soft-bounce">
+                          {redemptions.filter(r => r.status === "pending").length}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRewardViewTab("desafios")}
+                      className={cn(
+                        "flex-1 py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-x-1 transition-all whitespace-nowrap",
+                        rewardViewTab === "desafios"
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      )}
+                    >
+                      <Trophy size={13} className="text-amber-500" />
+                      <span>{lang === "es" ? "Logros y Desafíos" : "Achievements & Challenges"}</span>
+                    </button>
+                  </div>
+
+                  {rewardViewTab === "available" && (
+                    <div className="space-y-6">
+                      {/* Category chips */}
+                      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4">
+                        {["Todos", "Bebidas", "Lácteos", "Merch", "Otros"].map((cat) => {
+                          const count = cat === "Todos" 
+                            ? PHYSICAL_REWARDS_CATALOGUE.length
+                            : PHYSICAL_REWARDS_CATALOGUE.filter(r => r.category === cat).length;
+                          return (
+                            <button type="button"
+                              key={cat}
+                              onClick={() => setRewardCategory(cat)}
+                              className={cn(
+                                "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border",
+                                rewardCategory === cat
+                                  ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100"
+                                  : "bg-white text-slate-500 border-slate-150 hover:bg-slate-50"
+                              )}
+                            >
+                              {lang === "es" ? cat : (cat === "Todos" ? "All" : cat === "Bebidas" ? "Drinks" : cat === "Lácteos" ? "Dairy" : cat === "Otros" ? "Others" : cat)} ({count})
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Catalogue Grid */}
+                      <div className="grid grid-cols-1 gap-4">
+                        {PHYSICAL_REWARDS_CATALOGUE
+                          .filter((item) => rewardCategory === "Todos" || item.category === rewardCategory)
+                          .map((item) => {
+                            const canRedeem = (customer.points || 0) >= item.pointsCost;
+                            return (
+                              <div 
+                                key={item.id} 
+                                className="bg-white p-5 rounded-[2.5rem] border border-slate-150 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-md"
+                              >
+                                <div className="flex items-center gap-x-4">
+                                  <div className="size-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-4xl shadow-inner shrink-0 border border-slate-100">
+                                    {item.emoji}
+                                  </div>
+                                  <div className="text-left font-sans">
+                                    <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                                      {lang === "es" ? item.category : (item.category === "Bebidas" ? "Drinks" : item.category === "Lácteos" ? "Dairy" : item.category === "Otros" ? "Others" : item.category)}
+                                    </span>
+                                    <h4 className="text-sm font-black text-slate-800 tracking-tight mt-1">{item.name}</h4>
+                                    <p className="text-xs font-bold text-slate-400 mt-0.5">{item.description}</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex md:flex-col items-center justify-between gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0">
+                                  <div className="flex items-baseline gap-x-1 font-sans">
+                                    <span className="text-2xl font-black text-slate-800 tracking-tight">{item.pointsCost}</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PTS</span>
+                                  </div>
+
+                                  <button type="button"
+                                    disabled={!canRedeem || loading}
+                                    onClick={() => setConfirmReward(item)}
+                                    className={cn(
+                                      "py-3 px-5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all",
+                                      canRedeem 
+                                        ? "bg-slate-900 text-white hover:bg-orange-600 cursor-pointer shadow-md"
+                                        : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                                    )}
+                                  >
+                                    {canRedeem ? t[lang].redeemRewardBtn : t[lang].pointsMissingReward(item.pointsCost - (customer.points || 0))}
+                                  </button>
+                                </div>
                               </div>
-                            ) : isUsed ? (
-                              <div className="mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-500 flex-wrap">
-                                <span className="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-black tracking-normal flex items-center gap-1">
-                                  ✓ {lang === "es" ? "YA UTILIZADO EN SU HISTORIAL" : "ALREADY USED IN YOUR HISTORY"}
-                                </span>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {rewardViewTab === "vouchers" && (
+                    <div className="space-y-4 font-sans">
+                      {redemptions.length === 0 ? (
+                        <div className="p-12 text-center bg-white rounded-[2.5rem] border border-slate-150 shadow-sm">
+                          <div className="size-14 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Gift size={24} />
+                          </div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t[lang].noRedemptions}</p>
+                          <button type="button" 
+                            onClick={() => setRewardViewTab("available")} 
+                            className="mt-4 px-4 py-2 text-indigo-600 text-[10px] font-black uppercase tracking-widest bg-indigo-50 rounded-xl"
+                          >
+                            {t[lang].viewRewardsCatalog}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-6 text-left">
+                          {redemptions.map((item) => (
+                            <div 
+                              key={item.id} 
+                              className="bg-white rounded-[2.5rem] border border-slate-150 shadow-sm overflow-hidden"
+                            >
+                              {/* Inner Ticket Card */}
+                              <div className="p-6 relative">
+                                {/* Decorative punches on sides representing real lottery ticket */}
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[6px] w-3 h-6 bg-slate-50 rounded-r-full border-r border-y border-slate-150 z-20" />
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-150 z-20" />
+                                
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center gap-x-3">
+                                    <div className="size-12 bg-slate-50 rounded-[1.2rem] flex items-center justify-center text-2xl shadow-inner border border-slate-100 shrink-0">
+                                      {PHYSICAL_REWARDS_CATALOGUE.find(r => r.id === item.productId)?.emoji || "🎁"}
+                                    </div>
+                                    <div className="text-left font-sans">
+                                      <h4 className="text-sm font-black text-slate-800 tracking-tight">{item.productName}</h4>
+                                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                                        {t[lang].redeemedOn(item.timestamp?.toDate ? item.timestamp.toDate().toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US') : new Date(item.timestamp).toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US'))}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="shrink-0">
+                                    {item.status === "pending" ? (
+                                      <span className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-x-1 animate-pulse">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1" />
+                                        {t[lang].pendingPickup}
+                                      </span>
+                                    ) : (
+                                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest inline-flex items-center">
+                                        ✓ {t[lang].delivered}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Ticket barcode container */}
+                                <div className="mt-6 pt-5 border-t border-dashed border-slate-200 flex flex-col items-center">
+                                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center justify-center min-w-[150px]">
+                                    <QRCodeCanvas 
+                                      value={JSON.stringify({ code: item.validationCode, rut: item.customerRUT, type: 'redemption' })}
+                                      size={100}
+                                      level="M"
+                                      includeMargin={false}
+                                      className="mx-auto"
+                                    />
+                                    <span className="font-mono text-sm font-black text-slate-800 tracking-wider mt-3 select-all bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-inner">
+                                      {item.validationCode}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                            ) : activatedOffers.includes(offer.id) ? (
-                              <div className="mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-indigo-600 flex-wrap">
-                                <span className="flex items-center gap-x-1">
-                                  <Star size={10} className="fill-current" />
-                                  <span>{lang === "es" ? `Cupón Activo: ${offer.code}` : `Active Coupon: ${offer.code}`}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {rewardViewTab === "desafios" && (
+                    <div className="space-y-4 text-left font-sans">
+                      {/* Desafíos del cliente */}
+                      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-150 shadow-sm space-y-4">
+                        <div className="flex items-center gap-x-3 text-slate-800">
+                          <Trophy className="text-amber-500" size={20} />
+                          <h4 className="text-sm font-black uppercase tracking-wider">{lang === "es" ? "Desafíos de Compra" : "Shopping Challenges"}</h4>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="border border-slate-100 p-4 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{lang === "es" ? "Primeros Pasos" : "First Steps"}</span>
+                              <span className="text-[9px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-black border border-indigo-100">
+                                {transactions.length >= 1 ? "100%" : "0%"}
+                              </span>
+                            </div>
+                            <p className="text-[11px] font-medium text-slate-400 leading-normal">
+                              {lang === "es" ? "Realiza tu primera compra en local para activar el multiplicador x1.2 de puntos durante todo el mes." : "Make your first purchase in store to activate the x1.2 points multiplier during the entire month."}
+                            </p>
+                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                              <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: transactions.length >= 1 ? "100%" : "0%" }} />
+                            </div>
+                          </div>
+                          
+                          <div className="border border-slate-100 p-4 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{lang === "es" ? "Socio Fiel" : "Loyal Customer"}</span>
+                              <span className="text-[9px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-black border border-indigo-100">
+                                {Math.min(100, Math.round((transactions.length / 5) * 100))}%
+                              </span>
+                            </div>
+                            <p className="text-[11px] font-medium text-slate-400 leading-normal">
+                              {lang === "es" ? "Realiza 5 compras con boletas registradas para ganar un bono inmediato de +1.000 Puntos Flow." : "Complete 5 purchases with registered receipts to earn an immediate bonus of +1,000 Flow Points."}
+                            </p>
+                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                              <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: `${Math.min(100, (transactions.length / 5) * 100)}%` }} />
+                            </div>
+                            <span className="text-[8px] font-black text-[#64748b] uppercase tracking-widest block text-right mt-1">
+                              {transactions.length} / 5 {lang === "es" ? "boletas" : "receipts"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === "orders" && (
+            <motion.div 
+              key="orders"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="space-y-6"
+            >
+              {/* Segmented Selector for Tracking vs History */}
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setOrdersSubTab("tracking")}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    ordersSubTab === "tracking"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-400 hover:text-slate-700"
+                  )}
+                >
+                  {lang === "es" ? "Seguimiento" : "Tracking"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrdersSubTab("history")}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    ordersSubTab === "history"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-400 hover:text-slate-700"
+                  )}
+                >
+                  {lang === "es" ? "Historial" : "History"}
+                </button>
+              </div>
+
+              {ordersSubTab === "tracking" ? (
+                // Live Delivery tracking
+                <div className="space-y-6">
+                  {/* Order Progress tracking steps */}
+                  {(() => {
+                    const sorted = [...customerShipments].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                    const activeShip = sorted.find(s => s.status !== "delivered");
+                    const latestShip = activeShip || sorted[0];
+
+                    if (latestShip) {
+                      return (
+                        <div className="bg-white rounded-[2rem] border border-slate-150 shadow-sm p-6 space-y-4">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-3 text-left">
+                            <div>
+                              <span className="text-[9px] font-black text-indigo-650 uppercase tracking-widest">
+                                {lang === "es" ? "Pedido en curso" : "Order in progress"}
+                              </span>
+                              <h4 className="text-sm font-black text-slate-800">
+                                #{latestShip.orderId}
+                              </h4>
+                            </div>
+                            {latestShip.driverName && (
+                              <div className="text-right font-sans">
+                                <span className="text-[8px] font-black text-[#64748b] uppercase tracking-widest block">
+                                  {lang === "es" ? "Repartidor" : "Driver"}
                                 </span>
-                                <span className="bg-indigo-100 text-indigo-850 px-1.5 py-0.2 rounded font-black tracking-normal">✓ {lang === "es" ? "LISTO PARA CAJA" : "READY FOR CHECKOUT"}</span>
-                              </div>
-                            ) : (
-                              <div className="mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-emerald-600 flex-wrap">
-                                <span className="flex items-center gap-x-1">
-                                  <Star size={10} />
-                                  <span>{lang === "es" ? `¡Disponible para canje! Código: ${offer.code}` : `Available for redemption! Code: ${offer.code}`}</span>
+                                <span className="text-xs font-bold text-slate-700">
+                                  {latestShip.driverName}
                                 </span>
-                                <span className="bg-emerald-100 text-emerald-850 px-1.5 py-0.2 rounded font-black tracking-normal">✓ {lang === "es" ? "SISTEMA OK" : "SYSTEM OK"}</span>
                               </div>
                             )}
                           </div>
-                          <div className="absolute top-0 right-0 p-4">
-                            {!isEligible ? <Lock size={16} className="opacity-20" /> : <Tag size={16} className="opacity-20" />}
-                          </div>
-                        </button>
+                          <OrderTrackerSteps status={latestShip.status as any} lang={lang} />
+                        </div>
                       );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-6 rounded-[2rem] border border-dashed border-slate-200 text-center bg-slate-50/50">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      {lang === "es" ? "La empresa no cuenta con cupones promocionales configurados en este momento." : "The company does not have promotional coupons configured at this time."}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* 2. SECCIÓN: CUPONES AUTOMÁTICOS POR PUNTOS */}
-              <div className="space-y-3 pt-4 border-t border-slate-100">
-                <div className="space-y-1">
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Star size={12} className="text-amber-500 fill-amber-500" />
-                    {lang === "es" ? "Mis Cupones Automáticos por Puntos" : "My Automatic Coupons by Points"}
-                  </h4>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                    {lang === "es" ? `Se activan inmediatamente según tus puntos acumulados por compra (${customer.points || 0} pts actuales)` : `Activated immediately based on your accumulated purchase points (${customer.points || 0} current pts)`}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  {AUTOMATIC_POINT_COUPONS.map((offer) => {
-                    const isEligible = (customer.points || 0) >= offer.requiredPoints;
-                    const isUsed = customer?.usedCoupons && customer.usedCoupons.includes(offer.code);
-                    
+                    }
                     return (
-                      <button type="button" 
-                        key={offer.id} 
-                        disabled={!isEligible || isUsed}
-                        onClick={() => {
-                          setAlertConfig({
-                            isOpen: true,
-                            type: "success",
-                            title: offer.title,
-                            message: lang === "es" ? `¡Puntos acumulados suficientes! Cupón Fidelidad activado automáticamente por tu historial de compras. Presenta el código "${offer.code}" en caja para aplicar un ${offer.desc}.` : `Sufficient accumulated points! Loyalty Coupon activated automatically based on your purchase history. Present code "${offer.code}" at checkout to apply: ${offer.desc}.`
-                          });
-                        }}
-                        className={cn(
-                          "p-6 rounded-[2.5rem] border flex items-center gap-x-6 relative overflow-hidden text-left w-full group transition-all active:scale-[0.98]", 
-                          offer.color,
-                          isEligible && !isUsed ? "ring-2 ring-emerald-500/20 shadow-sm" : "grayscale opacity-40 bg-slate-100 border-slate-200 text-slate-400"
-                        )}
-                      >
-                        <div className="text-4xl">{offer.img}</div>
-                        <div>
-                          <h4 className="font-black text-sm">{offer.title}</h4>
-                          <p className="text-xs font-bold opacity-80 mt-1">{offer.desc}</p>
-                          {!isEligible ? (
-                            <div className="mt-2 flex items-center gap-x-1.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
-                              <Lock size={10} />
-                              <span>{lang === "es" ? `Requiere ${offer.requiredPoints} pts (te faltan ${offer.requiredPoints - (customer.points || 0)} pts)` : `Requires ${offer.requiredPoints} pts (${offer.requiredPoints - (customer.points || 0)} pts missing)`}</span>
-                            </div>
-                          ) : isUsed ? (
-                            <div className="mt-2 flex items-center gap-1.5 text-[8.5px] font-black uppercase tracking-widest text-slate-500 flex-wrap">
-                              <span className="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-black tracking-normal">{lang === "es" ? "✓ YA UTILIZADO EN SU HISTORIAL" : "✓ ALREADY USED IN YOUR HISTORY"}</span>
-                            </div>
-                          ) : (
-                            <div className="mt-2 flex items-center gap-x-1.5 text-[8.5px] font-black uppercase tracking-widest text-emerald-600">
-                              <Star size={10} className="fill-current" />
-                              <span>{lang === "es" ? `¡Activo por Puntos! Código: ${offer.code}` : `Active by Points! Code: ${offer.code}`}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="absolute top-0 right-0 p-4">
-                          {!isEligible ? <Lock size={16} className="opacity-20" /> : <Star size={16} className="opacity-20 fill-current text-emerald-500" />}
-                        </div>
-                      </button>
+                      <div className="p-8 text-center bg-slate-50/50 border border-dashed border-slate-200 rounded-[2.5rem]">
+                        <p className="text-xs font-bold text-slate-450 uppercase tracking-widest">
+                          {lang === "es" ? "No tienes despachos activos en este momento" : "You have no active deliveries at this time"}
+                        </p>
+                      </div>
                     );
-                  })}
+                  })()}
+
+                  <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-4 md:p-6 overflow-hidden">
+                    <DeliveryMap portalCustomerId={customer?.id} />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // Receipts History (old history tab)
+                <div className="space-y-6">
+                  {/* History Sub-Tabs */}
+                  <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setActiveHistorySubTab("receipts")}
+                      className={cn(
+                        "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                        activeHistorySubTab === "receipts"
+                          ? "bg-white text-indigo-600 shadow-sm"
+                          : "text-slate-400 hover:text-slate-700"
+                      )}
+                    >
+                      {t[lang].myReceipts}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveHistorySubTab("claims")}
+                      className={cn(
+                        "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative flex items-center justify-center gap-1.5",
+                        activeHistorySubTab === "claims"
+                          ? "bg-white text-indigo-600 shadow-sm"
+                          : "text-slate-400 hover:text-slate-700"
+                      )}
+                    >
+                      {t[lang].claimsForm}
+                      {claimsList.length > 0 && (
+                        <span className="size-2 rounded-full bg-rose-500 border border-white" />
+                      )}
+                    </button>
+                  </div>
+
+                  {activeHistorySubTab === "receipts" ? (
+                    <div className="space-y-3">
+                      {groupedTransactions.map(receipt => {
+                        const qtyTotal = receipt.items.reduce((sum: number, i: any) => sum + i.quantity, 0);
+                        const displayTitle = receipt.items.map((i: any) => i.productName).join(", ");
+                        const displayPoints = Math.floor(receipt.finalOrderTotal / 1000);
+
+                        return (
+                          <button type="button" 
+                            key={receipt.orderId}
+                            onClick={() => setSelectedReceipt(receipt)}
+                            className="w-full text-left bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-100 hover:shadow-md transition-all active:scale-[0.99] duration-200 font-sans"
+                          >
+                            <div className="flex items-center gap-x-4 min-w-0 flex-1">
+                              <div className="size-12 bg-indigo-50/50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
+                                <Receipt size={20} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-bold text-xs truncate text-slate-800 pr-1" title={displayTitle}>
+                                  {receipt.items.length === 1 
+                                    ? receipt.items[0].productName 
+                                    : `${receipt.items[0].productName} ${lang === "es" ? "y" : "and"} ${receipt.items.length - 1} ${lang === "es" ? "más" : "more"}`}
+                                </h4>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-sans">
+                                  {toDate(receipt.timestamp).toLocaleDateString(lang === 'es' ? 'es-CL' : 'en-US')} • {receipt.documentType}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0 flex items-center gap-x-3 ml-2 font-sans">
+                              <div>
+                                <p className="text-xs font-black text-slate-800">
+                                  {formatCurrency(receipt.finalOrderTotal)}
+                                </p>
+                                <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">
+                                  +{displayPoints} {lang === "es" ? "Puntos" : "Points"}
+                                </p>
+                              </div>
+                              <ChevronRight size={16} className="text-slate-350 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
+                            </div>
+                          </button>
+                        );
+                      })}
+                      {groupedTransactions.length === 0 && (
+                        <div className="text-center py-20 opacity-30 font-sans">
+                          <Search size={48} className="mx-auto mb-4" />
+                          <p className="text-xs font-black uppercase tracking-widest">{lang === "es" ? "Aún no tienes compras" : "You have no purchases yet"}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Botón para radicar reclamos con validación */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClaimOrderId("");
+                          setClaimCustomerTaxId(customer?.taxId || "");
+                          setClaimReason("Llegó roto");
+                          setClaimDescription("");
+                          setClaimPhoto("");
+                          setTaxIdError("");
+                          setShowClaimModal(true);
+                        }}
+                        className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <Plus size={14} />
+                        {lang === "es" ? "Radicar Nuevo Reclamo" : "File New Claim"}
+                      </button>
+
+                      {/* Informational intro card */}
+                      <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-950 shadow-md">
+                        <div className="flex items-start gap-x-3.5">
+                          <div className="size-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0 text-amber-400">
+                            <AlertCircle size={20} />
+                          </div>
+                          <div className="text-left space-y-1 font-sans">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
+                              {lang === "es" ? "Garantía de Satisfacción" : "Satisfaction Guarantee"}
+                            </h4>
+                            <p className="text-[10px] font-medium leading-relaxed opacity-80">
+                              {lang === "es" 
+                                ? "¿Un producto llegó dañado o faltó en tu envío? No te preocupes. Selecciona una boleta en \"Mis Boletas\" e inicia tu reclamo con foto de evidencia para reembolso inmediato." 
+                                : "Did a product arrive damaged or was it missing from your shipment? Don't worry. Select any receipt in \"My Receipts\" and file a claim with photos for immediate replacement."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {claimsList.map(claim => {
+                        const statusText = 
+                          claim.status === "resolved" || claim.status === "approved" ? (lang === "es" ? "Resuelto / Solucionado" : "Resolved / Approved") :
+                          claim.status === "rejected" ? (lang === "es" ? "Cerrado - Rechazado" : "Closed - Rejected") :
+                          (lang === "es" ? "Pendiente de Revisión" : "Pending Review");
+
+                        const statusColor = 
+                          claim.status === "resolved" || claim.status === "approved" ? "bg-emerald-50 text-emerald-700 border-emerald-250 shadow-sm" :
+                          claim.status === "rejected" ? "bg-rose-50 text-rose-700 border-rose-250" :
+                          "bg-amber-50 text-amber-700 border-amber-250";
+
+                        return (
+                          <div 
+                            key={claim.id} 
+                            className="bg-white p-5 rounded-[2rem] border border-slate-150 shadow-sm flex flex-col gap-4 text-left hover:border-slate-300 transition-all font-sans"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest inline-block">
+                                  {lang === "es" ? "Reclamo de Compra" : "Purchase Claim"}
+                                </span>
+                                <h4 className="text-xs font-black text-slate-900 tracking-tight mt-1">
+                                  {lang === "es" ? "Motivo" : "Reason"}: {
+                                    claim.reason === "Llegó roto" ? (lang === "es" ? "Llegó roto / dañado" : "Arrived broken / damaged") :
+                                    claim.reason === "Faltó un producto" ? (lang === "es" ? "Faltó un producto en el envío" : "Missing item in delivery") :
+                                    claim.reason === "Producto incorrecto" ? (lang === "es" ? "Recibí un producto equivocado" : "Received wrong item") :
+                                    claim.reason === "Defecto de fábrica" ? (lang === "es" ? "Defecto de calidad/fábrica" : "Quality/Factory defect") :
+                                    claim.reason === "Otro motivo" ? (lang === "es" ? "Otro inconveniente" : "Other issue") :
+                                    claim.reason
+                                  }
+                                </h4>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                                  {lang === "es" ? "Orden" : "Order"}: #{claim.orderId.substring(0,8).toUpperCase()} • {toDate(claim.timestamp).toLocaleDateString(lang === "es" ? 'es-CL' : 'en-US')}
+                                </p>
+                              </div>
+                              
+                              <span className={cn("px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border", statusColor)}>
+                                {statusText}
+                              </span>
+                            </div>
+
+                            {/* Description */}
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                              <p className="text-xs text-slate-650 font-bold leading-normal break-words">
+                                "{claim.description}"
+                              </p>
+                            </div>
+
+                            {/* Thumbnail & Resolution Note */}
+                            <div className="flex flex-col gap-3">
+                              {claim.photo && (
+                                <div className="space-y-1.5 text-left">
+                                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t[lang].attachedEvidenceLabel}</p>
+                                  <div className="relative size-24 rounded-2xl overflow-hidden border border-slate-150 shadow-sm bg-slate-50 group shrink-0">
+                                    <img 
+                                      src={claim.photo} 
+                                      alt="Evidencia" 
+                                      className="w-full h-full object-cover cursor-zoom-in hover:scale-105 transition-transform" 
+                                      onClick={() => {
+                                        setAlertConfig({
+                                          isOpen: true,
+                                          type: "info",
+                                          title: t[lang].claimEvidenceTitle,
+                                          message: t[lang].claimEvidenceDesc
+                                        });
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {claim.resolutionNote && (
+                                <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-1.5 text-left">
+                                  <p className="text-[8.5px] font-black text-indigo-700 uppercase tracking-widest leading-none">{t[lang].fulfillmentResponse}</p>
+                                  <p className="text-xs text-indigo-900 font-extrabold leading-normal">
+                                    "{claim.resolutionNote}"
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {claimsList.length === 0 && (
+                        <div className="text-center py-16 opacity-30 font-sans">
+                          <AlertCircle size={40} className="mx-auto mb-3" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">{t[lang].noClaimsLogged}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -4385,40 +4307,38 @@ export function CustomerPortal() {
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between z-50 gap-1">
         <button type="button" 
           onClick={() => setActiveTab("home")}
-          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "home" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
+          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "home" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Star size={18} />
           <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].startNav}</span>
         </button>
         <button type="button" 
-          onClick={() => setActiveTab("history")}
-          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "history" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
+          onClick={() => setActiveTab("shop")}
+          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "shop" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
-          <History size={18} />
-          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].receiptsNav}</span>
+          <ShoppingBag size={18} />
+          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].shop}</span>
         </button>
         <button type="button" 
-          onClick={() => setActiveTab("wallet")}
-          className={cn("size-10 rounded-xl flex items-center justify-center text-white -mt-8 shadow-md transition-all shrink-0", activeTab === "wallet" ? "bg-orange-600 scale-110" : "bg-slate-900 shadow-slate-200")}
+          onClick={() => setIsQRSheetOpen(true)}
+          className={cn("size-10 rounded-xl flex items-center justify-center text-white -mt-8 shadow-md transition-all shrink-0 sf-tap sf-spring", isQRSheetOpen ? "bg-orange-600 scale-110" : "bg-slate-900 shadow-slate-200")}
         >
-           <Wallet size={18} />
+           <QrCode size={18} />
         </button>
         <button type="button" 
-          onClick={() => setActiveTab("offers")}
-          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "offers" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
+          onClick={() => setActiveTab("coupons")}
+          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "coupons" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
           <Tag size={18} />
           <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].couponsNav}</span>
         </button>
-        {settings.deliveryEnabled !== false && (
-          <button type="button" 
-            onClick={() => setActiveTab("delivery")}
-            className={cn("flex-1 flex flex-col items-center space-y-1 transition-all", activeTab === "delivery" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
-          >
-            <Truck size={18} />
-            <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].deliveryNav}</span>
-          </button>
-        )}
+        <button type="button" 
+          onClick={() => setActiveTab("orders")}
+          className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "orders" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
+        >
+          <Truck size={18} />
+          <span className="text-[7.5px] font-black uppercase tracking-wider">{t[lang].ordersNav}</span>
+        </button>
       </nav>
 
       <AnimatePresence>
@@ -5316,7 +5236,8 @@ ${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.f
                           : "Your claims ticket was successfully saved and routed to fulfillment. We will review your case immediately."
                       });
                       setShowClaimModal(false);
-                      setActiveTab("history");
+                      setActiveTab("orders");
+                      setOrdersSubTab("history");
                       setActiveHistorySubTab("claims");
                     } catch (err: any) {
                       console.error("Error submitting claim: ", err);

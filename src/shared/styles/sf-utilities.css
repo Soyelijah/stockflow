@@ -40,3 +40,35 @@
 .sf-tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Perforation details for ticket styling */
+.perforation-line {
+  position: absolute;
+  right: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 0;
+  border-right: 1.5px dashed var(--sf-page-bg, #f8f9fc);
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.perforation-dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background-color: var(--sf-page-bg, #f8f9fc);
+  border-radius: 9999px;
+  z-index: 20;
+  pointer-events: none;
+}
+.perforation-dot-top {
+  top: -6px;
+  right: -6px;
+}
+.perforation-dot-bottom {
+  bottom: -6px;
+  right: -6px;
+}
+
