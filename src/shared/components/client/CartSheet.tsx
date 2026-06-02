@@ -71,6 +71,7 @@ export function CartSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 flex flex-col max-h-[90vh] relative"
+            style={{ paddingBottom: "calc(2rem + var(--sa-bottom, env(safe-area-inset-bottom)))" }}
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-x-3">
