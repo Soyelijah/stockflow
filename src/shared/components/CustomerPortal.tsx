@@ -1960,18 +1960,26 @@ export function CustomerPortal() {
   // Login / Register / Recover screens, mode-switched.
   if (!authUser || !customer) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
+      <div
+        className="min-h-screen flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden"
+        style={{
+          background: "radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.12) 0%, transparent 45%), radial-gradient(circle at 50% 80%, rgba(67, 56, 202, 0.18) 0%, transparent 50%), #04020a"
+        }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm"
         >
-          <div className="text-center mb-10">
-            <div className="size-20 bg-orange-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-orange-200">
+          <div className="text-center mb-8">
+            <div className="size-20 bg-orange-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-5 shadow-2xl shadow-orange-500/20">
               <Smartphone size={40} aria-hidden="true" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">{settings.businessName || "StockFlow"} <span className="text-orange-600">{t[lang].brandVersionText}</span></h1>
-            <p className="text-slate-500 font-medium mt-2">
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              {settings.businessName || "StockFlow"}{" "}
+              <span className="text-orange-500">{t[lang].brandVersionText}</span>
+            </h1>
+            <p className="text-slate-400 font-medium mt-2">
               {mode === "login" && t[lang].accountBenefits}
               {mode === "register" && t[lang].createAccountSeconds}
               {mode === "recover" && t[lang].recoverAccess}
@@ -1979,358 +1987,377 @@ export function CustomerPortal() {
             </p>
           </div>
 
-          <AnimatePresence mode="wait">
-            {mode === "login" && (
-              <motion.form
-                key="login"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleLogin}
-                className="space-y-4"
-                aria-label={lang === "es" ? "Formulario de inicio de sesión" : "Login form"}
-              >
-                <div className="space-y-1.5">
-                  <label htmlFor="customer-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].emailLabel}</label>
-                  <input
-                    id="customer-email"
-                    autoFocus
-                    type="email"
-                    required
-                    autoComplete="email"
-                    placeholder="tu@correo.cl"
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                    aria-label={t[lang].emailLabel}
-                  />
-                </div>
+          <div className="backdrop-blur-xl bg-white/[0.03] border border-amber-500/20 rounded-[2rem] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+            {/* Gold gradient top line for visual excellence */}
+            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 opacity-60" />
 
-                <div className="space-y-1.5">
-                  <label htmlFor="customer-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].passwordLabel}</label>
-                  <div className="relative">
+            <AnimatePresence mode="wait">
+              {mode === "login" && (
+                <motion.form
+                  key="login"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleLogin}
+                  className="space-y-4"
+                  aria-label={lang === "es" ? "Formulario de inicio de sesión" : "Login form"}
+                >
+                  <div className="space-y-1.5">
+                    <label htmlFor="customer-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      {t[lang].emailLabel}
+                    </label>
                     <input
-                      id="customer-password"
+                      id="customer-email"
+                      autoFocus
+                      type="email"
                       required
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      aria-label={t[lang].passwordLabel}
+                      autoComplete="email"
+                      placeholder="tu@correo.cl"
+                      className="w-full h-14 bg-black/40 border border-white/10 rounded-2xl px-5 text-sm font-bold text-white placeholder:text-slate-500 focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm focus:outline-none"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                      aria-label={t[lang].emailLabel}
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="customer-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      {t[lang].passwordLabel}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="customer-password"
+                        required
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        placeholder="••••••••"
+                        className="w-full h-14 bg-black/40 border border-white/10 rounded-2xl px-5 pr-12 text-sm font-bold text-white placeholder:text-slate-500 focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm focus:outline-none"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        aria-label={t[lang].passwordLabel}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                        aria-label={showPassword ? (lang === "es" ? "Ocultar contraseña" : "Hide password") : (lang === "es" ? "Mostrar contraseña" : "Show password")}
+                      >
+                        {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <p role="alert" className="text-[10px] font-black text-rose-400 uppercase tracking-widest text-center px-4 bg-rose-950/20 py-2 rounded-xl border border-rose-500/20">
+                      {error}
+                    </p>
+                  )}
+                  {success && (
+                    <p role="status" className="text-[10px] font-black text-emerald-400 uppercase tracking-widest text-center px-4 bg-emerald-950/20 py-2 rounded-xl border border-emerald-500/20">
+                      {success}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading || !email || !password}
+                    className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-950/20 disabled:opacity-50 sf-tap"
+                    aria-label={t[lang].login}
+                  >
+                    {loading ? (
+                      <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
+                    ) : (
+                      t[lang].login
+                    )}
+                  </button>
+
+                  <div className="flex flex-col gap-y-2 pt-2">
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      aria-label={showPassword ? (lang === "es" ? "Ocultar contraseña" : "Hide password") : (lang === "es" ? "Mostrar contraseña" : "Show password")}
+                      onClick={() => { setMode("activate"); setError(""); setSuccess(""); setPassword(""); }}
+                      className="text-[10px] font-bold text-amber-400 hover:text-amber-300 uppercase tracking-widest"
+                      aria-label={t[lang].boughtInStoreActivate}
                     >
-                      {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                      {t[lang].boughtInStoreActivate}
                     </button>
-                  </div>
-                </div>
-
-                {error && (
-                  <p role="alert" className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">
-                    {error}
-                  </p>
-                )}
-                {success && (
-                  <p role="status" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center px-4 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
-                    {success}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading || !email || !password}
-                  className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
-                  aria-label={t[lang].login}
-                >
-                  {loading ? (
-                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
-                  ) : (
-                    t[lang].login
-                  )}
-                </button>
-
-                <div className="flex flex-col gap-y-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => { setMode("activate"); setError(""); setSuccess(""); setPassword(""); }}
-                    className="text-[10px] font-bold text-amber-600 hover:text-amber-700 uppercase tracking-widest"
-                    aria-label={t[lang].boughtInStoreActivate}
-                  >
-                    {t[lang].boughtInStoreActivate}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setMode("register"); setError(""); setSuccess(""); setPassword(""); }}
-                    className="text-[10px] font-bold text-orange-600 hover:text-orange-700 uppercase tracking-widest"
-                    aria-label={t[lang].notRegisteredYet}
-                  >
-                    {t[lang].notRegisteredYet}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setMode("recover"); setError(""); setSuccess(""); setPassword(""); }}
-                    className="text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest"
-                    aria-label={t[lang].forgotPasswordQuestion}
-                  >
-                    {t[lang].forgotPasswordQuestion}
-                  </button>
-                </div>
-              </motion.form>
-            )}
-
-            {mode === "register" && (
-              <motion.form
-                key="register"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleRegister}
-                className="space-y-4"
-                aria-label={lang === "es" ? "Formulario de registro" : "Registration form"}
-              >
-                <div className="space-y-1.5">
-                  <label htmlFor="register-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].fullNameLabel}</label>
-                  <input
-                    id="register-name"
-                    autoFocus
-                    type="text"
-                    required
-                    autoComplete="name"
-                    maxLength={100}
-                    placeholder={t[lang].fullNamePlaceholder}
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
-                    value={name}
-                    onChange={(e) => { setName(e.target.value); setError(""); }}
-                    aria-label={t[lang].fullNameLabel}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="register-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].emailLabel}</label>
-                  <input
-                    id="register-email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    placeholder="tu@correo.cl"
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                    aria-label={t[lang].emailLabel}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="register-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].passwordMin}</label>
-                  <div className="relative">
-                    <input
-                      id="register-password"
-                      required
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      minLength={6}
-                      placeholder="••••••••"
-                      className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 pr-12 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
-                      value={password}
-                      onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                      aria-label={t[lang].passwordLabel}
-                    />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      aria-label={showPassword ? (lang === "es" ? "Ocultar contraseña" : "Hide password") : (lang === "es" ? "Mostrar contraseña" : "Show password")}
+                      onClick={() => { setMode("register"); setError(""); setSuccess(""); setPassword(""); }}
+                      className="text-[10px] font-bold text-orange-400 hover:text-orange-300 uppercase tracking-widest"
+                      aria-label={t[lang].notRegisteredYet}
                     >
-                      {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                      {t[lang].notRegisteredYet}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setMode("recover"); setError(""); setSuccess(""); setPassword(""); }}
+                      className="text-[10px] font-bold text-slate-400 hover:text-slate-300 uppercase tracking-widest"
+                      aria-label={t[lang].forgotPasswordQuestion}
+                    >
+                      {t[lang].forgotPasswordQuestion}
                     </button>
                   </div>
-                </div>
+                </motion.form>
+              )}
 
-                {error && (
-                  <p role="alert" className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">
-                    {error}
-                  </p>
-                )}
-                {success && (
-                  <p role="status" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center px-4 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
-                    {success}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading || !email || !password || !name}
-                  className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
-                  aria-label={lang === "es" ? "Crear cuenta" : "Create account"}
+              {mode === "register" && (
+                <motion.form
+                  key="register"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleRegister}
+                  className="space-y-4"
+                  aria-label={lang === "es" ? "Formulario de registro" : "Registration form"}
                 >
-                  {loading ? (
-                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
-                  ) : (
-                    lang === "es" ? "Crear cuenta" : "Create account"
+                  <div className="space-y-1.5">
+                    <label htmlFor="register-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      {t[lang].fullNameLabel}
+                    </label>
+                    <input
+                      id="register-name"
+                      autoFocus
+                      type="text"
+                      required
+                      autoComplete="name"
+                      maxLength={100}
+                      placeholder={t[lang].fullNamePlaceholder}
+                      className="w-full h-14 bg-black/40 border border-white/10 rounded-2xl px-5 text-sm font-bold text-white placeholder:text-slate-500 focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm focus:outline-none"
+                      value={name}
+                      onChange={(e) => { setName(e.target.value); setError(""); }}
+                      aria-label={t[lang].fullNameLabel}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="register-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      {t[lang].emailLabel}
+                    </label>
+                    <input
+                      id="register-email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      placeholder="tu@correo.cl"
+                      className="w-full h-14 bg-black/40 border border-white/10 rounded-2xl px-5 text-sm font-bold text-white placeholder:text-slate-500 focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm focus:outline-none"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                      aria-label={t[lang].emailLabel}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="register-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      {t[lang].passwordMin}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="register-password"
+                        required
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        minLength={6}
+                        placeholder="••••••••"
+                        className="w-full h-14 bg-black/40 border border-white/10 rounded-2xl px-5 pr-12 text-sm font-bold text-white placeholder:text-slate-500 focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm focus:outline-none"
+                        value={password}
+                        onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                        aria-label={t[lang].passwordLabel}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                        aria-label={showPassword ? (lang === "es" ? "Ocultar contraseña" : "Hide password") : (lang === "es" ? "Mostrar contraseña" : "Show password")}
+                      >
+                        {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <p role="alert" className="text-[10px] font-black text-rose-400 uppercase tracking-widest text-center px-4 bg-rose-950/20 py-2 rounded-xl border border-rose-500/20">
+                      {error}
+                    </p>
                   )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => { setMode("login"); setError(""); setSuccess(""); setPassword(""); }}
-                  className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
-                  aria-label={t[lang].alreadyHaveAccount}
-                >
-                  {t[lang].alreadyHaveAccount}
-                </button>
-              </motion.form>
-            )}
-
-            {mode === "activate" && (
-              <motion.form
-                key="activate"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleActivateRequest}
-                className="space-y-4"
-                aria-label={lang === "es" ? "Formulario de activación de cuenta" : "Account activation form"}
-              >
-                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 mb-4">
-                  <p className="text-[11px] font-bold text-amber-900 leading-relaxed">
-                    {t[lang].activateNotice}
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="activate-rut" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].rut}</label>
-                  <input
-                    id="activate-rut"
-                    autoFocus
-                    type="text"
-                    required
-                    inputMode="text"
-                    maxLength={20}
-                    placeholder="12.345.678-9"
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 transition-all shadow-sm"
-                    value={rut}
-                    onChange={(e) => {
-                      const formatted = formatRUT(e.target.value);
-                      setRut(formatted);
-                      setError("");
-                    }}
-                    aria-label={t[lang].rut}
-                  />
-                </div>
-
-                {error && (
-                  <p role="alert" className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">
-                    {error}
-                  </p>
-                )}
-                {success && (
-                  <p role="status" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center px-4 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
-                    {success}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading || !rut.trim()}
-                  className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
-                  aria-label={t[lang].sendActivationEmail}
-                >
-                  {loading ? (
-                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
-                  ) : (
-                    t[lang].sendActivationEmail
+                  {success && (
+                    <p role="status" className="text-[10px] font-black text-emerald-400 uppercase tracking-widest text-center px-4 bg-emerald-950/20 py-2 rounded-xl border border-emerald-500/20">
+                      {success}
+                    </p>
                   )}
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => { setMode("login"); setError(""); setSuccess(""); setRut(""); }}
-                  className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
-                  aria-label={t[lang].backToLogin}
+                  <button
+                    type="submit"
+                    disabled={loading || !email || !password || !name}
+                    className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-950/20 disabled:opacity-50 sf-tap"
+                    aria-label={lang === "es" ? "Crear cuenta" : "Create account"}
+                  >
+                    {loading ? (
+                      <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
+                    ) : (
+                      lang === "es" ? "Crear cuenta" : "Create account"
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMode("login"); setError(""); setSuccess(""); setPassword(""); }}
+                    className="w-full text-[10px] font-bold text-slate-400 hover:text-slate-300 uppercase tracking-widest pt-2"
+                    aria-label={t[lang].alreadyHaveAccount}
+                  >
+                    {t[lang].alreadyHaveAccount}
+                  </button>
+                </motion.form>
+              )}
+
+              {mode === "activate" && (
+                <motion.form
+                  key="activate"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleActivateRequest}
+                  className="space-y-4"
+                  aria-label={lang === "es" ? "Formulario de activación de cuenta" : "Account activation form"}
                 >
-                  {t[lang].backToLogin}
-                </button>
-              </motion.form>
-            )}
+                  <div className="bg-amber-500/10 p-5 rounded-2xl border border-amber-500/20 mb-4">
+                    <p className="text-[11px] font-bold text-amber-200 leading-relaxed">
+                      {t[lang].activateNotice}
+                    </p>
+                  </div>
 
-            {mode === "recover" && (
-              <motion.form
-                key="recover"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleForgotPassword}
-                className="space-y-4"
-                aria-label={lang === "es" ? "Formulario de recuperación de contraseña" : "Password recovery form"}
-              >
-                <div className="bg-orange-50 p-5 rounded-2xl border border-orange-100 mb-4">
-                  <p className="text-[11px] font-bold text-orange-900 leading-relaxed">
-                    {t[lang].enterEmailReset}
-                  </p>
-                </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="activate-rut" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      {t[lang].rut}
+                    </label>
+                    <input
+                      id="activate-rut"
+                      autoFocus
+                      type="text"
+                      required
+                      inputMode="text"
+                      maxLength={20}
+                      placeholder="12.345.678-9"
+                      className="w-full h-14 bg-black/40 border border-white/10 rounded-2xl px-5 text-sm font-bold text-white placeholder:text-slate-500 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm focus:outline-none"
+                      value={rut}
+                      onChange={(e) => {
+                        const formatted = formatRUT(e.target.value);
+                        setRut(formatted);
+                        setError("");
+                      }}
+                      aria-label={t[lang].rut}
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="recover-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t[lang].emailLabel}</label>
-                  <input
-                    id="recover-email"
-                    autoFocus
-                    type="email"
-                    required
-                    autoComplete="email"
-                    placeholder="tu@correo.cl"
-                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-600 transition-all shadow-sm"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                    aria-label={t[lang].emailLabel}
-                  />
-                </div>
-
-                {error && (
-                  <p role="alert" className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center px-4 bg-rose-50 py-2 rounded-xl border border-rose-100">
-                    {error}
-                  </p>
-                )}
-                {success && (
-                  <p role="status" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center px-4 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
-                    {success}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading || !email}
-                  className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-100 disabled:opacity-50"
-                  aria-label={t[lang].sendRecoverEmail}
-                >
-                  {loading ? (
-                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
-                  ) : (
-                    t[lang].sendRecoverEmail
+                  {error && (
+                    <p role="alert" className="text-[10px] font-black text-rose-400 uppercase tracking-widest text-center px-4 bg-rose-950/20 py-2 rounded-xl border border-rose-500/20">
+                      {error}
+                    </p>
                   )}
-                </button>
+                  {success && (
+                    <p role="status" className="text-[10px] font-black text-emerald-400 uppercase tracking-widest text-center px-4 bg-emerald-950/20 py-2 rounded-xl border border-emerald-500/20">
+                      {success}
+                    </p>
+                  )}
 
-                <button
-                  type="button"
-                  onClick={() => { setMode("login"); setError(""); setSuccess(""); }}
-                  className="w-full text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest pt-2"
-                  aria-label={t[lang].backToLogin}
+                  <button
+                    type="submit"
+                    disabled={loading || !rut.trim()}
+                    className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-950/20 disabled:opacity-50 sf-tap"
+                    aria-label={t[lang].sendActivationEmail}
+                  >
+                    {loading ? (
+                      <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
+                    ) : (
+                      t[lang].sendActivationEmail
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMode("login"); setError(""); setSuccess(""); setRut(""); }}
+                    className="w-full text-[10px] font-bold text-slate-400 hover:text-slate-300 uppercase tracking-widest pt-2"
+                    aria-label={t[lang].backToLogin}
+                  >
+                    {t[lang].backToLogin}
+                  </button>
+                </motion.form>
+              )}
+
+              {mode === "recover" && (
+                <motion.form
+                  key="recover"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleForgotPassword}
+                  className="space-y-4"
+                  aria-label={lang === "es" ? "Formulario de recuperación de contraseña" : "Password recovery form"}
                 >
-                  {t[lang].backToLogin}
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
+                  <div className="bg-orange-500/10 p-5 rounded-2xl border border-orange-500/20 mb-4">
+                    <p className="text-[11px] font-bold text-orange-200 leading-relaxed">
+                      {t[lang].enterEmailReset}
+                    </p>
+                  </div>
 
-          <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-12">
+                  <div className="space-y-1.5">
+                    <label htmlFor="recover-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      {t[lang].emailLabel}
+                    </label>
+                    <input
+                      id="recover-email"
+                      autoFocus
+                      type="email"
+                      required
+                      autoComplete="email"
+                      placeholder="tu@correo.cl"
+                      className="w-full h-14 bg-black/40 border border-white/10 rounded-2xl px-5 text-sm font-bold text-white placeholder:text-slate-500 focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm focus:outline-none"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                      aria-label={t[lang].emailLabel}
+                    />
+                  </div>
+
+                  {error && (
+                    <p role="alert" className="text-[10px] font-black text-rose-400 uppercase tracking-widest text-center px-4 bg-rose-950/20 py-2 rounded-xl border border-rose-500/20">
+                      {error}
+                    </p>
+                  )}
+                  {success && (
+                    <p role="status" className="text-[10px] font-black text-emerald-400 uppercase tracking-widest text-center px-4 bg-emerald-950/20 py-2 rounded-xl border border-emerald-500/20">
+                      {success}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading || !email}
+                    className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-950/20 disabled:opacity-50 sf-tap"
+                    aria-label={t[lang].sendRecoverEmail}
+                  >
+                    {loading ? (
+                      <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" aria-hidden="true" />
+                    ) : (
+                      t[lang].sendRecoverEmail
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMode("login"); setError(""); setSuccess(""); }}
+                    className="w-full text-[10px] font-bold text-slate-400 hover:text-slate-300 uppercase tracking-widest pt-2"
+                    aria-label={t[lang].backToLogin}
+                  >
+                    {t[lang].backToLogin}
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <p className="text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-12">
             Sf Shop • Dy Family • {new Date().getFullYear()}
           </p>
-          <p className="text-center text-[9px] text-slate-300 font-medium italic mt-1">
+          <p className="text-center text-[9px] text-slate-400 font-medium italic mt-1">
             {t[lang].slogan}
           </p>
         </motion.div>
