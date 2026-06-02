@@ -82,6 +82,8 @@ import { useSettings } from "../../contexts/SettingsContext";
 import { LoyaltyCard } from "./client/LoyaltyCard";
 import { CouponCard } from "./client/CouponCard";
 import { OrderTrackerSteps } from "./client/OrderTrackerSteps";
+import { CartSheet } from "./client/CartSheet";
+import { QRSheet } from "./client/QRSheet";
 
 function getCouponHexColor(colorStr: string) {
   if (!colorStr) return "#4f46e5";
@@ -3392,149 +3394,7 @@ export function CustomerPortal() {
             </motion.div>
           )}
 
-          {activeTab === "wallet" && (
-            <motion.div 
-              key="wallet"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 50 }}
-              className="space-y-6 text-center py-6"
-            >
-              <div className="size-16 bg-indigo-600 rounded-[1.75rem] flex items-center justify-center text-white mx-auto shadow-xl shadow-indigo-100">
-                <Wallet size={28} />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">{t[lang].digitalCardTitle}</h3>
-                <p className="text-[11px] font-bold text-slate-500 mt-1 max-w-[280px] mx-auto leading-relaxed">
-                  {t[lang].digitalCardNotice}
-                </p>
-              </div>
 
-              <div className="bg-white p-6 rounded-[2.5rem] border-2 border-slate-900 shadow-xl relative overflow-hidden max-w-[320px] mx-auto">
-                {/* Security shield decoration */}
-                <div className="absolute top-3 right-3 bg-indigo-50 border border-indigo-100/50 rounded-full p-1.5 flex items-center justify-center">
-                  <div className="size-2 rounded-full bg-indigo-600 animate-pulse" />
-                </div>
-                
-                {/* Dynamically rotating secure QR Code */}
-                <div className="aspect-square bg-slate-50 rounded-3xl mb-4 flex flex-col items-center justify-center p-5 border border-slate-100 relative group">
-                  <QRCodeCanvas 
-                    value={secureToken || customer.taxId || customer.email} 
-                    size={220}
-                    level="H"
-                    includeMargin={false}
-                    className="w-full h-auto"
-                  />
-                </div>
-
-                {/* Shrinking count-down timer bar indicating dynamic lifetime */}
-                <div className="space-y-1.5 mb-5 px-2">
-                  <div className="flex justify-between items-center text-[9px] font-black tracking-wider text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <Clock size={10} className="text-indigo-500 animate-spin [animation-duration:8s]" />
-                      {t[lang].secureDynamicCode}
-                    </span>
-                    <span className="text-indigo-600 font-extrabold">{t[lang].updateInSeconds(timeLeft)}</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-indigo-600 h-full rounded-full transition-all duration-1000 ease-linear"
-                      style={{ width: `${(timeLeft / 30) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                 {/* 6-Digit visual OTP pin fallback */}
-                 <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center space-y-1 shadow-inner">
-                   <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase">{t[lang].numericOtpToken}</p>
-                   <p className="font-mono text-2xl font-black text-indigo-600 tracking-[0.2em]">{securePin.slice(0,3)} {securePin.slice(3)}</p>
-                   <p className="text-[8px] font-bold text-slate-400 leading-normal">
-                     {t[lang].manualEntryNotice}
-                   </p>
-                 </div>
-               </div>
- 
-               {/* Prepaid Balance Section (Paso 3.2) */}
-               <div className="bg-white p-6 rounded-[2.5rem] border border-slate-150 shadow-sm max-w-[320px] mx-auto text-left space-y-4">
-                 <div className="flex items-center justify-between">
-                   <div>
-                     <p className="text-[9px] font-black tracking-wider text-slate-400 uppercase">{t[lang].prepaidDigitalWallet}</p>
-                     <h4 className="text-xl font-black text-slate-900 mt-1">
-                       {formatCurrency(customer.balance !== undefined ? customer.balance : 25000)}
-                     </h4>
-                   </div>
-                   <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                     <Wallet size={18} />
-                   </div>
-                 </div>
- 
-                 <div className="flex gap-2">
-                   <button
-                     type="button"
-                     onClick={async () => {
-                       // Simulate rechargeable loading of +$10.000 CLP
-                       try {
-                         const currentBal = customer.balance !== undefined ? customer.balance : 25000;
-                         await updateDoc(doc(db, "customers", customer.id), {
-                           balance: currentBal + 10000
-                         });
-                         setAlertConfig({
-                           isOpen: true,
-                           type: "success",
-                           title: t[lang].chargeSuccessTitle,
-                           message: t[lang].chargeSuccessMessage
-                         });
-                       } catch (err) {
-                         console.error(err);
-                       }
-                     }}
-                     className="flex-1 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 transition-colors rounded-xl font-bold text-[10px] text-center"
-                   >
-                     + $10k CLP
-                   </button>
-                   <button
-                     type="button"
-                     onClick={async () => {
-                       // Simulate rechargeable loading of +$50.000 CLP
-                       try {
-                         const currentBal = customer.balance !== undefined ? customer.balance : 25000;
-                         await updateDoc(doc(db, "customers", customer.id), {
-                           balance: currentBal + 50000
-                         });
-                         setAlertConfig({
-                           isOpen: true,
-                           type: "success",
-                           title: t[lang].chargeSuccessTitle,
-                           message: t[lang].chargeSuccessMessage50
-                         });
-                       } catch (err) {
-                         console.error(err);
-                       }
-                     }}
-                     className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white transition-colors rounded-xl font-bold text-[10px] text-center"
-                   >
-                     + $50k CLP
-                   </button>
-                 </div>
-                 <p className="text-[8px] font-bold text-slate-400 text-center leading-normal">
-                   {t[lang].simulationNotice}
-                 </p>
-               </div>
-
-              <div className="flex flex-col space-y-2 max-w-[280px] mx-auto">
-                <p className="text-[9px] font-bold text-emerald-600 bg-emerald-50 py-1.5 px-3 rounded-full flex items-center justify-center gap-1 border border-emerald-100">
-                  <span>🛡️</span>
-                  <span>{t[lang].screenshotProtected}</span>
-                </p>
-                <button type="button" 
-                  onClick={() => setActiveTab("home")}
-                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors py-2"
-                >
-                  {t[lang].closeCard}
-                </button>
-              </div>
-            </motion.div>
-          )}
 
           {activeTab === "coupons" && (
             <motion.div 
@@ -4383,259 +4243,67 @@ export function CustomerPortal() {
         )}
       </AnimatePresence>
 
-      {/* Temporary QR Sheet modal (Commit 6.B.1) */}
-      <AnimatePresence>
-        {isQRSheetOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-end sm:items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 flex flex-col max-h-[90vh] text-center"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none">{lang === "es" ? "Mi código de socio" : "My Member Code"}</h3>
-                <button type="button" onClick={() => setIsQRSheetOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-450">
-                  <X size={18} />
-                </button>
-              </div>
-              <p className="text-[11px] font-bold text-slate-500 max-w-[240px] mx-auto leading-relaxed">
-                {lang === "es" ? "Muéstralo en caja para sumar puntos e identificarte" : "Show it at checkout to earn points and identify yourself"}
-              </p>
+      <QRSheet
+        isOpen={isQRSheetOpen}
+        onClose={() => setIsQRSheetOpen(false)}
+        secureToken={secureToken}
+        customerTaxId={customer?.taxId || ""}
+        customerEmail={customer?.email || ""}
+        customerName={customer?.name || ""}
+        customerPoints={customer?.points || 0}
+        customerBalance={customer?.balance !== undefined ? customer.balance : 25000}
+        timeLeft={timeLeft}
+        securePin={securePin}
+        onRecharge={async (amount) => {
+          try {
+            const currentBal = customer.balance !== undefined ? customer.balance : 25000;
+            await updateDoc(doc(db, "customers", customer.id), {
+              balance: currentBal + amount
+            });
+            setAlertConfig({
+              isOpen: true,
+              type: "success",
+              title: t[lang].chargeSuccessTitle,
+              message: amount === 10000 ? t[lang].chargeSuccessMessage : t[lang].chargeSuccessMessage50
+            });
+          } catch (err) {
+            console.error(err);
+          }
+        }}
+        lang={lang}
+        t={t}
+      />
 
-              <div className="my-6 p-6 bg-white rounded-3xl border border-slate-100 shadow-lg max-w-[240px] mx-auto">
-                <QRCodeCanvas 
-                  value={secureToken || customer.taxId || customer.email} 
-                  size={180}
-                  level="H"
-                  includeMargin={false}
-                  className="w-full h-auto"
-                />
-              </div>
-
-              {/* Countdown timer */}
-              <div className="space-y-1.5 mb-5 px-4 text-left">
-                <div className="flex justify-between items-center text-[9px] font-black tracking-wider text-slate-450">
-                  <span className="flex items-center gap-1">
-                    <Clock size={10} className="text-indigo-500 animate-spin [animation-duration:8s]" />
-                    {lang === "es" ? "CÓDIGO DINÁMICO SEGURO" : "SECURE DYNAMIC CODE"}
-                  </span>
-                  <span className="text-indigo-600 font-extrabold">
-                    {lang === "es" ? `Se actualiza en ${timeLeft}s` : `Updates in ${timeLeft}s`}
-                  </span>
-                </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <div 
-                    className="bg-indigo-600 h-full rounded-full transition-all duration-1000 ease-linear"
-                    style={{ width: `${(timeLeft / 30) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Numeric OTP pin fallback */}
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center space-y-1 shadow-inner font-sans">
-                <p className="text-[9px] font-black tracking-widest text-slate-450 uppercase">{lang === "es" ? "Token Numérico de Entrada" : "Numeric Input Token"}</p>
-                <p className="font-mono text-2xl font-black text-indigo-600 tracking-[0.2em]">{securePin.slice(0,3)} {securePin.slice(3)}</p>
-                <p className="text-[8px] font-bold text-slate-400 leading-normal">
-                  {lang === "es" ? "Ingreso manual en caja si el lector óptico está apagado" : "Manual entry if optical scanner is off"}
-                </p>
-              </div>
-
-              {/* Verified member pill */}
-              <div className="mt-5 flex items-center justify-center gap-1.5 py-2 px-4 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-wider border border-indigo-100/50">
-                <Crown size={12} fill="indigo" className="text-indigo-700" strokeWidth={0} />
-                <span>{customer.name} · {customer.points || 0} pts</span>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showCart && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-end sm:items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 flex flex-col max-h-[90vh]"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-x-3">
-                  <div className="size-10 bg-orange-600 rounded-xl flex items-center justify-center text-white">
-                    <ShoppingCart size={20} />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-800">{t[lang].orderCartTitle}</h3>
-                </div>
-                <button type="button" onClick={() => setShowCart(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">
-                  <ArrowLeft size={18} className="-rotate-90" />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2 -mx-2 px-2 pb-4">
-                {cart.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-slate-400 font-bold">{t[lang].cartEmptyText}</p>
-                  </div>
-                ) : (
-                  cart.map((item) => {
-                    const product = products.find(p => p.id === item.id);
-                    const moq = product?.wholesaleMinQty || 6;
-                    const isWholesale = item.quantity >= moq && product?.wholesalePrice;
-                    const itemPrice = isWholesale ? product.wholesalePrice : item.price;
-                    
-                    return (
-                      <div key={item.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-x-4">
-                        <div className="size-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm overflow-hidden">
-                          {product?.image ? (
-                            <img src={product.image} alt={product.name || "Producto"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span aria-label={product?.name || "Producto"}>{product?.category === "Bebidas" ? "🥤" : product?.category === "Lácteos" ? "🧀" : "🍎"}</span>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-[11px] font-black text-slate-800 line-clamp-1">{item.name}</h4>
-                          <p className="text-[9px] font-bold text-slate-500">{formatCurrency(itemPrice)} / un</p>
-                          {isWholesale && (
-                            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-tighter">{t[lang].wholesalePricingBadge}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5">
-                           <button type="button" 
-                            onClick={() => updateQuantity(item.id, -1)}
-                            className="size-6 flex items-center justify-center text-slate-400 hover:text-rose-500"
-                           >
-                            <Minus size={10} />
-                           </button>
-                           <input 
-                             type="number"
-                             value={item.quantity}
-                             onChange={(e) => {
-                               const val = parseInt(e.target.value);
-                               if (!isNaN(val)) {
-                                 setCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(0, val) } : i).filter(i => i.quantity > 0));
-                               }
-                             }}
-                             className="w-8 text-center bg-transparent border-none text-[10px] font-black text-slate-800 focus:ring-0 p-0"
-                           />
-                           <button type="button" 
-                            onClick={() => updateQuantity(item.id, 1)}
-                            className="size-6 flex items-center justify-center text-slate-400 hover:text-indigo-600"
-                           >
-                            <Plus size={10} />
-                           </button>
-                        </div>
-                        <button type="button" 
-                          onClick={() => removeFromCart(item.id)}
-                          className="p-1 text-slate-300 hover:text-rose-500 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {cart.length > 0 && (
-                <div className="pt-6 border-t border-slate-100 space-y-4">
-                  {/* Coupon section */}
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100/80 space-y-3">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                      <Tag size={12} className="text-indigo-600" />
-                      <span>{t[lang].hasCouponLabel}</span>
-                    </p>
-                    {appliedCoupon ? (
-                      <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100/50 p-3 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">{appliedCoupon.img || "🎟️"}</span>
-                          <div>
-                            <p className="text-[10px] font-black text-indigo-950 uppercase">{appliedCoupon.code}</p>
-                            <p className="text-[9px] text-indigo-600 font-bold">{appliedCoupon.desc}</p>
-                          </div>
-                        </div>
-                        <button type="button" 
-                          onClick={() => setAppliedCoupon(null)}
-                          className="text-slate-400 hover:text-rose-500 font-black text-xs px-2 py-1"
-                        >
-                          {t[lang].removeLabel}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <div className="flex gap-2">
-                          <input 
-                            type="text"
-                            placeholder={t[lang].couponPlaceholder}
-                            value={couponInput}
-                            onChange={(e) => setCouponInput(e.target.value)}
-                            className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-black focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 uppercase"
-                          />
-                          <button type="button" 
-                            onClick={() => handleApplyCoupon(couponInput)}
-                            className="bg-indigo-600 text-white uppercase tracking-widest text-[9px] font-black px-4 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shrink-0"
-                          >
-                            {t[lang].applyLabel}
-                          </button>
-                        </div>
-                        {couponError && (
-                          <p className="text-[9px] text-rose-500 font-extrabold ml-1">{couponError}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {appliedCoupon && (
-                      <>
-                        <div className="flex justify-between items-center text-xs font-bold text-slate-500">
-                          <span>{t[lang].subtotalLabel}</span>
-                          <span>{formatCurrency(cartTotal)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs font-bold text-indigo-600">
-                          <span className="flex items-center gap-1">🎟️ {t[lang].discountLabel} ({appliedCoupon.code})</span>
-                          <span>-{formatCurrency(couponDiscount)}</span>
-                        </div>
-                      </>
-                    )}
-                    <div className="flex justify-between items-center pt-1.5">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t[lang].estimatedTotalLabel}</span>
-                      <span className="text-xl font-black text-slate-900">{formatCurrency(finalCartTotal)}</span>
-                    </div>
-                  </div>
-
-                  <button type="button" 
-                    onClick={() => {
-                      setShowCart(false);
-                      setAlertConfig({
-                        isOpen: true,
-                        type: "info",
-                        title: t[lang].confirmOrderTitle,
-                        message: t[lang].confirmOrderMsg(formatCurrency(finalCartTotal)),
-                        onConfirm: handleCheckout
-                      });
-                    }}
-                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-x-2"
-                  >
-                    <span>{t[lang].finishCheckoutBtn}</span>
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <CartSheet
+        isOpen={showCart}
+        onClose={() => setShowCart(false)}
+        cart={cart}
+        products={products}
+        appliedCoupon={appliedCoupon}
+        couponInput={couponInput}
+        couponError={couponError}
+        setCouponInput={setCouponInput}
+        onApplyCoupon={handleApplyCoupon}
+        onRemoveCoupon={() => setAppliedCoupon(null)}
+        onUpdateQuantity={updateQuantity}
+        onRemoveFromCart={removeFromCart}
+        onSetCart={setCart}
+        onCheckout={() => {
+          setShowCart(false);
+          setAlertConfig({
+            isOpen: true,
+            type: "info",
+            title: t[lang].confirmOrderTitle,
+            message: t[lang].confirmOrderMsg(formatCurrency(finalCartTotal)),
+            onConfirm: handleCheckout
+          });
+        }}
+        lang={lang}
+        t={t}
+        cartTotal={cartTotal}
+        couponDiscount={couponDiscount}
+        finalCartTotal={finalCartTotal}
+      />
 
       <AnimatePresence>
         {showNotifications && (
