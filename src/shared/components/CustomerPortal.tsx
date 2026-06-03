@@ -201,7 +201,7 @@ export function CustomerPortal() {
       chargeSuccessTitle: "Carga Exitosa",
       chargeSuccessMessage: "Se han cargado $10.000 CLP de forma simulada vía Flow. ¡Tu saldo se actualizó al instante!",
       chargeSuccessMessage50: "Se han cargado $50.000 CLP de forma simulada vía Flow. ¡Tu saldo se actualizó al instante!",
-      simulationNotice: "Recarga instantánea simulada para validar la unificación del saldo electrónico con el punto de venta (POS) en tiempo real.",
+      simulationNotice: "La recarga con pago real vía Flow estará disponible próximamente. Tu saldo se actualiza en caja tras cada compra.",
       screenshotProtected: "Protegido contra capturas de pantalla y suplantación",
       closeCard: "Cerrar Tarjeta",
       // Sidebar Drawer Screen
@@ -486,7 +486,7 @@ export function CustomerPortal() {
       chargeSuccessTitle: "Top-up Successful",
       chargeSuccessMessage: "Simulated $10,000 CLP has been loaded via Flow. Your balance updated instantly!",
       chargeSuccessMessage50: "Simulated $50,000 CLP has been loaded via Flow. Your balance updated instantly!",
-      simulationNotice: "Simulated instant reload to validate integration of electronic balance with checkout (POS) in real time.",
+      simulationNotice: "Top-up with real Flow payment is coming soon. Your balance updates at checkout after each purchase.",
       screenshotProtected: "Protected against screenshots and spoofing",
       closeCard: "Close Card",
       // Sidebar Drawer Screen
@@ -1191,17 +1191,33 @@ export function CustomerPortal() {
       const token = `STK:ID:${customer.taxId}:${expiresAt}:${currentBalance}`;
       setSecureToken(token);
       
-      const randomPin = Math.floor(100000 + Math.random() * 900000).toString();
-      setSecurePin(randomPin);
       setTimeLeft(30);
 
+      // The secure PIN is generated + persisted server-side via the Admin SDK
+      // (POST /api/customer/secure-pin). Firestore rules forbid a customer from
+      // writing securePin on their own doc, so the previous client-side
+      // updateDoc silently failed with permission-denied and the cashier's
+      // manual-PIN lookup at POS could never match. We fetch the authoritative
+      // PIN here. The QR token above (setSecureToken) is self-describing and is
+      // already set, so the scan path stays instant regardless of this request.
       try {
-        await updateDoc(doc(db, "customers", customer.id), {
-          securePin: randomPin,
-          securePinExpiresAt: expiresAt
+        const idToken = await auth.currentUser?.getIdToken();
+        const resp = await fetch("/api/customer/secure-pin", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken ?? ""}`
+          }
         });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && typeof data?.pin === "string") {
+          setSecurePin(data.pin);
+        } else {
+          // Never show a fake PIN the POS could not validate.
+          setSecurePin("------");
+        }
       } catch (e) {
-        console.error("Error updating secure PIN in Firestore:", e);
+        setSecurePin("------");
       }
     };
 
@@ -4292,21 +4308,21 @@ export function CustomerPortal() {
         customerBalance={customer?.balance !== undefined ? customer.balance : 25000}
         timeLeft={timeLeft}
         securePin={securePin}
-        onRecharge={async (amount) => {
-          try {
-            const currentBal = customer.balance !== undefined ? customer.balance : 25000;
-            await updateDoc(doc(db, "customers", customer.id), {
-              balance: currentBal + amount
-            });
-            setAlertConfig({
-              isOpen: true,
-              type: "success",
-              title: t[lang].chargeSuccessTitle,
-              message: amount === 10000 ? t[lang].chargeSuccessMessage : t[lang].chargeSuccessMessage50
-            });
-          } catch (err) {
-            console.error(err);
-          }
+        onRecharge={async () => {
+          // A wallet top-up must originate from a confirmed Flow payment (webhook)
+          // or authorized staff — NEVER a client-side balance write. Firestore
+          // rules correctly reject a customer writing its own `balance`, so the
+          // previous "simulated recharge" silently failed while implying success.
+          // Until the real Flow top-up flow exists, surface an honest notice and
+          // never mutate the balance.
+          setAlertConfig({
+            isOpen: true,
+            type: "info",
+            title: lang === "es" ? "Recarga próximamente" : "Top-up coming soon",
+            message: lang === "es"
+              ? "La recarga de tu billetera estará disponible con pago real vía Flow. Por ahora, tu saldo solo se actualiza en caja tras una compra."
+              : "Wallet top-up will be available with real Flow payment soon. For now, your balance only updates at checkout after a purchase."
+          });
         }}
         lang={lang}
         t={t}

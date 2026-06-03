@@ -141,6 +141,60 @@ customerRouter.post("/customer/claim", requireAuthBearer, async (req: Authentica
 });
 
 /**
+ * POST /api/customer/secure-pin
+ * Bearer auth (customer). Generates + persists a short-lived 6-digit identity
+ * PIN on the caller's OWN /customers/{uid} doc, then returns it for display in
+ * the member-QR sheet.
+ *
+ * Why this must be server-side:
+ *   Firestore rules (correctly) forbid a customer from updating securePin /
+ *   securePinExpiresAt on their own doc — the self-update allowlist is only
+ *   name/phone/address/updatedAt. The client used to attempt that write directly
+ *   and it silently failed with permission-denied, so the PIN was NEVER stored
+ *   and the cashier's manual-PIN identity lookup (POS.tsx / MobilePOS.tsx:
+ *   `c.securePin === entered`) could never match. This endpoint is the
+ *   authoritative writer, via the Admin SDK.
+ *
+ * Security properties:
+ *   - Only ever writes the caller's own doc, keyed by the verified token uid —
+ *     a customer cannot mint a PIN for anyone else.
+ *   - Requires role === "customer" (defense-in-depth; staff have no QR sheet).
+ *   - The PIN is the caller's own short-lived OTP; returning it to the caller
+ *     leaks nothing (it is rendered in their own UI).
+ *   - PIN is generated with crypto.randomInt (CSPRNG), not Math.random.
+ */
+customerRouter.post("/customer/secure-pin", requireAuthBearer, async (req: AuthenticatedRequest, res: Response) => {
+  const uid = req.user?.uid;
+  const role = req.user?.role;
+  if (!uid) {
+    return res.status(401).json({ error: "Token sin uid." });
+  }
+  // Defense-in-depth: explicitly refuse STAFF callers. We do NOT hard-require
+  // role === "customer", because a freshly-activated customer's claim may not
+  // have propagated yet; the real guarantee is that we only ever write the
+  // caller's OWN /customers/{uid} doc (existence-checked below), which only
+  // exists for actual customers.
+  if (role && STAFF_ROLES.has(role)) {
+    return res.status(403).json({ error: "Las cuentas de personal no generan un PIN de socio." });
+  }
+  try {
+    const docRef = adminDb.collection("customers").doc(uid);
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "Perfil de cliente no encontrado." });
+    }
+    // CSPRNG 6-digit PIN (100000–999999). 30s validity; POS allows +60s grace.
+    const pin = String(crypto.randomInt(100000, 1000000));
+    const expiresAt = Date.now() + 30000;
+    await docRef.set({ securePin: pin, securePinExpiresAt: expiresAt }, { merge: true });
+    return res.status(200).json({ success: true, pin, expiresAt });
+  } catch (err: any) {
+    console.error("❌ [customer/secure-pin] Failed:", err?.message || err);
+    return res.status(500).json({ error: "No se pudo generar el PIN seguro." });
+  }
+});
+
+/**
  * POST /api/customer/activate-request
  * NO auth required (the user is not signed in yet — they're a legacy customer
  * who bought in the physical store and wants to claim their existing /customers/*
