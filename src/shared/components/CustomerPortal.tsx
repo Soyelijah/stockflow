@@ -63,7 +63,7 @@ import {
   QrCode
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { cn, formatCurrency, formatRUT, getCustomerTier, LOYALTY_TIERS, toDate } from "../../lib/utils";
+import { cn, formatCurrency, formatRUT, isValidRUTFormat, getCustomerTier, LOYALTY_TIERS, toDate } from "../../lib/utils";
 // Tier 5.A4.2: customer auth session no longer uses localStorage; Firebase Auth handles it.
 // The storage helpers below remain for the pending-order cart/payments/coupon flow that
 // survives the customer's hop to Flow.cl checkout, and for dismissedClaims UI state.
@@ -872,6 +872,12 @@ export function CustomerPortal() {
   const [confirmReward, setConfirmReward] = useState<PhysicalReward | null>(null);
   const [rewardCategory, setRewardCategory] = useState<string>("Todos");
 
+  // Strict módulo-11 check-digit validator. Intentionally RETAINED but NOT used
+  // as a hard gate on the activation / claim flows — those match an already
+  // stored RUT and must tolerate legacy verifier digits (see isValidRUTFormat in
+  // lib/utils). Kept available for any future flow that mints a brand-new RUT and
+  // genuinely wants to catch a typo before persisting it.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const validateChileanRUT = (rut: string): boolean => {
     if (!rut) return false;
     const clean = rut.replace(/\./g, "").replace(/-/g, "").trim().toUpperCase();
@@ -1789,8 +1795,13 @@ export function CustomerPortal() {
       setError(lang === "es" ? "Ingresa tu RUT para activar tu cuenta." : "Enter your RUT to activate your account.");
       return;
     }
-    if (!validateChileanRUT(rut)) {
-      setError(lang === "es" ? "❌ RUT inválido (Dígito verificador incorrecto)" : "❌ Invalid RUT (Bad check-digit)");
+    // Format-only gate. The server (/api/customer/activate-request) performs the
+    // authoritative, check-digit-agnostic match against the stored RUT and
+    // returns a uniform anti-enumeration response. A strict módulo-11 block here
+    // would lock out legacy/migrated customers whose stored verifier digit does
+    // not satisfy módulo-11 (e.g. the real record "12.345.678-9").
+    if (!isValidRUTFormat(rut)) {
+      setError(lang === "es" ? "Ingresa un RUT válido, por ejemplo 12.345.678-9." : "Enter a valid RUT, e.g. 12.345.678-9.");
       return;
     }
     setLoading(true);
@@ -4762,8 +4773,8 @@ ${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.f
                     onChange={(e) => {
                       const formatted = formatRUT(e.target.value);
                       setClaimCustomerTaxId(formatted);
-                      if (formatted && !validateChileanRUT(formatted)) {
-                        setTaxIdError(lang === "es" ? "❌ RUT inválido (Dígito verificador incorrecto)" : "❌ Invalid RUT (Bad check-digit)");
+                      if (formatted && !isValidRUTFormat(formatted)) {
+                        setTaxIdError(lang === "es" ? "Revisa el formato del RUT (ej: 12.345.678-9)." : "Check the RUT format (e.g. 12.345.678-9).");
                       } else {
                         setTaxIdError("");
                       }
@@ -4902,8 +4913,8 @@ ${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.f
                   onClick={async () => {
                     if (!claimDescription.trim() || !claimOrderId.trim() || !claimCustomerTaxId.trim() || !!taxIdError) return;
                     
-                    if (!validateChileanRUT(claimCustomerTaxId)) {
-                      setTaxIdError(lang === "es" ? "❌ RUT inválido" : "❌ Invalid RUT");
+                    if (!isValidRUTFormat(claimCustomerTaxId)) {
+                      setTaxIdError(lang === "es" ? "Revisa el formato del RUT (ej: 12.345.678-9)." : "Check the RUT format (e.g. 12.345.678-9).");
                       return;
                     }
 

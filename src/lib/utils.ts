@@ -42,8 +42,32 @@ export function formatRUT(value: string) {
   if (formattedBody.startsWith(".")) {
     formattedBody = formattedBody.slice(1);
   }
-  
+
   return `${formattedBody}-${dv.toUpperCase()}`;
+}
+
+/**
+ * Lenient, format-only RUT check (NO módulo-11 check-digit enforcement).
+ *
+ * Use this for flows that MATCH an already-stored RUT — account activation and
+ * claim filing — never for minting a brand-new identity. Legacy/migrated
+ * customer records (imported from the physical-store POS) can carry a RUT whose
+ * verifier digit predates validation, e.g. the seed record "12.345.678-9". The
+ * server (`/api/customer/activate-request`) performs the authoritative,
+ * check-digit-agnostic match and returns a uniform anti-enumeration response, so
+ * a strict client-side module-11 gate would only lock those real customers out
+ * of their own data — which is exactly the bug it used to cause.
+ *
+ * Accepts a 6–8 digit body followed by a single verifier (0-9 or K); tolerant of
+ * dots, dashes and whitespace.
+ */
+export function isValidRUTFormat(rut: string): boolean {
+  if (!rut) return false;
+  const clean = rut.replace(/[.\-\s]/g, "").toUpperCase();
+  if (clean.length < 7 || clean.length > 9) return false;
+  const body = clean.slice(0, -1);
+  const verifier = clean.slice(-1);
+  return /^\d+$/.test(body) && /^[0-9K]$/.test(verifier);
 }
 
 export function formatChileanPhone(value: string) {
