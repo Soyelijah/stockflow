@@ -922,10 +922,11 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               <div className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                   <div className="md:col-span-8 space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Lector de Auditoría Continuo</label>
+                    <label htmlFor="audit-barcode-input" className="text-[10px] font-black uppercase text-slate-400 ml-1">Lector de Auditoría Continuo</label>
                     <div className="relative">
                       <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                       <input
+                        id="audit-barcode-input"
                         type="text"
                         placeholder="Escanee código de barra con gatillo físico o escriba y presione Enter…"
                         value={auditBarcode}
@@ -1110,6 +1111,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                       <input
                         type="text"
+                        aria-label="Buscar producto por nombre, SKU o código de barras"
                         placeholder="Buscar por nombre, SKU, barra…"
                         value={auditSearchQuery}
                         onChange={(e) => setAuditSearchQuery(e.target.value)}
@@ -1207,6 +1209,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                                 </button>
                                 <input
                                   type="number"
+                                  aria-label={`Cantidad física escaneada de ${p.name}`}
                                   value={physicalValue}
                                   onChange={(e) => {
                                     const val = Number(e.target.value);
@@ -1624,6 +1627,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           </button>
                           <input
                             type="number"
+                            aria-label="Cantidad a pedir en orden de compra"
                             value={ocQuantity}
                             onChange={(e) => setOcQuantity(Math.max(1, Number(e.target.value)))}
                             className="w-16 h-8 text-center bg-white border border-slate-100 rounded-lg text-xs font-black text-slate-800"
@@ -1640,7 +1644,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     </div>
 
                     <div className="space-y-1.5 text-left">
-                      <label className="text-[9px] font-black uppercase text-slate-400">Asunto del Pedido de Compra</label>
+                      <span className="text-[9px] font-black uppercase text-slate-400">Asunto del Pedido de Compra</span>
                       <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl text-xs font-mono text-slate-600">
                         <p className="font-bold text-slate-700">OC-PROV-{Date.now().toString().slice(-4)}: Reabastecimiento de {selectedProductForOC.name}</p>
                         <p className="mt-2 text-[10px] leading-relaxed">
@@ -2039,8 +2043,9 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   <div className="pt-4 border-t border-slate-100 space-y-4">
                     <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Acción de Soporte Técnico</span>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500">Comentarios de Resolución / Respuesta para el Cliente:</label>
+                      <label htmlFor="resolution-text" className="text-[10px] font-bold text-slate-500">Comentarios de Resolución / Respuesta para el Cliente:</label>
                       <textarea
+                        id="resolution-text"
                         className="w-full h-24 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 focus:bg-white transition-all resize-none text-slate-800"
                         placeholder="Ej: Estimado cliente, hemos procesado su devolución. Se ha acreditado el reembolso y se generó una nueva guía de despacho de reposición."
                         value={resolutionText}
@@ -2124,8 +2129,9 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 
                 <div className="relative group">
                   <Search className="absolute left-5 md:left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} md:size={24} />
-                  <input 
+                  <input
                     type="text"
+                    aria-label="Escanear código o buscar producto por nombre o SKU"
                     placeholder="Escanear o buscar…"
                     className="w-full h-16 md:h-20 bg-slate-50 border border-slate-100 rounded-2xl md:rounded-[2rem] pl-14 md:pl-16 pr-20 text-base md:text-lg font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                     value={searchTerm}
@@ -2280,7 +2286,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
               <form onSubmit={handleSubmit} className="p-6 md:p-10 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <div className="space-y-4 md:space-y-6">
                   <div>
-                    <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Tipo de Movimiento</label>
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Tipo de Movimiento</span>
                     <div className="grid grid-cols-2 gap-2">
                       {(mode === "reception" ? [
                         { id: "adjustment", label: "Ajuste / Ingreso", icon: RefreshCw },
@@ -2310,18 +2316,19 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   </div>
 
                   <div>
-                    <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <label htmlFor="kardex-quantity" className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Cantidad
                     </label>
                     <div className="flex items-center gap-x-3 md:gap-x-4">
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setFormData({...formData, quantity: Math.max(1, formData.quantity - 1)})}
                         className="size-12 md:w-14 md:h-14 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
                       >
                         <Minus size={18} md:size={20} />
                       </button>
-                      <input 
+                      <input
+                        id="kardex-quantity"
                         type="number"
                         inputMode="numeric"
                         min="1"
@@ -2340,13 +2347,14 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Referencia / Documento</label>
+                    <label htmlFor="kardex-reference" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Referencia / Documento</label>
                     <div className="relative group">
-                      <input 
+                      <input
+                        id="kardex-reference"
                         type="text"
                         placeholder={
-                          formData.movementType === "sale" 
-                            ? "Ej: Boleta #123, Factura #456" 
+                          formData.movementType === "sale"
+                            ? "Ej: Boleta #123, Factura #456"
                             : "Ej: Guía de Despacho #789"
                         }
                         className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 pr-32"
@@ -2409,10 +2417,11 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                   {mode === "dispatch" && formData.movementType === "sale" && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Cliente (Mayorista/Directo)</label>
+                      <label htmlFor="kardex-customer-search" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Cliente (Mayorista/Directo)</label>
                       <div className="relative mb-3">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input 
+                        <input
+                          id="kardex-customer-search"
                           type="text"
                           placeholder="Buscar cliente por nombre o RUT…"
                           className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20"
@@ -2452,8 +2461,9 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                   {mode === "dispatch" && formData.movementType === "withdrawal" && (
                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Sucursal de Destino</label>
-                        <input 
+                        <label htmlFor="kardex-target-sucursal" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Sucursal de Destino</label>
+                        <input
+                            id="kardex-target-sucursal"
                             type="text"
                             placeholder="Ej: Sucursal Centro, Bodega 2, Concon…"
                             className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500"
@@ -2495,8 +2505,9 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                 <div className="space-y-6">
                   {mode === "reception" && (
                     <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Proveedor Originario</label>
-                      <select 
+                      <label htmlFor="kardex-supplier" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Proveedor Originario</label>
+                      <select
+                        id="kardex-supplier"
                         className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800"
                         value={formData.supplierId}
                         onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
@@ -2510,8 +2521,9 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                   )}
 
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Observaciones / Motivo</label>
-                    <textarea 
+                    <label htmlFor="kardex-reason" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Observaciones / Motivo</label>
+                    <textarea
+                      id="kardex-reason"
                       className="w-full min-h-[112px] bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 resize-none"
                       placeholder="Detalles adicionales…"
                       value={formData.reason}
@@ -2594,10 +2606,11 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                   <form onSubmit={handleQuickCreate} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-4 md:space-y-6 text-slate-700">
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Nombre Comercial *</label>
-                      <input 
+                      <label htmlFor="qc-name" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Nombre Comercial *</label>
+                      <input
+                        id="qc-name"
                         required
-                        type="text" 
+                        type="text"
                         placeholder="Ej: Stevia Endulzante 180ml"
                         className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
                         value={quickCreateData.name}
@@ -2607,10 +2620,11 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Código de Barras / EAN-13 * (IBAN)</label>
-                        <input 
+                        <label htmlFor="qc-barcode" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Código de Barras / EAN-13 * (IBAN)</label>
+                        <input
+                          id="qc-barcode"
                           required
-                          type="text" 
+                          type="text"
                           placeholder="Ej: 75041670"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
                           value={quickCreateData.barcode}
@@ -2618,9 +2632,10 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">SKU / Código Único</label>
-                        <input 
-                          type="text" 
+                        <label htmlFor="qc-sku" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">SKU / Código Único</label>
+                        <input
+                          id="qc-sku"
+                          type="text"
                           placeholder="Ej: STE-180ML"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
                           value={quickCreateData.sku}
@@ -2631,10 +2646,11 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Precio Costo ($) *</label>
-                        <input 
+                        <label htmlFor="qc-cost-price" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Precio Costo ($) *</label>
+                        <input
+                          id="qc-cost-price"
                           required
-                          type="number" 
+                          type="number"
                           min="0"
                           placeholder="0"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
@@ -2643,10 +2659,11 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Precio Venta ($) *</label>
-                        <input 
+                        <label htmlFor="qc-price" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Precio Venta ($) *</label>
+                        <input
+                          id="qc-price"
                           required
-                          type="number" 
+                          type="number"
                           min="0"
                           placeholder="0"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
@@ -2658,9 +2675,10 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Precio Mayorista ($)</label>
-                        <input 
-                          type="number" 
+                        <label htmlFor="qc-wholesale-price" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Precio Mayorista ($)</label>
+                        <input
+                          id="qc-wholesale-price"
+                          type="number"
                           min="0"
                           placeholder="Mismo que venta si vacío"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
@@ -2669,9 +2687,10 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Uds. Mínimas Mayorista</label>
-                        <input 
-                          type="number" 
+                        <label htmlFor="qc-wholesale-min-qty" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Uds. Mínimas Mayorista</label>
+                        <input
+                          id="qc-wholesale-min-qty"
+                          type="number"
                           min="1"
                           placeholder="6"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
@@ -2683,10 +2702,11 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block block">Categoría *</label>
+                        <label htmlFor="qc-category" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block block">Categoría *</label>
                         {!isCreatingCategory ? (
                           <div className="flex gap-2">
-                            <select 
+                            <select
+                              id="qc-category"
                               required
                               className="flex-1 h-12 bg-slate-50 border border-slate-105 rounded-xl px-3 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all cursor-pointer"
                               value={quickCreateData.categoryId}
@@ -2711,9 +2731,10 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                           </div>
                         ) : (
                           <div className="flex gap-1.5">
-                            <input 
+                            <input
                               type="text"
                               required
+                              aria-label="Nombre de nueva categoría"
                               placeholder="Nueva Categoría…"
                               className="flex-1 h-12 bg-slate-50 border border-dashed border-indigo-200 rounded-xl px-3 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
                               value={newCategoryName}
@@ -2747,8 +2768,9 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Proveedor Asociado</label>
-                        <select 
+                        <label htmlFor="qc-supplier" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Proveedor Asociado</label>
+                        <select
+                          id="qc-supplier"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all cursor-pointer"
                           value={quickCreateData.supplierId}
                           onChange={e => setQuickCreateData({...quickCreateData, supplierId: e.target.value})}
@@ -2763,9 +2785,10 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Stock Inicial / Cantidad a Recepcionar *</label>
-                        <input 
-                          type="number" 
+                        <label htmlFor="qc-stock" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Stock Inicial / Cantidad a Recepcionar *</label>
+                        <input
+                          id="qc-stock"
+                          type="number"
                           min="0"
                           placeholder="Ej: 50"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
@@ -2774,9 +2797,10 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Stock Mínimo Alerta</label>
-                        <input 
-                          type="number" 
+                        <label htmlFor="qc-min-threshold" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Stock Mínimo Alerta</label>
+                        <input
+                          id="qc-min-threshold"
+                          type="number"
                           min="1"
                           placeholder="5"
                           className="w-full h-12 bg-slate-50 border border-slate-105 rounded-xl px-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none"
@@ -2787,8 +2811,9 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Descripción breve</label>
-                      <textarea 
+                      <label htmlFor="qc-description" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Descripción breve</label>
+                      <textarea
+                        id="qc-description"
                         rows={2}
                         placeholder="Uso, sabor, empaque o presentación del producto…"
                         className="w-full bg-slate-50 border border-slate-105 rounded-xl p-4 text-sm font-bold focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none resize-none"

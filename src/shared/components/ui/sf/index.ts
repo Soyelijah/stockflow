@@ -1,5 +1,6 @@
 export * from "./Pill";
 export * from "./IconChip";
+export * from "./sfIconMap";
 export * from "./Avatar";
 export * from "./ProgressRing";
 export * from "./MoneyTicker";

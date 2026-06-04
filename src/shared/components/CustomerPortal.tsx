@@ -2035,7 +2035,6 @@ export function CustomerPortal() {
                     </label>
                     <input
                       id="customer-email"
-                      autoFocus
                       type="email"
                       required
                       autoComplete="email"
@@ -2143,7 +2142,6 @@ export function CustomerPortal() {
                     </label>
                     <input
                       id="register-name"
-                      autoFocus
                       type="text"
                       required
                       autoComplete="name"
@@ -2258,7 +2256,6 @@ export function CustomerPortal() {
                     </label>
                     <input
                       id="activate-rut"
-                      autoFocus
                       type="text"
                       required
                       inputMode="text"
@@ -2332,7 +2329,6 @@ export function CustomerPortal() {
                     </label>
                     <input
                       id="recover-email"
-                      autoFocus
                       type="email"
                       required
                       autoComplete="email"
@@ -2473,11 +2469,12 @@ export function CustomerPortal() {
                           customer.name?.charAt(0).toUpperCase()
                         )}
                       </div>
-                      <input 
-                        type="file" 
+                      <input
+                        type="file"
                         id="customer-photo-upload-sidebar"
+                        aria-label={t[lang].uploadProfilePhoto}
                         onChange={handlePhotoUpload}
-                        className="hidden" 
+                        className="hidden"
                         accept="image/*"
                         disabled={isUploadingPhoto}
                       />
@@ -2542,8 +2539,9 @@ export function CustomerPortal() {
                   <div className="space-y-3.5 p-5 bg-slate-50 rounded-[2rem] border border-slate-150 text-left shadow-inner">
                     <div className="space-y-1">
                       <label className="sf-microlabel ml-0.5">{t[lang].emailInvoices}</label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
+                        aria-label={t[lang].emailInvoices}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
                         value={profileEmail}
                         onChange={(e) => setProfileEmail(e.target.value)}
@@ -3102,6 +3100,7 @@ export function CustomerPortal() {
                   </div>
                   <input
                     type="text"
+                    aria-label={t[lang].searchPlaceholder}
                     placeholder={t[lang].searchPlaceholder}
                     value={searchTerm}
                     onChange={(e) => {
@@ -3247,8 +3246,9 @@ export function CustomerPortal() {
                             >
                               <Minus size={14} />
                             </motion.button>
-                            <input 
+                            <input
                               type="number"
+                              aria-label={`Cantidad de ${product.name}`}
                               className="w-12 text-center bg-transparent border-none text-xs font-black text-slate-900 focus:ring-0 p-0"
                               value={cartItem.quantity}
                               onChange={(e) => {
@@ -3266,7 +3266,7 @@ export function CustomerPortal() {
                                 }
                               }}
                             />
-                            <motion.button 
+                            <motion.button
                               whileTap={{ scale: 0.9 }}
                               onClick={() => {
                                 if (cartItem.quantity < product.stock) {
@@ -3336,8 +3336,9 @@ export function CustomerPortal() {
                             >
                               <Minus size={11} />
                             </motion.button>
-                            <input 
+                            <input
                               type="number"
+                              aria-label={`Cantidad de ${product.name}`}
                               className="w-9 text-center bg-transparent border-none text-[11px] font-black text-slate-900 focus:ring-0 p-0"
                               value={cartItem.quantity}
                               onChange={(e) => {
@@ -4148,10 +4149,13 @@ export function CustomerPortal() {
                                 <div className="space-y-1.5 text-left">
                                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t[lang].attachedEvidenceLabel}</p>
                                   <div className="relative size-24 rounded-2xl overflow-hidden border border-slate-150 shadow-sm bg-slate-50 group shrink-0">
-                                    <img 
-                                      src={claim.photo} 
-                                      alt="Evidencia" 
-                                      className="w-full h-full object-cover cursor-zoom-in hover:scale-105 transition-transform" 
+                                    <img
+                                      src={claim.photo}
+                                      alt="Evidencia"
+                                      role="button"
+                                      tabIndex={0}
+                                      aria-label={t[lang].claimEvidenceTitle}
+                                      className="w-full h-full object-cover cursor-zoom-in hover:scale-105 transition-transform"
                                       onClick={() => {
                                         setAlertConfig({
                                           isOpen: true,
@@ -4159,6 +4163,17 @@ export function CustomerPortal() {
                                           title: t[lang].claimEvidenceTitle,
                                           message: t[lang].claimEvidenceDesc
                                         });
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          setAlertConfig({
+                                            isOpen: true,
+                                            type: "info",
+                                            title: t[lang].claimEvidenceTitle,
+                                            message: t[lang].claimEvidenceDesc
+                                          });
+                                        }
                                       }}
                                     />
                                   </div>
@@ -4785,6 +4800,7 @@ ${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.f
                   </label>
                   <input
                     type="text"
+                    aria-label={lang === "es" ? "RUT del Cliente" : "Customer RUT"}
                     value={claimCustomerTaxId}
                     onChange={(e) => {
                       const formatted = formatRUT(e.target.value);
@@ -4812,6 +4828,7 @@ ${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.f
                   </label>
                   <input
                     type="text"
+                    aria-label={lang === "es" ? "Número de Boleta de la Compra" : "Purchase Receipt Number"}
                     value={claimOrderId}
                     onChange={(e) => setClaimOrderId(e.target.value)}
                     placeholder="e.g. pos_171457…"
@@ -4840,7 +4857,8 @@ ${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.f
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                     {lang === "es" ? "Detalle del Problema" : "Problem Details"}
                   </label>
-                  <textarea 
+                  <textarea
+                    aria-label={lang === "es" ? "Detalle del Problema" : "Problem Details"}
                     placeholder={lang === "es" ? "Explica detalladamente qué sucedió con tu producto o pedido…" : "Please describe in detail what happened to your product or order…"}
                     rows={4}
                     value={claimDescription}
@@ -4861,9 +4879,10 @@ ${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.f
                   </label>
                   
                   <div className="flex items-center gap-x-4">
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       id="claim-photo-input"
+                      aria-label={lang === "es" ? "Foto de Evidencia (Físico/Empaque)" : "Evidence Photo (Physical Receipt/Package)"}
                       accept="image/*"
                       capture="environment"
                       onChange={(e) => {

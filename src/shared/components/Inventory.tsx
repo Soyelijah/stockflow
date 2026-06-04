@@ -1082,8 +1082,9 @@ export function Inventory() {
                     {editingProduct ? "Actualizar Producto" : "Configurar Producto"}
                   </h3>
                 </div>
-                <button type="button" 
-                  onClick={() => setIsModalOpen(false)} 
+                <button type="button"
+                  aria-label="Cerrar formulario de producto"
+                  onClick={() => setIsModalOpen(false)}
                   className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 transition-all hover:rotate-90"
                 >
                   <X size={20} />
@@ -1153,8 +1154,9 @@ export function Inventory() {
                             }
                           }}
                         />
-                        <button 
+                        <button
                           type="button"
+                          aria-label="Escanear código de barras con cámara"
                           onClick={() => setIsScanning(true)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 size-8 bg-white border border-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors shadow-sm"
                         >

@@ -479,6 +479,7 @@ export function Customers() {
               />
               <input
                 type="text"
+                aria-label="Buscar cliente por nombre, email o identificación"
                 placeholder="Buscar por nombre, email o identificación…"
                 className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500/10 transition-all text-slate-700"
                 value={searchTerm}
@@ -1073,6 +1074,7 @@ export function Customers() {
                   </h3>
                 </div>
                 <button type="button"
+                  aria-label="Cerrar formulario de cliente"
                   onClick={() => setIsModalOpen(false)}
                   className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"
                 >
@@ -1205,9 +1207,9 @@ export function Customers() {
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Tipo de Cliente
-                    </label>
+                    </span>
                     <div className="flex gap-4">
                       {[
                         { id: "retail", label: "Minorista" },
@@ -1232,9 +1234,9 @@ export function Customers() {
                     </div>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                       Clasificación de Fidelidad
-                    </label>
+                    </span>
                     <div className="flex gap-4">
                       {["regular", "vip", "churn"].map((seg) => (
                         <button

@@ -1051,7 +1051,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <div className="space-y-6">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Productos de Alta Rentabilidad</h3>
               <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
-                {allProducts.sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice))).slice(0, 4).map((p) => (
+                {[...allProducts].sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice))).slice(0, 4).map((p) => (
                   <div key={p.id} className="bg-emerald-50/20 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between gap-1.5">
                     <div>
                       <p className="text-[11px] font-black text-slate-800">{p.name}</p>
@@ -1748,11 +1748,14 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
               className="relative max-w-full max-h-[90vh] flex flex-col items-center justify-center p-2"
             >
               <div className="overflow-auto max-w-full max-h-[80vh] rounded-2xl shadow-2xl bg-slate-900 border border-white/10">
-                <img 
-                  src={selectedClaim.photo} 
-                  alt="Evidencia Ampliada" 
+                <img
+                  src={selectedClaim.photo}
+                  alt="Evidencia Ampliada"
+                  role="button"
+                  tabIndex={0}
                   className="max-w-none md:max-w-4xl max-h-[75vh] object-contain rounded-xl cursor-zoom-out"
                   onClick={() => setIsImageZoomed(false)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsImageZoomed(false); } }}
                 />
               </div>
               <p className="text-white/60 text-[10px] font-bold mt-3 text-center uppercase tracking-wider">

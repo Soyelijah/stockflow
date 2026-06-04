@@ -1,0 +1,12 @@
+{
+  "ignore": {
+    "files": [
+      "design-system/**",
+      "design_handoff_stockflow_apps/**",
+      "dist/**",
+      "dist-*/**",
+      "android/**",
+      "android-*/**"
+    ]
+  }
+}

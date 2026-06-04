@@ -191,13 +191,14 @@ export function Profile() {
                     </div>
                   )}
                 </div>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   ref={fileInputRef}
                   onChange={handlePhotoUpload}
-                  className="hidden" 
+                  className="hidden"
                   accept="image/*"
                   disabled={isUploading}
+                  aria-label="Seleccionar foto de perfil"
                 />
                 <button 
                   type="button"
@@ -328,6 +329,7 @@ export function Profile() {
                     id={fId("email")}
                     type="email"
                     value={profile?.email || ""}
+                    readOnly
                     disabled
                     className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-slate-700"
                   />

@@ -1019,6 +1019,7 @@ export function Settings() {
                   )}
                   role="switch"
                   aria-checked={settings.autoPrintInvoice}
+                  aria-label="Impresión automática al cerrar venta"
                   tabIndex={0}
                   onClick={() => setSettings({...settings, autoPrintInvoice: !settings.autoPrintInvoice})}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSettings({...settings, autoPrintInvoice: !settings.autoPrintInvoice}); } }}
@@ -1088,8 +1089,9 @@ export function Settings() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Tasa de Impuesto (IVA)</span>
                 <div className="flex items-center gap-x-2">
-                  <input 
+                  <input
                     type="number"
+                    aria-label="Tasa de impuesto IVA en porcentaje"
                     className="w-16 h-8 bg-slate-50 border-none rounded-lg text-xs font-black text-center focus:ring-2 focus:ring-indigo-500"
                     value={settings.taxRate}
                     onChange={e => setSettings({...settings, taxRate: Number(e.target.value)})}
@@ -1378,9 +1380,10 @@ export function Settings() {
               <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2">Crear Nuevo Cupón</h3>
               
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Código (Único)</label>
-                <input 
-                  type="text" 
+                <label htmlFor="coupon-code" className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Código (Único)</label>
+                <input
+                  id="coupon-code"
+                  type="text"
                   placeholder="Ej: FIESTAS20"
                   className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold uppercase text-slate-800 animate-none focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
                   value={newCoupon.code}
@@ -1389,9 +1392,10 @@ export function Settings() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Título / Nombre</label>
-                <input 
-                  type="text" 
+                <label htmlFor="coupon-title" className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Título / Nombre</label>
+                <input
+                  id="coupon-title"
+                  type="text"
                   placeholder="Ej: Descuento dieciochero"
                   className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
                   value={newCoupon.title}
@@ -1400,9 +1404,10 @@ export function Settings() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Descripción / Beneficio</label>
-                <input 
-                  type="text" 
+                <label htmlFor="coupon-desc" className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Descripción / Beneficio</label>
+                <input
+                  id="coupon-desc"
+                  type="text"
                   placeholder="Ej: 20% descuento total"
                   className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
                   value={newCoupon.desc}
@@ -1412,8 +1417,9 @@ export function Settings() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</label>
-                  <select 
+                  <label htmlFor="coupon-discount-type" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</label>
+                  <select
+                    id="coupon-discount-type"
                     className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-xs font-bold text-slate-800"
                     value={newCoupon.discountType}
                     onChange={e => setNewCoupon({...newCoupon, discountType: e.target.value as any})}
@@ -1424,9 +1430,10 @@ export function Settings() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</label>
-                  <input 
-                    type="number" 
+                  <label htmlFor="coupon-discount-value" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</label>
+                  <input
+                    id="coupon-discount-value"
+                    type="number"
                     className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-slate-800"
                     value={newCoupon.discountValue}
                     onChange={e => setNewCoupon({...newCoupon, discountValue: Number(e.target.value)})}
@@ -1436,8 +1443,9 @@ export function Settings() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nivel Mínimo</label>
-                  <select 
+                  <label htmlFor="coupon-min-tier" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nivel Mínimo</label>
+                  <select
+                    id="coupon-min-tier"
                     className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-xs font-bold text-slate-800"
                     value={newCoupon.minTier}
                     onChange={e => setNewCoupon({...newCoupon, minTier: e.target.value as any})}
@@ -1450,9 +1458,10 @@ export function Settings() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Icono / Emoji</label>
-                  <input 
-                    type="text" 
+                  <label htmlFor="coupon-img" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Icono / Emoji</label>
+                  <input
+                    id="coupon-img"
+                    type="text"
                     className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-bold text-center text-slate-800"
                     value={newCoupon.img}
                     onChange={e => setNewCoupon({...newCoupon, img: e.target.value})}
@@ -1461,8 +1470,9 @@ export function Settings() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Esquema de Color</label>
-                <select 
+                <label htmlFor="coupon-color" className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">Esquema de Color</label>
+                <select
+                  id="coupon-color"
                   className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-xs font-bold text-slate-800"
                   value={newCoupon.color}
                   onChange={e => setNewCoupon({...newCoupon, color: e.target.value})}
@@ -1611,6 +1621,7 @@ export function Settings() {
                   <div className="relative">
                     <input
                       type="text"
+                      aria-label="Buscar empleado por email o nombre"
                       placeholder="Buscar por email o nombre…"
                       value={searchEmail}
                       onChange={(e) => {
@@ -2060,8 +2071,8 @@ export function Settings() {
           Cross-branch roles (admin/owner/logistics) skip this and assign with branchId="*" directly. */}
       {pendingRoleAssignment && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <div
-            role="button"
+          <button
+            type="button"
             tabIndex={-1}
             aria-label="Cerrar selección"
             onClick={() => setPendingRoleAssignment(null)}
@@ -2135,8 +2146,8 @@ export function Settings() {
           ref={createModalRef}
         >
           {/* Backdrop */}
-          <div
-            role="button"
+          <button
+            type="button"
             tabIndex={-1}
             aria-label="Cerrar modal"
             onClick={() => {

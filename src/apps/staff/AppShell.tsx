@@ -43,6 +43,7 @@ function WrongAppMessage({ title, body }: { title: string; body: string }) {
         <h1 className="text-2xl font-black text-slate-900">{title}</h1>
         <p className="text-sm text-slate-600 leading-relaxed">{body}</p>
         <button
+          type="button"
           onClick={() => signOut(auth).catch(() => {})}
           className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-700 transition-all"
           aria-label="Cerrar sesión"

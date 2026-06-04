@@ -147,6 +147,7 @@ export function CartSheet({
                         </button>
                         <input
                           type="number"
+                          aria-label={`Cantidad de ${item.name}`}
                           value={item.quantity}
                           onChange={(e) => {
                             const val = parseInt(e.target.value);
@@ -233,6 +234,7 @@ export function CartSheet({
                         <input
                           type="text"
                           placeholder={t[lang].couponPlaceholder}
+                          aria-label="Código de cupón"
                           value={couponInput}
                           onChange={(e) => setCouponInput(e.target.value)}
                           className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-[10px] font-black focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 uppercase"

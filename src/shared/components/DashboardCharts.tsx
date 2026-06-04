@@ -113,7 +113,7 @@ export function DashboardPieChart({ expenseChartData, isMounted }: DashboardPieC
           dataKey="value"
         >
           {expenseChartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={8} />
+            <Cell key={`cell-${entry.name}`} fill={COLORS[index % COLORS.length]} cornerRadius={8} />
           ))}
         </Pie>
         <RechartsTooltip 

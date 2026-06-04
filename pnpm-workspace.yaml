@@ -1,0 +1,12 @@
+# pnpm settings (pnpm 10.16+ reads config from this file).
+# Supply-chain hardening: refuse to install any package version published less
+# than 7 days ago. Malicious releases are usually caught and unpublished within
+# hours, so this delay lets the ecosystem vet a release before we pull it in.
+# 10080 = 7 days, expressed in minutes.
+minimumReleaseAge: 10080
+
+# Reject any package whose trust signals (npm provenance / signatures) get
+# WEAKER between updates — a classic account-takeover move is to push a new
+# version that quietly drops provenance. `no-downgrade` makes pnpm refuse it.
+# (pnpm option `trust-policy`; valid values: off | no-downgrade.)
+trustPolicy: no-downgrade

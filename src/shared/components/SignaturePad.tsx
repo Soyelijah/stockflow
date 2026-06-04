@@ -14,15 +14,21 @@ interface SignatureModalProps {
   orderId: string;
 }
 
-export function SignatureModal({
-  isOpen,
-  onClose,
-  onSave,
-  defaultRecipientName,
-  orderId
-}: SignatureModalProps) {
+export function SignatureModal({ isOpen, ...rest }: SignatureModalProps) {
+  // Mount the stateful body ONLY while open. That way its internal state
+  // (recipient name, canvas-empty flag, GPS) initializes fresh from props on
+  // every open via useState initializers — no `useEffect` resetting state when
+  // a prop changes, and no brief flash of the previous value on open.
+  // (react-doctor/no-adjust-state-on-prop-change)
+  if (!isOpen) return null;
+  return <SignatureModalBody {...rest} />;
+}
+
+type SignatureModalBodyProps = Omit<SignatureModalProps, "isOpen">;
+
+function SignatureModalBody({ onClose, onSave, defaultRecipientName, orderId }: SignatureModalBodyProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [recipientName, setRecipientName] = useState("");
+  const [recipientName, setRecipientName] = useState(defaultRecipientName || "");
   const [isCanvasEmpty, setIsCanvasEmpty] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ latitude: number | null; longitude: number | null }>({
@@ -30,9 +36,10 @@ export function SignatureModal({
     longitude: null
   });
 
-  // Query background GPS coordinates silently on open
+  // Query background GPS coordinates silently on mount (the body only mounts
+  // while the modal is open).
   useEffect(() => {
-    if (isOpen && typeof window !== "undefined" && "geolocation" in navigator) {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setGpsCoords({
@@ -46,20 +53,10 @@ export function SignatureModal({
         { enableHighAccuracy: true, timeout: 6000 }
       );
     }
-  }, [isOpen]);
+  }, []);
 
-  // Initialize recipient name to default
+  // Setup Canvas properties on mount
   useEffect(() => {
-    if (isOpen) {
-      setRecipientName(defaultRecipientName || "");
-      setIsCanvasEmpty(true);
-    }
-  }, [isOpen, defaultRecipientName]);
-
-  // Setup Canvas properties on mount or when visibility changes
-  useEffect(() => {
-    if (!isOpen) return;
-
     // Timeout ensures the DOM container has completely rendered with active client sizes
     const timer = setTimeout(() => {
       const canvas = canvasRef.current;
@@ -86,7 +83,7 @@ export function SignatureModal({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [isOpen]);
+  }, []);
 
   const drawGuideline = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.save();
@@ -182,7 +179,7 @@ export function SignatureModal({
 
     // Convert drawn canvas to base64 image data URL
     const dataUrl = canvas.toDataURL("image/png");
-    
+
     // Automatic high precision ISO timestamp
     const signedAt = new Date().toISOString();
 
@@ -193,18 +190,15 @@ export function SignatureModal({
     });
   };
 
-  if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-[150] overflow-y-auto flex items-end sm:items-center justify-center p-4">
-      {/* Dark backdrop overlay */}
-      <div
+      {/* Dark backdrop overlay — a real <button> so keyboard/screen-reader users
+          can dismiss it; native semantics replace the former role="button". */}
+      <button
+        type="button"
         className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity"
-        role="button"
-        tabIndex={-1}
         aria-label="Cerrar firma"
         onClick={onClose}
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
       />
 
       <motion.div

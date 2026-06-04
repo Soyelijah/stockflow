@@ -391,6 +391,7 @@ export function Expenses() {
           <input
             type="text"
             placeholder="Buscar por descripción…"
+            aria-label="Buscar gasto por descripción"
             className="w-full bg-slate-50 border-none rounded-xl py-3 pl-12 focus:ring-2 focus:ring-slate-400 transition-all text-sm font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -569,6 +570,7 @@ export function Expenses() {
                   </p>
                 </div>
                 <button type="button"
+                  aria-label="Cerrar modal"
                   onClick={() => setIsModalOpen(false)}
                   className="p-2.5 hover:bg-slate-100 rounded-2xl transition-all"
                 >

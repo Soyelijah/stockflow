@@ -1,0 +1,80 @@
+# React Doctor — finds security, performance, correctness, accessibility,
+# bundle-size, and architecture issues in React codebases.
+#
+# Docs: https://www.react.doctor/ci
+# Source: https://github.com/millionco/react-doctor
+
+name: React Doctor
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Scans `main` on every push so you get a health-score trend on the
+  # default branch — useful for tracking the overall number commit-by-commit
+  # and catching regressions that slipped past PR review. PR-specific steps
+  # (the sticky summary comment) are skipped automatically on `push` events.
+  # Comment this block out if you only want PR-time scans.
+  push:
+    branches: [main]
+
+permissions:
+  # LEAST-PRIVILEGE SET (supply-chain). Only what the sticky-comment bot needs.
+  # Explicitly NOT granted: contents:write, actions:write, packages:*, id-token,
+  # deployments, statuses. The two `write` scopes below exist solely to post the
+  # PR summary comment and are unused on `push` events (see notes per-scope).
+  # `actions/checkout` needs this to read the repo source.
+  contents: read
+  # Two uses: (1) reads the PR's changed-file list so the scan only checks
+  # what the PR touched (faster, scoped to the diff), and (2) posts/updates
+  # the sticky React Doctor summary comment on the PR. Downgrade `write` to
+  # `read` to keep the changed-file scan but disable comment posting.
+  pull-requests: write
+  # The sticky-comment step uses GitHub's `issues.createComment` /
+  # `issues.updateComment` endpoints — those are the same APIs that back PR
+  # comments (PRs are issues under the hood). Not exercised on `push`
+  # events, so safe to drop if you only run on `main`.
+  issues: write
+
+# Cancels any in-flight scan for the same PR (or branch, on push) the moment
+# a new commit arrives, so reviewers only ever see the latest run.
+concurrency:
+  group: react-doctor-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  react-doctor:
+    runs-on: ubuntu-latest
+    steps:
+      # SHA-pinned (supply-chain). Tags are mutable; commit SHAs are not. Pinning
+      # locks every Action to the exact reviewed commit so a hijacked tag can't
+      # inject code into CI. The trailing `# vN` comment records the human-readable
+      # version. Re-resolve before a deliberate bump:
+      #   git ls-remote --tags https://github.com/actions/checkout
+      #   git ls-remote --tags https://github.com/millionco/react-doctor
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      # Third-party Action — SHA-pin is mandatory here (untrusted publisher).
+      # b6126640 is the commit behind tag v1 as resolved on 2026-06-04.
+      - uses: millionco/react-doctor@b612664043a9be414166e3c6a69b355e39a8dcf4 # v1
+        # On a pull_request the action scans only the files the PR changed,
+        # so the existing backlog in untouched files never fails a PR — new
+        # code is held to a clean bar while we pay the backlog down over time.
+        # Path scoping (ignore the demo/handoff dirs, build output, and the
+        # Android wrappers) lives in doctor.config.json at the repo root.
+        with:
+          # RAMP STRATEGY. `--diff` scans whole CHANGED FILES, not just changed
+          # lines. With a backlog of warning-level findings concentrated in big
+          # files (Logistics, Settings, MobilePOS), a `warning` gate would fail
+          # any PR that merely touches one of those files for pre-existing debt
+          # — blocking the team instead of helping. So during paydown we gate on
+          # ERROR only (there are 0 today, so CI stays green and catches any NEW
+          # error), while warnings stay visible as PR comments + annotations.
+          # >>> Once the backlog is down, tighten this to `fail-on: warning`. <<<
+          fail-on: error
+        # Other knobs (uncomment to override):
+        #   non-blocking: true       # Report findings but always exit 0 (won't fail the PR check)
+        #   comment: false           # Disable the sticky PR summary comment
+        #   annotations: false       # Disable inline GitHub Actions annotations on changed files
+        #   version: "0.2.18"        # Pin to a specific react-doctor version instead of "latest"
+        #   directory: apps/web      # Scan a sub-directory (default: ".")
+        #   project: "web,admin"     # In a monorepo, scan specific workspace project(s)

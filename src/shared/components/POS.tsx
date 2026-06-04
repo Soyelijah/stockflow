@@ -852,9 +852,10 @@ export function POS() {
           </div>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Buscar producto o SKU…"
+              aria-label="Buscar producto o SKU"
               className="w-full sm:w-72 bg-white border-none rounded-2xl py-3 pl-12 pr-12 text-sm font-bold shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all text-slate-700"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -1093,8 +1094,9 @@ export function POS() {
                 </div>
                 <div className="flex items-center gap-x-1">
                   <button type="button" onClick={() => updateQuantity(item.id, -1)} className="p-1 rounded-lg bg-white shadow-sm border border-slate-100"><Minus size={12}/></button>
-                  <input 
+                  <input
                     type="number"
+                    aria-label={`Cantidad de ${item.name}`}
                     className="w-8 text-center bg-transparent border-none text-[10px] font-black text-slate-800 focus:ring-0 p-0 italic"
                     value={item.quantity}
                     onChange={(e) => {
@@ -1200,9 +1202,10 @@ export function POS() {
                       </button>
                     </div>
                     <div className="relative">
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         placeholder="0"
+                        aria-label={`Monto en ${m.label}`}
                         className="w-full bg-slate-50 border-none rounded-xl py-2 px-3 text-xs font-black text-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all pr-8"
                         value={payments[m.id as keyof PaymentBreakdown] || ""}
                         onChange={(e) => handlePaymentChange(m.id as keyof PaymentBreakdown, e.target.value)}
@@ -1285,9 +1288,10 @@ export function POS() {
                 ) : (
                   <div className="space-y-1">
                     <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Ej: SUMMER15" 
+                      <input
+                        type="text"
+                        placeholder="Ej: SUMMER15"
+                        aria-label="Código promocional"
                         value={promoCode}
                         onChange={(e) => setPromoCode(e.target.value)}
                         className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-black text-white uppercase placeholder-white/20 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -1580,10 +1584,11 @@ export function POS() {
                   <form onSubmit={handleCreateCustomer} className="space-y-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div className="col-span-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre / Razón Social</label>
-                        <input 
+                        <label htmlFor="pos-new-customer-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre / Razón Social</label>
+                        <input
+                          id="pos-new-customer-name"
                           required
-                          type="text" 
+                          type="text"
                           placeholder="Ej: Inversiones Globales S.A."
                           className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
                           value={newCustomer.name}
@@ -1591,10 +1596,11 @@ export function POS() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">RUT</label>
-                        <input 
+                        <label htmlFor="pos-new-customer-rut" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">RUT</label>
+                        <input
+                          id="pos-new-customer-rut"
                           required
-                          type="text" 
+                          type="text"
                           placeholder="11.111.111-K"
                           className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
                           value={newCustomer.taxId}
@@ -1602,9 +1608,10 @@ export function POS() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Teléfono</label>
-                        <input 
-                          type="tel" 
+                        <label htmlFor="pos-new-customer-phone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Teléfono</label>
+                        <input
+                          id="pos-new-customer-phone"
+                          type="tel"
                           placeholder="+56 9 XXXX XXXX"
                           className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
                           value={newCustomer.phone}
@@ -1612,9 +1619,10 @@ export function POS() {
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Dirección Facturación</label>
-                        <input 
-                          type="text" 
+                        <label htmlFor="pos-new-customer-address" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Dirección Facturación</label>
+                        <input
+                          id="pos-new-customer-address"
+                          type="text"
                           placeholder="Avenida Principal #123, Oficina 401"
                           className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
                           value={newCustomer.address}
@@ -1630,9 +1638,10 @@ export function POS() {
                   <div className="space-y-6">
                     <div className="relative">
                       <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                      <input 
+                      <input
                         type="text"
                         placeholder="Buscar por nombre, RUT, o escriba PIN OTP de 6 dígitos…"
+                        aria-label="Buscar cliente por nombre, RUT o PIN"
                         className="w-full h-16 bg-slate-50 border border-slate-100 rounded-3xl pl-16 pr-20 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
                         value={customerSearch}
                         onChange={e => setCustomerSearch(e.target.value)}

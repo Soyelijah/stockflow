@@ -32,6 +32,9 @@ export function StatTile({
   return (
     <div
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       className={cn(
         "bg-white border border-slate-100 rounded-[22px] shadow-sm sf-press p-3.5 flex flex-col gap-2 relative overflow-hidden select-none",
         className

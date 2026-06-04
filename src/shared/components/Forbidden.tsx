@@ -29,6 +29,7 @@ export function Forbidden() {
 
         <div className="mt-8 flex flex-col gap-3">
           <button
+            type="button"
             onClick={() => navigate("/")}
             className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-indigo-700 hover:shadow-indigo-600/10 active:scale-[0.98]"
           >

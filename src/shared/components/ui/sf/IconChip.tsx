@@ -1,102 +1,12 @@
 import React from "react";
-import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  History,
-  LogOut,
-  Menu,
-  X,
-  ChevronLeft,
-  Bell,
-  Search,
-  Zap,
-  Users,
-  CreditCard,
-  ArrowRightLeft,
-  Smartphone,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  Truck,
-  Building2,
-  MinusCircle,
-  Receipt,
-  UserCircle,
-  Settings,
-  TrendingDown,
-  TrendingUp,
-  Coins,
-  Plus,
-  Minus,
-  Trash2,
-  Tag,
-  Banknote,
-  Loader2,
-  RefreshCw,
-  Store,
-  User,
-  FileText,
-  Ticket,
-  Camera,
-  Lock,
-  Unlock,
-  Wifi,
-  WifiOff,
-  UserPlus,
-  LucideProps
-} from "lucide-react";
 import { cn } from "../../../../lib/utils";
+import { sfIconMap, type SfIconName } from "./sfIconMap";
 
-// Whitelist de iconos para tree-shaking óptimo (Enmienda #1)
-export const sfIconMap: Record<string, React.ComponentType<LucideProps>> = {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  History,
-  LogOut,
-  Menu,
-  X,
-  ChevronLeft,
-  Bell,
-  Search,
-  Zap,
-  Users,
-  CreditCard,
-  ArrowRightLeft,
-  Smartphone,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  Truck,
-  Building2,
-  MinusCircle,
-  Receipt,
-  UserCircle,
-  Settings,
-  TrendingDown,
-  TrendingUp,
-  Coins,
-  Plus,
-  Minus,
-  Trash2,
-  Tag,
-  Banknote,
-  Loader2,
-  RefreshCw,
-  Store,
-  User,
-  FileText,
-  Ticket,
-  Camera,
-  Lock,
-  Unlock,
-  Wifi,
-  WifiOff,
-  UserPlus
-};
-
-export type SfIconName = keyof typeof sfIconMap;
+// Re-export the icon-name type so existing importers (StatTile, the sf/ barrel)
+// keep resolving `SfIconName` from "./IconChip". Type-only re-exports are erased
+// at build time and do not break React Fast Refresh, unlike the value export
+// `sfIconMap`, which now lives in ./sfIconMap.ts (react-doctor/only-export-components).
+export type { SfIconName };
 
 export interface IconChipProps {
   name: SfIconName | string;

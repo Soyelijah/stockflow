@@ -971,10 +971,9 @@ export function MobilePOS() {
                 <div className="flex items-center gap-1.5 mt-1">
                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none">POS Móvil</p>
                   {offlineQueue.length > 0 && (
-                    <span
+                    <button
+                      type="button"
                       className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/20 rounded-full text-[8px] font-black text-amber-600 uppercase tracking-widest animate-pulse cursor-pointer"
-                      role="button"
-                      tabIndex={0}
                       aria-label={`Sincronizar ${offlineQueue.length} ventas offline pendientes`}
                       onClick={handleSyncOfflineSales}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSyncOfflineSales(); } }}
@@ -982,7 +981,7 @@ export function MobilePOS() {
                     >
                       <span className="w-1.2 h-1.2 rounded-full bg-amber-500" />
                       Pending Sync ({offlineQueue.length})
-                    </span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -1067,8 +1066,9 @@ export function MobilePOS() {
                 </button>
                 <div className="relative flex-1">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-                  <input 
+                  <input
                     type="text"
+                    aria-label="Buscar productos por nombre, SKU o código de barras"
                     placeholder="Buscar por nombre, SKU o código de barras…"
                     className="w-full h-12 bg-white border border-slate-100 rounded-2xl pl-12 pr-10 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
                     value={searchTerm}
@@ -1413,8 +1413,9 @@ export function MobilePOS() {
                   
                   <div className="flex gap-x-2">
                     <div className="relative flex-1">
-                      <input 
+                      <input
                         type="text"
+                        aria-label="Código de cupón de descuento"
                         placeholder="CÓDIGO DE CUPÓN"
                         value={promoCode}
                         onChange={(e) => {
@@ -1657,12 +1658,13 @@ export function MobilePOS() {
                   </div>
 
                   <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-2 block">
+                    <label htmlFor="pos-opening-cash" className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-2 block">
                       Efectivo de Apertura (Sencillo)
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold">$</span>
-                      <input 
+                      <input
+                        id="pos-opening-cash"
                         type="number"
                         className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-8 pr-4 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                         placeholder="Ej: 100000"
@@ -1939,8 +1941,9 @@ export function MobilePOS() {
               {isNewCustomerMode ? (
                 <form onSubmit={handleCreateCustomer} className="space-y-4">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre / Razón Social</label>
-                    <input 
+                    <label htmlFor="pos-new-customer-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nombre / Razón Social</label>
+                    <input
+                      id="pos-new-customer-name"
                       required
                       type="text"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold"
@@ -1949,8 +1952,9 @@ export function MobilePOS() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">RUT</label>
-                    <input 
+                    <label htmlFor="pos-new-customer-rut" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">RUT</label>
+                    <input
+                      id="pos-new-customer-rut"
                       required
                       type="text"
                       placeholder="11.111.111-K"
@@ -1960,18 +1964,20 @@ export function MobilePOS() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Email (para Recibo)</label>
-                    <input 
-                      type="email" 
+                    <label htmlFor="pos-new-customer-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Email (para Recibo)</label>
+                    <input
+                      id="pos-new-customer-email"
+                      type="email"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold"
                       value={newCustomer.email}
                       onChange={e => setNewCustomer({...newCustomer, email: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Teléfono</label>
-                    <input 
-                      type="tel" 
+                    <label htmlFor="pos-new-customer-phone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Teléfono</label>
+                    <input
+                      id="pos-new-customer-phone"
+                      type="tel"
                       placeholder="+56 9 XXXX XXXX"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-sm font-bold"
                       value={newCustomer.phone}
@@ -1986,8 +1992,9 @@ export function MobilePOS() {
                 <div className="space-y-4">
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-                    <input 
+                    <input
                       type="text"
+                      aria-label="Buscar cliente por nombre, RUT o PIN OTP"
                       placeholder="Nombre, RUT o escriba PIN OTP de 6 dígitos…"
                       className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-16 text-sm font-bold shadow-inner"
                       value={customerSearch}
@@ -2070,10 +2077,11 @@ export function MobilePOS() {
                 handleRegisterRetiro(Number(retiroAmountInput) || 0, retiroReasonInput);
               }} className="space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Monto a Retirar</label>
+                  <label htmlFor="pos-retiro-amount" className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Monto a Retirar</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold">$</span>
-                    <input 
+                    <input
+                      id="pos-retiro-amount"
                       required
                       type="number"
                       className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-8 pr-4 text-xs font-black text-slate-800"
@@ -2086,8 +2094,9 @@ export function MobilePOS() {
                 </div>
 
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Motivo o Destino</label>
-                  <input 
+                  <label htmlFor="pos-retiro-reason" className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Motivo o Destino</label>
+                  <input
+                    id="pos-retiro-reason"
                     required
                     type="text"
                     className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-black text-slate-800"
@@ -2172,12 +2181,13 @@ export function MobilePOS() {
                 handleCierreRegister(Number(countedCashInput) || 0);
               }} className="space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">
+                  <label htmlFor="pos-cierre-counted-cash" className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">
                     Efectivo Real Físico Contado ($)
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold">$</span>
-                    <input 
+                    <input
+                      id="pos-cierre-counted-cash"
                       required
                       type="number"
                       className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-8 pr-4 text-xs font-black text-slate-800"

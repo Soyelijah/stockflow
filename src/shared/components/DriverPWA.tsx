@@ -845,8 +845,12 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
       className="fixed inset-0 z-[150] overflow-y-auto flex items-end sm:items-center justify-center p-4"
     >
       <div
+        role="button"
+        tabIndex={-1}
+        aria-label="Cerrar modal"
         className="fixed inset-0 bg-slate-950/85 backdrop-blur-xs transition-opacity"
         onClick={onClose}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClose(); } }}
       />
 
       <motion.div
@@ -886,7 +890,6 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
             <select
               id="failureReason"
               ref={selectRef}
-              autoFocus
               aria-required="true"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -924,6 +927,7 @@ function FailedDeliveryModal({ isOpen, onClose, onConfirm, orderId, isSaving }: 
               capture="environment"
               ref={fileInputRef}
               onChange={handleFileChange}
+              aria-label="Subir foto de evidencia"
               className="hidden"
             />
 

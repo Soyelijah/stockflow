@@ -489,6 +489,7 @@ export function ShrinkageReport() {
               <Calendar size={14} className="text-slate-400" />
               <input
                 type="date"
+                aria-label="Fecha de inicio del período personalizado"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
                 className="bg-transparent border-none text-xs font-bold text-slate-700 focus:outline-none focus:ring-0 p-0"
@@ -499,6 +500,7 @@ export function ShrinkageReport() {
               <Calendar size={14} className="text-slate-400" />
               <input
                 type="date"
+                aria-label="Fecha de término del período personalizado"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
                 className="bg-transparent border-none text-xs font-bold text-slate-700 focus:outline-none focus:ring-0 p-0"
@@ -547,12 +549,14 @@ export function ShrinkageReport() {
             <input
               type="text"
               placeholder="Buscar producto o motivo…"
+              aria-label="Buscar merma por producto o motivo"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-8 text-xs font-medium focus:ring-2 focus:ring-indigo-200 transition-all placeholder:text-slate-400 text-slate-700"
             />
             {searchTerm && (
               <button type="button"
+                aria-label="Limpiar búsqueda"
                 onClick={() => setSearchTerm("")}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
@@ -819,8 +823,8 @@ export function ShrinkageReport() {
                         dataKey="value"
                         animationDuration={1200}
                       >
-                        {motiveDistribution.map((_entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} cornerRadius={6} />
+                        {motiveDistribution.map((entry, index) => (
+                          <Cell key={`cell-${entry.name}`} fill={PIE_COLORS[index % PIE_COLORS.length]} cornerRadius={6} />
                         ))}
                       </Pie>
                       <RechartsTooltip

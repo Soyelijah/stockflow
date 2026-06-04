@@ -171,18 +171,20 @@ export function StockLedger() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Desde:</span>
-              <input 
-                type="date" 
+              <input
+                type="date"
+                aria-label="Fecha desde"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 className="bg-transparent border-none text-xs font-bold text-slate-700 focus:outline-none focus:ring-0 p-0"
               />
             </div>
-            
+
             <div className="flex items-center gap-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hasta:</span>
-              <input 
-                type="date" 
+              <input
+                type="date"
+                aria-label="Fecha hasta"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="bg-transparent border-none text-xs font-bold text-slate-700 focus:outline-none focus:ring-0 p-0"

@@ -903,15 +903,15 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
           /* Normal Shipment list */
           <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-slate-800 min-h-0">
             {shipments.map((s) => (
-              <div
+              <button
+                type="button"
                 key={s.id}
-                role="button"
                 tabIndex={0}
                 aria-label={`Seleccionar envío ${s.id}`}
                 onClick={() => setSelectedShipment(s)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedShipment(s); } }}
                 className={cn(
-                  "p-4 rounded-3xl border text-left transition-all cursor-pointer relative overflow-hidden",
+                  "p-4 rounded-3xl border text-left transition-all cursor-pointer relative overflow-hidden w-full",
                   selectedShipment?.id === s.id
                     ? "bg-slate-900 border-transparent text-white shadow-lg"
                     : "bg-slate-50 border-slate-100 hover:bg-slate-100"
@@ -944,7 +944,7 @@ export function DeliveryMap({ portalCustomerId }: DeliveryMapProps = {}) {
                   <MapPin size={10} className="shrink-0" />
                   <span className="truncate">{s.address}</span>
                 </div>
-              </div>
+              </button>
             ))}
 
             {shipments.length === 0 && !loading && (

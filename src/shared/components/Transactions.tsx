@@ -374,8 +374,9 @@ export function Transactions() {
       <div className="bg-white p-4 rounded-3xl border border-slate-200 flex items-center shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
+          <input
+            type="text"
+            aria-label="Buscar transacciones por producto, cajero o ID de orden"
             placeholder="Buscar por producto, cajero o ID de orden…"
             className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all text-slate-700"
             value={searchTerm}
