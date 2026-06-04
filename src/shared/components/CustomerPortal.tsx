@@ -75,6 +75,7 @@ import { Coupon, AUTOMATIC_POINT_COUPONS, AutomaticCoupon } from "../../lib/coup
 import { PHYSICAL_REWARDS_CATALOGUE, PhysicalReward } from "../../lib/rewards";
 import { Branch, DEFAULT_BRANCH_ID } from "../../lib/branches";
 import { getStockForBranch } from "../../lib/productStock";
+import { apiUrl } from "../../lib/api";
 import { ModernAlert } from "./ui/ModernAlert";
 import { QRCodeCanvas } from "qrcode.react";
 import { DeliveryMap } from "./DeliveryMap";
@@ -1202,7 +1203,7 @@ export function CustomerPortal() {
       // already set, so the scan path stays instant regardless of this request.
       try {
         const idToken = await auth.currentUser?.getIdToken();
-        const resp = await fetch("/api/customer/secure-pin", {
+        const resp = await fetch(apiUrl("/api/customer/secure-pin"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1402,7 +1403,7 @@ export function CustomerPortal() {
   const verifyPayment = async (token: string) => {
     setLoading(true);
     try {
-      const resp = await fetch(`/api/flow/payment-status?token=${token}`);
+      const resp = await fetch(apiUrl(`/api/flow/payment-status?token=${token}`));
       const data = await resp.json();
       
       // Status codes: 1=Pending, 2=Paid
@@ -1645,7 +1646,7 @@ export function CustomerPortal() {
         removeStorage(STORAGE_KEYS.pendingOrderCoupon);
       }
       
-      const response = await fetch("/api/flow/create-payment", {
+      const response = await fetch(apiUrl("/api/flow/create-payment"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1726,7 +1727,7 @@ export function CustomerPortal() {
       // We do this BEFORE writing /customers/{uid} so the create rule's request.auth.token.role
       // check passes (if/when we add that constraint in the future).
       const idToken = await cred.user.getIdToken();
-      const claimRes = await fetch("/api/customer/claim", {
+      const claimRes = await fetch(apiUrl("/api/customer/claim"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1825,7 +1826,7 @@ export function CustomerPortal() {
       // POST /api/customer/activate-request — server-side uniform response.
       // Network failure is the only thing we differentiate; the server NEVER
       // tells us whether the RUT exists.
-      const resp = await fetch("/api/customer/activate-request", {
+      const resp = await fetch(apiUrl("/api/customer/activate-request"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rut: rut.trim() })
