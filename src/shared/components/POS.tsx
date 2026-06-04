@@ -358,16 +358,19 @@ export function POS() {
         
         const found = customers.find(c => c.taxId === taxId);
         if (found) {
-          const scannedBalance = parts[4] !== undefined ? Number(parts[4]) : (found.balance ?? 25000);
-          const updatedFound = { ...found, balance: scannedBalance };
-          setSelectedCustomer(updatedFound);
+          // V6 security: el token QR es solo identidad + expiración. NUNCA confiar
+          // en un saldo provisto por el cliente (antiguo spoof del campo de saldo
+          // embebido en el QR). El saldo se lee exclusivamente del objeto cliente
+          // del servidor; ausente → 0.
+          const realBalance = found.balance ?? 0;
+          setSelectedCustomer({ ...found, balance: realBalance });
           setCustomerSearch("");
           setShowCustomerModal(false);
           setAlertConfig({
             isOpen: true,
             type: "success",
             title: "🔐 Wallet Unificada",
-            message: `Identidad verificada para ${found.name}. Token dinámico válido. Saldo disponible: $${scannedBalance.toLocaleString("es-CL")}.`
+            message: `Identidad verificada para ${found.name}. Token dinámico válido. Saldo disponible: $${realBalance.toLocaleString("es-CL")}.`
           });
         } else {
           setAlertConfig({
@@ -740,7 +743,7 @@ export function POS() {
 
           // Deduct spent dynamic balance from current electronic wallet
           if (payments.digital > 0) {
-            const currentBal = custData.balance !== undefined ? custData.balance : 25000;
+            const currentBal = custData.balance !== undefined ? custData.balance : 0;
             customerUpdates.balance = Math.max(0, currentBal - payments.digital);
           }
 
@@ -1060,7 +1063,7 @@ export function POS() {
                       {selectedCustomer.points || 0} PTS
                     </span>
                     <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded tracking-tighter flex items-center gap-0.5">
-                      💳 {formatCurrency(selectedCustomer.balance !== undefined ? selectedCustomer.balance : 25000)} Saldo
+                      💳 {formatCurrency(selectedCustomer.balance !== undefined ? selectedCustomer.balance : 0)} Saldo
                     </span>
                   </div>
                 )}
@@ -1136,7 +1139,7 @@ export function POS() {
                 <button
                   type="button"
                   onClick={() => {
-                    const balance = selectedCustomer.balance !== undefined ? selectedCustomer.balance : 25000;
+                    const balance = selectedCustomer.balance !== undefined ? selectedCustomer.balance : 0;
                     if (balance >= finalTotal) {
                       setPayments({ efectivo: 0, tarjeta: 0, transferencia: 0, digital: finalTotal });
                       setAlertConfig({
@@ -1164,7 +1167,7 @@ export function POS() {
                   }}
                   className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all text-center animate-pulse"
                 >
-                  <span>💳</span> Use Wallet de Cliente (${formatCurrency(selectedCustomer.balance !== undefined ? selectedCustomer.balance : 25000)})
+                  <span>💳</span> Use Wallet de Cliente (${formatCurrency(selectedCustomer.balance !== undefined ? selectedCustomer.balance : 0)})
                 </button>
               )}
             </div>
