@@ -3,6 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { initializeApp } from "firebase-admin/app";
+import * as crypto from "crypto";
 import * as firebaseConfig from "../firebase-applet-config.json";
 
 const app = initializeApp();
@@ -102,6 +103,59 @@ export const setUserRole = onCall(async (request: any) => {
     if (error instanceof HttpsError) throw error;
     console.error("Error en setUserRole:", error);
     throw new HttpsError("internal", error.message || "Error al asignar rol.");
+  }
+});
+
+// 1.b HTTP Callable to generate the customer's short-lived identity PIN.
+// Tier 5.C — APK PIN path. The Express route POST /api/customer/secure-pin is
+// unreachable from the Capacitor APK: its backend (ais-*) is fronted by an AI
+// Studio cookie gate, so the cross-origin fetch is bounced (302 /__cookie_check)
+// and never reaches Express. The Firebase SDK, by contrast, already reaches
+// Google directly from inside the APK (Firestore works there), so routing PIN
+// generation through a callable removes the dependency on a public Express URL
+// entirely — no CORS, no VITE_API_BASE, no cookie gate. Web uses the same
+// callable, making this the single source of truth for the member PIN.
+//
+// Mirrors the Express endpoint's security properties exactly:
+//   - Requires an authenticated caller.
+//   - Refuses STAFF callers (staff have no member QR sheet).
+//   - Only ever writes the caller's OWN /customers/{uid} doc (keyed by the
+//     verified token uid) — a customer cannot mint a PIN for anyone else.
+//   - not-found if no /customers/{uid} profile exists (== Express 404).
+//   - PIN via crypto.randomInt (CSPRNG), 30s validity (POS allows +60s grace).
+//   - NEVER logs the PIN.
+const SECURE_PIN_STAFF_ROLES = new Set(["owner", "admin", "manager", "seller", "logistics", "driver"]);
+
+export const generateSecurePin = onCall(async (request: any) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debe iniciar sesión.");
+  }
+  const uid: string = request.auth.uid;
+  const role = request.auth.token.role;
+  // Defense-in-depth: refuse STAFF callers. We do NOT hard-require role ===
+  // "customer" (a freshly-activated customer's claim may not have propagated yet);
+  // the real guarantee is that we only ever write the caller's own
+  // /customers/{uid} doc (existence-checked below), which only exists for actual
+  // customers.
+  if (role && SECURE_PIN_STAFF_ROLES.has(role)) {
+    throw new HttpsError("permission-denied", "Las cuentas de personal no generan un PIN de socio.");
+  }
+  try {
+    const docRef = db.collection("customers").doc(uid);
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Perfil de cliente no encontrado.");
+    }
+    // CSPRNG 6-digit PIN (100000–999999). 30s validity; POS allows +60s grace.
+    const pin = String(crypto.randomInt(100000, 1000000));
+    const expiresAt = Date.now() + 30000;
+    await docRef.set({ securePin: pin, securePinExpiresAt: expiresAt }, { merge: true });
+    return { success: true, pin, expiresAt };
+  } catch (error: any) {
+    if (error instanceof HttpsError) throw error;
+    // Never include the PIN in logs.
+    console.error("Error en generateSecurePin:", error?.message || error);
+    throw new HttpsError("internal", "No se pudo generar el PIN seguro.");
   }
 });
 

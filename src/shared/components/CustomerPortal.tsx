@@ -21,7 +21,8 @@ import {
   signOut,
   type User as FirebaseUser
 } from "firebase/auth";
-import { auth, db } from "../../lib/firebase";
+import { auth, db, functions } from "../../lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { requestFCMToken, listenToForegroundMessages } from "../../lib/fcmClient";
 import { 
   User, 
@@ -1194,24 +1195,23 @@ export function CustomerPortal() {
       
       setTimeLeft(30);
 
-      // The secure PIN is generated + persisted server-side via the Admin SDK
-      // (POST /api/customer/secure-pin). Firestore rules forbid a customer from
-      // writing securePin on their own doc, so the previous client-side
-      // updateDoc silently failed with permission-denied and the cashier's
-      // manual-PIN lookup at POS could never match. We fetch the authoritative
-      // PIN here. The QR token above (setSecureToken) is self-describing and is
+      // The secure PIN is generated + persisted server-side, where Firestore
+      // rules forbid a customer from writing securePin on their own doc (the
+      // self-update allowlist is name/phone/address/updatedAt only). We route
+      // through the `generateSecurePin` Firebase Callable instead of the Express
+      // POST /api/customer/secure-pin: the Capacitor APK cannot reach the Express
+      // backend (fronted by an AI Studio cookie gate), but the Firebase SDK
+      // reaches Google directly from inside the APK — so the callable works on
+      // both web and native with no CORS / VITE_API_BASE / cookie-gate
+      // dependency. The QR token above (setSecureToken) is self-describing and is
       // already set, so the scan path stays instant regardless of this request.
       try {
-        const idToken = await auth.currentUser?.getIdToken();
-        const resp = await fetch(apiUrl("/api/customer/secure-pin"), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${idToken ?? ""}`
-          }
-        });
-        const data = await resp.json().catch(() => ({}));
-        if (resp.ok && typeof data?.pin === "string") {
+        const callGenerateSecurePin = httpsCallable<void, { success?: boolean; pin?: string; expiresAt?: number }>(
+          functions,
+          "generateSecurePin"
+        );
+        const { data } = await callGenerateSecurePin();
+        if (typeof data?.pin === "string") {
           setSecurePin(data.pin);
         } else {
           // Never show a fake PIN the POS could not validate.
