@@ -8,7 +8,8 @@ import { cn } from "../../lib/utils";
 import {
   MapPin, Navigation, Truck, User, Phone, CheckCircle, Package,
   Loader2, Sparkles, LogOut, ArrowRight, ShieldCheck, QrCode, ClipboardList, Award, Home, Bell,
-  Camera, X, AlertTriangle
+  Camera, X, AlertTriangle,
+  type LucideIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { BarcodeScanner } from "./ui/BarcodeScanner";
@@ -76,6 +77,7 @@ export function DriverPWA() {
   const [loading, setLoading] = useState(true);
   const [currentStop, setCurrentStop] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [activeTab, setActiveTab] = useState<"home" | "stops" | "map" | "profile">("home");
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [pendingDeliverStopId, setPendingDeliverStopId] = useState<string | null>(null);
   const [isFailedModalOpen, setIsFailedModalOpen] = useState(false);
@@ -365,8 +367,56 @@ export function DriverPWA() {
     );
   }
 
+  const mapViewport = (
+    <section className="px-4 pb-4">
+      <div className="w-full h-[240px] bg-slate-200 rounded-[2.5rem] overflow-hidden border border-slate-200/60 shadow-md relative">
+        <APIProvider apiKey={API_KEY} version="weekly">
+          <Map
+            defaultCenter={activeNextStop ? { lat: activeNextStop.lat, lng: activeNextStop.lng } : WAREHOUSE_COORDS}
+            defaultZoom={13}
+            mapId="DRIVER_PWA_MAP_ID"
+            internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <AdvancedMarker position={WAREHOUSE_COORDS}>
+              <Pin background="#4f46e5" scale={1.0}>
+                <div className="text-[10px]">🏢</div>
+              </Pin>
+            </AdvancedMarker>
+
+            {activeNextStop && activeNextStop.lat && (
+              <>
+                <AdvancedMarker position={{ lat: activeNextStop.lat, lng: activeNextStop.lng }}>
+                  <Pin background="#ff4757" scale={1.2}>
+                    <div className="text-[11px] font-bold text-white">📍</div>
+                  </Pin>
+                </AdvancedMarker>
+
+                <DriverPolyline
+                  origin={WAREHOUSE_COORDS}
+                  destination={{ lat: activeNextStop.lat, lng: activeNextStop.lng }}
+                />
+
+                {activeNextStop.status === "in_route" && activeNextStop.currentLat && (
+                  <AdvancedMarker position={{ lat: activeNextStop.currentLat, lng: activeNextStop.currentLng }}>
+                    <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
+                      <span className="absolute inline-flex size-7 rounded-full bg-red-400 opacity-40 animate-ping" />
+                      <div className="size-8 bg-slate-950 border-2 border-white rounded-full flex items-center justify-center shadow-lg text-xs relative z-10">
+                        🚚
+                      </div>
+                    </div>
+                  </AdvancedMarker>
+                )}
+              </>
+            )}
+          </Map>
+        </APIProvider>
+      </div>
+    </section>
+  );
+
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 font-sans max-w-md mx-auto relative overflow-x-hidden pb-12">
+    <div className="flex flex-col min-h-screen bg-slate-50 font-sans max-w-md mx-auto relative overflow-x-hidden pb-28">
       {/* Mobile Top App Bar */}
       <header className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-x-3">
@@ -397,6 +447,8 @@ export function DriverPWA() {
         </div>
       )}
 
+      {activeTab === "home" && (
+        <>
       {/* Statistics and streak summary cards */}
       <section className="p-4 grid grid-cols-3 gap-3">
         <div className="bg-slate-900 text-white p-3 rounded-2.5xl text-center border border-slate-800">
@@ -444,51 +496,7 @@ export function DriverPWA() {
       </section>
 
       {/* MAP VIEWPORT CARD */}
-      <section className="px-4 pb-4">
-        <div className="w-full h-[240px] bg-slate-200 rounded-[2.5rem] overflow-hidden border border-slate-200/60 shadow-md relative">
-          <APIProvider apiKey={API_KEY} version="weekly">
-            <Map
-              defaultCenter={activeNextStop ? { lat: activeNextStop.lat, lng: activeNextStop.lng } : WAREHOUSE_COORDS}
-              defaultZoom={13}
-              mapId="DRIVER_PWA_MAP_ID"
-              internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
-              style={{ width: "100%", height: "100%" }}
-            >
-              <AdvancedMarker position={WAREHOUSE_COORDS}>
-                <Pin background="#4f46e5" scale={1.0}>
-                  <div className="text-[10px]">🏢</div>
-                </Pin>
-              </AdvancedMarker>
-
-              {activeNextStop && activeNextStop.lat && (
-                <>
-                  <AdvancedMarker position={{ lat: activeNextStop.lat, lng: activeNextStop.lng }}>
-                    <Pin background="#ff4757" scale={1.2}>
-                      <div className="text-[11px] font-bold text-white">📍</div>
-                    </Pin>
-                  </AdvancedMarker>
-
-                  <DriverPolyline
-                    origin={WAREHOUSE_COORDS}
-                    destination={{ lat: activeNextStop.lat, lng: activeNextStop.lng }}
-                  />
-
-                  {activeNextStop.status === "in_route" && activeNextStop.currentLat && (
-                    <AdvancedMarker position={{ lat: activeNextStop.currentLat, lng: activeNextStop.currentLng }}>
-                      <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
-                        <span className="absolute inline-flex size-7 rounded-full bg-red-400 opacity-40 animate-ping" />
-                        <div className="size-8 bg-slate-950 border-2 border-white rounded-full flex items-center justify-center shadow-lg text-xs relative z-10">
-                          🚚
-                        </div>
-                      </div>
-                    </AdvancedMarker>
-                  )}
-                </>
-              )}
-            </Map>
-          </APIProvider>
-        </div>
-      </section>
+      {mapViewport}
 
       {/* CORE SEQUENTIAL TRANSIT PANEL */}
       <main className="px-4 space-y-4">
@@ -624,7 +632,12 @@ export function DriverPWA() {
             </div>
           </div>
         )}
+        </main>
+        </>
+      )}
 
+      {activeTab === "stops" && (
+        <main className="px-4 pt-4 space-y-4">
         {/* SEQUENCE STOPS ACCORDION LIST */}
         <div className="space-y-2 text-left">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Secuencia completa de paradas ({shipments.length})</p>
@@ -678,6 +691,92 @@ export function DriverPWA() {
           </div>
         </div>
       </main>
+      )}
+
+      {/* TAB: MAPA */}
+      {activeTab === "map" && (
+        <section className="pt-4">
+          {mapViewport}
+          <div className="px-4 pb-4">
+            <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Indicaciones</p>
+              <p className="text-[11px] font-bold text-slate-500 mt-2 leading-relaxed">
+                Sigue la ruta marcada hacia la parada activa. El marcador 🚚 muestra tu posición en tiempo real durante el tránsito.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB: PERFIL */}
+      {activeTab === "profile" && (
+        <section className="p-4 space-y-4">
+          <div className="rounded-[1.75rem] p-6 text-white bg-gradient-to-br from-cyan-700 via-cyan-800 to-slate-900 border border-white/10 shadow-lg">
+            <div className="flex items-center gap-4">
+              <div className="size-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl font-black shrink-0">
+                {(profile?.name || "T").charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-lg font-black tracking-tight truncate">{profile?.name || "Transportista"}</p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="px-2 py-0.5 bg-white/10 border border-white/15 rounded-full text-[9px] font-black uppercase tracking-wider">
+                    Transportista
+                  </span>
+                </div>
+                {profile?.email && (
+                  <p className="text-[11px] text-white/60 font-mono mt-1.5 truncate">{profile.email}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Paradas</p>
+              <p className="text-lg font-black text-slate-800 font-mono mt-1">{shipments.length}</p>
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Entregadas</p>
+              <p className="text-lg font-black text-emerald-600 font-mono mt-1">{completedStopsCount}</p>
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Pendientes</p>
+              <p className="text-lg font-black text-amber-500 font-mono mt-1">{pendingStops.length}</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="w-full h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 active:scale-95 transition-transform"
+          >
+            <LogOut size={14} /> Cerrar turno
+          </button>
+        </section>
+      )}
+
+      {/* BOTTOM NAV */}
+      <nav
+        aria-label="Navegación de transportista"
+        className="fixed inset-x-0 bottom-0 z-40 pointer-events-none"
+      >
+        <div className="max-w-md mx-auto px-4 pb-4 pointer-events-auto">
+          <div className="h-16 bg-white/95 backdrop-blur border border-slate-200/70 rounded-3xl shadow-[0_8px_32px_-8px_rgba(15,23,42,0.25)] px-2 flex items-center justify-around">
+            <DriverNavItem icon={Truck} label="Ruta" active={activeTab === "home"} onClick={() => setActiveTab("home")} />
+            <DriverNavItem icon={ClipboardList} label="Paradas" active={activeTab === "stops"} onClick={() => setActiveTab("stops")} badge={pendingStops.length} />
+            <button
+              type="button"
+              onClick={() => setIsScanning(true)}
+              aria-label="Escanear comprobante QR"
+              className="size-14 -translate-y-5 shrink-0 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 text-white flex items-center justify-center shadow-[0_14px_28px_-6px_rgba(8,145,178,0.55)] active:scale-95 transition-transform"
+            >
+              <QrCode size={24} />
+            </button>
+            <DriverNavItem icon={MapPin} label="Mapa" active={activeTab === "map"} onClick={() => setActiveTab("map")} />
+            <DriverNavItem icon={User} label="Perfil" active={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
+          </div>
+        </div>
+      </nav>
 
       {/* RENDER QR BARCODE SCANNER OVERLAY IF TOGGLED */}
       <AnimatePresence>
@@ -726,6 +825,39 @@ export function DriverPWA() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+interface DriverNavItemProps {
+  icon: LucideIcon;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  badge?: number;
+}
+
+function DriverNavItem({ icon: Icon, label, active, onClick, badge }: DriverNavItemProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "relative flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors active:scale-95",
+        active ? "text-cyan-600" : "text-slate-400 hover:text-slate-600"
+      )}
+    >
+      <span className="relative">
+        <Icon size={20} className={active ? "stroke-[2.5]" : ""} />
+        {badge ? (
+          <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-gradient-to-br from-rose-500 to-rose-600 text-white text-[9px] font-black leading-4 text-center rounded-full border-2 border-white">
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      <span className="text-[9px] font-black uppercase tracking-wider">{label}</span>
+    </button>
   );
 }
 
