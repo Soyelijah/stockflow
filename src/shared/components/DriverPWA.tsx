@@ -417,7 +417,8 @@ export function DriverPWA() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans max-w-md mx-auto relative overflow-x-hidden pb-28">
-      {/* Mobile Top App Bar */}
+      {/* Slim top bar — non-home tabs only (home uses RouteHero) */}
+      {activeTab !== "home" && (
       <header className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-x-3">
           <div className="size-10 bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center">
@@ -438,10 +439,11 @@ export function DriverPWA() {
           <LogOut size={16} />
         </button>
       </header>
+      )}
 
       {/* Floating alert/success notification */}
       {successMessage && (
-        <div className="fixed top-20 left-4 right-4 z-50 bg-emerald-500 text-white p-4 rounded-2xl shadow-2xl font-black text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 animate-soft-bounce">
+        <div className="fixed bottom-24 left-4 right-4 z-50 bg-emerald-500 text-white p-4 rounded-2xl shadow-2xl font-black text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 animate-soft-bounce">
           <CheckCircle size={16} />
           <span>{successMessage}</span>
         </div>
@@ -449,21 +451,14 @@ export function DriverPWA() {
 
       {activeTab === "home" && (
         <>
-      {/* Statistics and streak summary cards */}
-      <section className="p-4 grid grid-cols-3 gap-3">
-        <div className="bg-slate-900 text-white p-3 rounded-2.5xl text-center border border-slate-800">
-          <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Total Paradas</p>
-          <p className="text-lg font-black mt-1 font-mono">{shipments.length}</p>
-        </div>
-        <div className="bg-white p-3 rounded-2.5xl text-center border border-slate-100 shadow-sm">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Entregadas</p>
-          <p className="text-lg font-black mt-1 font-mono text-emerald-600">{completedStopsCount}</p>
-        </div>
-        <div className="bg-white p-3 rounded-2.5xl text-center border border-slate-100 shadow-sm">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Pendientes</p>
-          <p className="text-lg font-black mt-1 font-mono text-amber-500">{pendingStops.length}</p>
-        </div>
-      </section>
+      {/* Route hero — driver identity + route progress */}
+      <RouteHero
+        name={profile?.name || "Transportista"}
+        total={shipments.length}
+        delivered={completedStopsCount}
+        pending={pendingStops.length}
+        onLogout={logout}
+      />
 
       {/* FCM Push Notification Banner */}
       <section className="px-4 pb-4">
@@ -825,6 +820,74 @@ export function DriverPWA() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+interface RouteHeroProps {
+  name: string;
+  total: number;
+  delivered: number;
+  pending: number;
+  onLogout: () => void;
+}
+
+function RouteHero({ name, total, delivered, pending, onLogout }: RouteHeroProps) {
+  const pct = total > 0 ? Math.round((delivered / total) * 100) : 0;
+  return (
+    <header className="relative overflow-hidden bg-gradient-to-br from-cyan-950 via-cyan-900 to-slate-900 text-white px-5 pt-4 pb-5 border-b border-white/5">
+      {/* ambient glow */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_90%_0%,rgba(6,182,212,0.30),transparent_60%)]"
+      />
+      <div className="relative">
+        {/* identity + logout */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="size-11 shrink-0 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center shadow-[0_10px_20px_-6px_rgba(8,145,178,0.65)]">
+              <Truck size={22} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-cyan-300">En turno</p>
+              <p className="text-[15px] font-black tracking-tight text-white mt-1 truncate max-w-[180px]">{name}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+            className="size-10 shrink-0 rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/20 flex items-center justify-center active:scale-95 transition-transform"
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
+
+        {/* route progress numbers */}
+        <div className="mt-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/60">Progreso de ruta</p>
+          <div className="flex items-baseline gap-1.5 mt-2">
+            <span className="text-[38px] leading-none font-black tracking-tighter font-mono">{delivered}</span>
+            <span className="text-lg font-black text-white/45 font-mono">/ {total}</span>
+            <span className="text-[11px] font-extrabold text-cyan-300 ml-1">paradas</span>
+          </div>
+        </div>
+
+        {/* progress bar */}
+        <div className="mt-3.5">
+          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-400 to-cyan-500 rounded-full shadow-[0_0_12px_rgba(34,211,238,0.7)] transition-[width] duration-700"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-white/50">{pct}% completado</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-cyan-300">{pending} restantes</span>
+          </div>
+        </div>
+      </div>
+    </header>
   );
 }
 
