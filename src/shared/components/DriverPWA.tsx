@@ -496,133 +496,178 @@ export function DriverPWA() {
       {/* CORE SEQUENTIAL TRANSIT PANEL */}
       <main className="px-4 space-y-4">
         {activeNextStop ? (
-          <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-xl space-y-5 text-left">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-x-2.5">
-                <div className="size-9 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 font-bold font-mono text-sm shadow-sm">
-                  {completedStopsCount + 1}
+          <div className="bg-white border border-rose-100 rounded-[2.5rem] overflow-hidden shadow-xl shadow-rose-100/40 ring-1 ring-rose-500/5 text-left">
+            {/* PREMIUM ROSE HEADER BAND */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-rose-600 to-rose-500 px-5 pt-5 pb-6">
+              <div className="absolute -right-6 -top-6 size-28 rounded-full bg-white/10 blur-xl" />
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="size-12 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white font-black font-mono text-lg shadow-inner shrink-0">
+                    {completedStopsCount + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black text-rose-100 uppercase tracking-[0.18em]">
+                      {activeNextStop.status === "in_route" ? "En camino a" : "Siguiente parada"}
+                    </p>
+                    <h4 className="text-base font-black text-white truncate max-w-[160px] mt-0.5" title={activeNextStop.customerName}>
+                      {activeNextStop.customerName}
+                    </h4>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-rose-500 uppercase tracking-widest">Siguiente Súper Parada</h4>
-                  <p className="text-xs font-bold text-slate-800 truncate max-w-[140px] mt-0.5" title={activeNextStop.customerName}>
-                    {activeNextStop.customerName}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className={cn(
-                  "px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-full",
-                  activeNextStop.status === "in_route" ? "bg-red-100 text-red-650" : "bg-amber-100 text-amber-600"
-                )}>
-                  {activeNextStop.status === "in_route" ? "En Camino 🚩" : "Preparado"}
+                <span className="shrink-0 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider rounded-full bg-white/15 text-white border border-white/20">
+                  {activeNextStop.status === "in_route" ? "En Ruta" : "Preparado"}
                 </span>
               </div>
             </div>
 
-            {/* Address & package items detailed checklist card */}
-            <div className="space-y-3 p-4 bg-slate-50 rounded-2.5xl border border-slate-100">
-              <div className="space-y-1">
-                <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Dirección</span>
-                <p className="text-[11px] font-extrabold text-slate-700 font-sans leading-snug">
-                  {activeNextStop.address}
-                </p>
-              </div>
-              <div className="h-px bg-slate-200/50" />
-              <div className="grid grid-cols-2 gap-2 text-[10px]">
-                <div>
-                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Orden</span>
-                  <p className="font-mono font-bold text-slate-600">#{activeNextStop.orderId.substring(0, 10).toUpperCase()}</p>
-                </div>
-                <div>
-                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Teléfono</span>
-                  <p className="font-semibold text-slate-600 flex items-center gap-1">
-                    <Phone size={10} /> {activeNextStop.customerPhone || "Sin fono"}
-                  </p>
-                </div>
-              </div>
-              <div className="h-px bg-slate-200/50" />
-              <div className="space-y-1.5">
-                <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Productos del Despacho</span>
-                <div className="max-h-[80px] overflow-y-auto space-y-1">
-                  {activeNextStop.items?.map((item: string, idx: number) => (
-                    <div key={`${idx}-${item}`} className="flex items-center gap-x-1.5 text-[10.5px] font-bold text-slate-600">
-                      <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full shrink-0" />
-                      <p className="truncate">{item}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* ERROR BANNER FOR CODE VERIFICATION */}
-            {scannerError && (
-              <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-[10px] font-bold font-sans">
-                ⚠️ {scannerError}
-              </div>
-            )}
-
-            {/* Tactical Control Actions buttons */}
-            <div className="flex flex-col gap-3 pt-1">
-              {activeNextStop.status !== "in_route" ? (
-                <button type="button"
-                  onClick={() => handleStartTransit(activeNextStop.id)}
-                  className="w-full py-4 bg-red-500 hover:bg-red-600 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg shadow-red-200"
-                >
-                  <Navigation size={14} className="animate-pulse" />
-                  Comenzar viaje hacia la parada
-                </button>
-              ) : (
-                <div className="flex flex-col gap-2.5">
-                  <button type="button"
-                    onClick={() => setIsScanning(true)}
-                    className="w-full py-4 bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-xl"
-                  >
-                    <QrCode size={14} />
-                    Escanear Comprobante / QR
-                  </button>
-
-                  <div className="flex items-center justify-center py-1">
-                    <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest">O de forma manual táctil:</span>
+            {/* BODY */}
+            <div className="p-5 space-y-4">
+              {/* Address + quick actions */}
+              <div className="space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="size-8 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0 mt-0.5">
+                    <MapPin size={15} />
                   </div>
-
-                  <button type="button"
-                    onClick={() => {
-                      setPendingDeliverStopId(activeNextStop.id);
-                      setIsSignatureOpen(true);
-                    }}
-                    className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"
+                  <div className="min-w-0">
+                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Dirección</span>
+                    <p className="text-[12px] font-extrabold text-slate-700 leading-snug">{activeNextStop.address}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <a
+                    href={activeNextStop.customerPhone ? `tel:${activeNextStop.customerPhone}` : undefined}
+                    aria-disabled={!activeNextStop.customerPhone}
+                    aria-label="Llamar al cliente"
+                    className={cn(
+                      "flex-1 h-11 rounded-2xl flex items-center justify-center gap-2 font-black uppercase tracking-wider text-[10px] transition-all",
+                      activeNextStop.customerPhone
+                        ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-[0.98]"
+                        : "bg-slate-100 text-slate-300 pointer-events-none"
+                    )}
                   >
-                    <CheckCircle size={14} />
-                    Confirmar Entrega Tactil
-                  </button>
-
-                  <button type="button"
-                    onClick={() => {
-                      setIsFailedModalOpen(true);
-                    }}
-                    className="w-full py-3.5 bg-white border border-rose-200 hover:bg-rose-50/30 text-rose-600 active:scale-[0.99] transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-sm"
+                    <Phone size={14} /> Llamar
+                  </a>
+                  <a
+                    href={
+                      (activeNextStop.lat && activeNextStop.lng)
+                        ? `https://www.google.com/maps/dir/?api=1&destination=${activeNextStop.lat},${activeNextStop.lng}`
+                        : activeNextStop.address
+                          ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activeNextStop.address)}`
+                          : undefined
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-disabled={!((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)}
+                    aria-label="Navegar a la parada"
+                    className={cn(
+                      "flex-1 h-11 rounded-2xl flex items-center justify-center gap-2 font-black uppercase tracking-wider text-[10px] transition-all",
+                      ((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)
+                        ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:scale-[0.98]"
+                        : "bg-slate-100 text-slate-300 pointer-events-none"
+                    )}
                   >
-                    <AlertTriangle size={14} />
-                    Reportar Entrega Fallida
-                  </button>
+                    <Navigation size={14} /> Navegar
+                  </a>
+                </div>
+              </div>
+
+              {/* Meta chips: Orden + Bultos */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2.5">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Orden</span>
+                  <p className="font-mono font-bold text-[11px] text-slate-700 truncate">#{activeNextStop.orderId.substring(0, 10).toUpperCase()}</p>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2.5">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Bultos</span>
+                  <p className="font-bold text-[11px] text-slate-700 flex items-center gap-1"><Package size={11} /> {activeNextStop.items?.length || 0} ítems</p>
+                </div>
+              </div>
+
+              {/* Product pills */}
+              {activeNextStop.items?.length ? (
+                <div className="space-y-1.5">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Productos del despacho</span>
+                  <div className="flex flex-wrap gap-1.5 max-h-[88px] overflow-y-auto">
+                    {activeNextStop.items.map((item: string, idx: number) => (
+                      <span key={`${idx}-${item}`} className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-full pl-2 pr-2.5 py-1 text-[10px] font-bold text-slate-600 max-w-full">
+                        <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full shrink-0" />
+                        <span className="truncate">{item}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* ERROR BANNER FOR CODE VERIFICATION */}
+              {scannerError && (
+                <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-[10px] font-bold font-sans">
+                  ⚠️ {scannerError}
                 </div>
               )}
+
+              {/* Tactical Control Actions buttons */}
+              <div className="flex flex-col gap-3 pt-1">
+                {activeNextStop.status !== "in_route" ? (
+                  <button type="button"
+                    onClick={() => handleStartTransit(activeNextStop.id)}
+                    className="w-full py-4 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-700 hover:to-rose-600 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg shadow-rose-200"
+                  >
+                    <Navigation size={14} className="animate-pulse" />
+                    Comenzar viaje hacia la parada
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2.5">
+                    <button type="button"
+                      onClick={() => setIsScanning(true)}
+                      className="w-full py-4 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg shadow-cyan-200"
+                    >
+                      <QrCode size={14} />
+                      Escanear Comprobante / QR
+                    </button>
+
+                    <div className="flex items-center justify-center py-1">
+                      <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest">O de forma manual táctil:</span>
+                    </div>
+
+                    <button type="button"
+                      onClick={() => {
+                        setPendingDeliverStopId(activeNextStop.id);
+                        setIsSignatureOpen(true);
+                      }}
+                      className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.99] text-white transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"
+                    >
+                      <CheckCircle size={14} />
+                      Confirmar Entrega Tactil
+                    </button>
+
+                    <button type="button"
+                      onClick={() => {
+                        setIsFailedModalOpen(true);
+                      }}
+                      className="w-full py-3.5 bg-white border border-rose-200 hover:bg-rose-50/30 text-rose-600 active:scale-[0.99] transition-all rounded-2.5xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <AlertTriangle size={14} />
+                      Reportar Entrega Fallida
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : (
-          <div className="bg-gradient-to-br from-indigo-900 to-slate-950 text-white rounded-[2.5rem] p-8 shadow-2xl text-center space-y-6">
-            <div className="size-20 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
+          <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900 text-white rounded-[2.5rem] p-8 shadow-2xl text-center space-y-6">
+            <div className="size-20 bg-white/10 text-white border border-white/20 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
               <Award size={40} className="animate-wiggle" />
             </div>
 
             <div className="space-y-2">
               <h3 className="text-lg font-black tracking-tight font-sans uppercase">¡Ruta Completada!</h3>
-              <p className="text-xs text-indigo-200/70 font-bold max-w-xs mx-auto leading-relaxed">
+              <p className="text-xs text-emerald-100/80 font-bold max-w-xs mx-auto leading-relaxed">
                 Excelente labor. Ha despachado secuencialmente todas sus entregas correspondientes a la hoja de ruta de hoy. Retorne seguro a la bodega principal.
               </p>
             </div>
 
-            <div className="py-2.5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center text-xs font-black uppercase tracking-wider gap-2">
+            <div className="py-2.5 bg-white/10 border border-white/10 rounded-2xl flex items-center justify-center text-xs font-black uppercase tracking-wider gap-2">
               🏢 Bodega Principal Destino Activo
             </div>
           </div>
