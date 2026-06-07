@@ -78,6 +78,7 @@ export function DriverPWA() {
   const [currentStop, setCurrentStop] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [activeTab, setActiveTab] = useState<"home" | "stops" | "map" | "profile">("home");
+  const [stopsFilter, setStopsFilter] = useState<"all" | "pending" | "delivered">("all");
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [pendingDeliverStopId, setPendingDeliverStopId] = useState<string | null>(null);
   const [isFailedModalOpen, setIsFailedModalOpen] = useState(false);
@@ -160,6 +161,17 @@ export function DriverPWA() {
   const pendingStops = shipments.filter(s => s.status !== "delivered");
   const completedStopsCount = shipments.filter(s => s.status === "delivered").length;
   const activeNextStop = pendingStops[0] || null;
+
+  // Stops tab: keep true sequence index after filtering
+  const filteredStops = shipments
+    .map((stop, idx) => ({ stop, idx }))
+    .filter(({ stop }) =>
+      stopsFilter === "delivered"
+        ? stop.status === "delivered"
+        : stopsFilter === "pending"
+        ? stop.status !== "delivered"
+        : true
+    );
 
   // Track coordinates via real browser Geolocation API
   useEffect(() => {
@@ -427,7 +439,7 @@ export function DriverPWA() {
           <div>
             <h1 className="text-xs font-black uppercase tracking-widest text-[#10b981]">Ruta de Transportista</h1>
             <p className="text-[10px] text-white/50 font-bold truncate max-w-[180px]">
-              {profile?.userName || "Transportista Asignado"}
+              {profile?.name || "Transportista Asignado"}
             </p>
           </div>
         </div>
@@ -677,60 +689,116 @@ export function DriverPWA() {
       )}
 
       {activeTab === "stops" && (
-        <main className="px-4 pt-4 space-y-4">
-        {/* SEQUENCE STOPS ACCORDION LIST */}
-        <div className="space-y-2 text-left">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Secuencia completa de paradas ({shipments.length})</p>
-
-          <div className="space-y-2 bg-white rounded-[2rem] p-4 border border-slate-100 shadow-sm max-h-[220px] overflow-y-auto">
-            {shipments.map((stop, idx) => {
-              const isCurrent = activeNextStop?.id === stop.id;
-              const isDelivered = stop.status === "delivered";
-
-              return (
-                <div
-                  key={stop.id}
-                  className={cn(
-                    "p-3 rounded-2xl flex items-center justify-between text-xs transition-colors border",
-                    isCurrent
-                      ? "bg-rose-50/50 border-rose-100 text-rose-950"
-                      : isDelivered
-                      ? "bg-slate-50/40 border-slate-100 text-slate-450 opacity-60"
-                      : "bg-white border-slate-100 text-slate-700"
-                  )}
-                >
-                  <div className="flex items-center gap-x-2.5 min-w-0">
-                    <span className={cn(
-                      "size-6 rounded-full flex items-center justify-center font-bold text-[10px] font-mono shrink-0",
-                      isCurrent
-                        ? "bg-rose-500 text-white"
-                        : isDelivered
-                        ? "bg-emerald-100 text-emerald-600"
-                        : "bg-slate-100 text-slate-500"
-                    )}>
-                      {idx + 1}
-                    </span>
-                    <div className="truncate min-w-0">
-                      <p className="font-extrabold truncate">{stop.customerName}</p>
-                      <p className="text-[9px] text-slate-400 font-semibold truncate mt-0.5">{stop.address}</p>
-                    </div>
-                  </div>
-                  <span className={cn(
-                    "text-[8px] font-black uppercase shrink-0 px-2 py-0.5 rounded-full border",
-                    isCurrent
-                      ? "bg-rose-100 text-rose-600 border-rose-200/30"
-                      : isDelivered
-                      ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                      : "bg-amber-50 text-amber-500 border-amber-100"
-                  )}>
-                    {isDelivered ? "Entregada ✔" : isCurrent ? "Siguiente stop" : "Esperando"}
-                  </span>
-                </div>
-              );
-            })}
+        <main className="px-4 pt-4 space-y-4 text-left">
+          {/* STATS STRIP */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white border border-slate-100 rounded-2xl px-2 py-3 text-center shadow-sm">
+              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Entregadas</p>
+              <p className="text-lg font-black text-emerald-600 mt-1.5 tabular-nums">{completedStopsCount}</p>
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl px-2 py-3 text-center shadow-sm">
+              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Pendientes</p>
+              <p className="text-lg font-black text-amber-500 mt-1.5 tabular-nums">{pendingStops.length}</p>
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl px-2 py-3 text-center shadow-sm">
+              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Total</p>
+              <p className="text-lg font-black text-indigo-600 mt-1.5 tabular-nums">{shipments.length}</p>
+            </div>
           </div>
-        </div>
-      </main>
+
+          {/* SEGMENTED FILTER */}
+          <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl">
+            {([["all", "Todas"], ["pending", "Pendientes"], ["delivered", "Entregadas"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStopsFilter(key)}
+                aria-pressed={stopsFilter === key}
+                className={cn(
+                  "py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                  stopsFilter === key
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* SEQUENCE STOPS LIST */}
+          <div className="space-y-2">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">
+              Secuencia de paradas · {filteredStops.length}
+            </p>
+
+            {filteredStops.length === 0 ? (
+              <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
+                <div className="size-12 mx-auto rounded-2xl bg-slate-50 text-slate-300 flex items-center justify-center">
+                  <ClipboardList size={22} />
+                </div>
+                <p className="text-[11px] font-bold text-slate-400 mt-3">
+                  {stopsFilter === "delivered"
+                    ? "Sin entregas registradas aún"
+                    : stopsFilter === "pending"
+                    ? "No quedan paradas pendientes"
+                    : "No hay paradas asignadas"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredStops.map(({ stop, idx }) => {
+                  const isCurrent = activeNextStop?.id === stop.id;
+                  const isDelivered = stop.status === "delivered";
+
+                  return (
+                    <button
+                      key={stop.id}
+                      type="button"
+                      onClick={() => setActiveTab("home")}
+                      aria-label={`Parada ${idx + 1}: ${stop.customerName} — ver en Ruta`}
+                      className={cn(
+                        "w-full p-3 rounded-2xl flex items-center justify-between gap-2 text-xs transition-all border active:scale-[0.99] text-left",
+                        isCurrent
+                          ? "bg-rose-50 border-rose-100 hover:bg-rose-50/80"
+                          : isDelivered
+                          ? "bg-slate-50/60 border-slate-100 opacity-70 hover:opacity-100"
+                          : "bg-white border-slate-100 hover:bg-slate-50"
+                      )}
+                    >
+                      <div className="flex items-center gap-x-2.5 min-w-0">
+                        <span className={cn(
+                          "size-7 rounded-full flex items-center justify-center font-bold text-[10px] font-mono shrink-0",
+                          isCurrent
+                            ? "bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-sm shadow-rose-200"
+                            : isDelivered
+                            ? "bg-emerald-100 text-emerald-600"
+                            : "bg-slate-100 text-slate-500"
+                        )}>
+                          {idx + 1}
+                        </span>
+                        <div className="truncate min-w-0">
+                          <p className="font-extrabold text-slate-800 truncate">{stop.customerName}</p>
+                          <p className="text-[9px] text-slate-400 font-semibold truncate mt-0.5">{stop.address}</p>
+                        </div>
+                      </div>
+                      <span className={cn(
+                        "text-[8px] font-black uppercase shrink-0 px-2 py-0.5 rounded-full border",
+                        isCurrent
+                          ? "bg-rose-100 text-rose-600 border-rose-200/40"
+                          : isDelivered
+                          ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                          : "bg-amber-50 text-amber-600 border-amber-100"
+                      )}>
+                        {isDelivered ? "Entregada ✔" : isCurrent ? "Siguiente" : "Esperando"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </main>
       )}
 
       {/* TAB: MAPA */}
