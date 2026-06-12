@@ -431,7 +431,7 @@ export function DriverPWA() {
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans max-w-md mx-auto relative overflow-x-hidden pb-28">
       {/* Slim top bar — non-home tabs only (home uses RouteHero) */}
       {activeTab !== "home" && (
-      <header className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-50">
+      <header className="bg-slate-900 text-white px-5 pb-4 pt-[calc(1rem_+_env(safe-area-inset-top))] flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-x-3">
           <div className="size-10 bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center">
             <Truck size={20} />
@@ -971,7 +971,7 @@ export function DriverPWA() {
         aria-label="Navegación de transportista"
         className="fixed inset-x-0 bottom-0 z-40 pointer-events-none"
       >
-        <div className="max-w-md mx-auto px-4 pb-4 pointer-events-auto">
+        <div className="max-w-md mx-auto px-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] pointer-events-auto">
           <div className="h-16 bg-white/95 backdrop-blur border border-slate-200/70 rounded-3xl shadow-[0_8px_32px_-8px_rgba(15,23,42,0.25)] px-2 flex items-center justify-around">
             <DriverNavItem icon={Truck} label="Ruta" active={activeTab === "home"} onClick={() => setActiveTab("home")} />
             <DriverNavItem icon={ClipboardList} label="Paradas" active={activeTab === "stops"} onClick={() => setActiveTab("stops")} badge={pendingStops.length} />
@@ -1050,7 +1050,7 @@ interface RouteHeroProps {
 function RouteHero({ name, total, delivered, pending, onLogout }: RouteHeroProps) {
   const pct = total > 0 ? Math.round((delivered / total) * 100) : 0;
   return (
-    <header className="relative overflow-hidden bg-gradient-to-br from-cyan-950 via-cyan-900 to-slate-900 text-white px-5 pt-4 pb-5 border-b border-white/5">
+    <header className="relative overflow-hidden bg-gradient-to-br from-cyan-950 via-cyan-900 to-slate-900 text-white px-5 pt-[calc(1rem_+_env(safe-area-inset-top))] pb-5 border-b border-white/5">
       {/* ambient glow */}
       <div
         aria-hidden="true"
