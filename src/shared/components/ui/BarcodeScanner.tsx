@@ -3,12 +3,47 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { X, Camera, Zap, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+type ScannerAccent = "indigo" | "cyan";
+
+// Shared scanner (staff + driver). Defaults keep the StockFlow indigo brand so the
+// 4 staff consumers stay untouched; the Sf Driver app opts into cyan via props.
+const SCANNER_ACCENTS: Record<ScannerAccent, {
+  chip: string; text: string; line: string; corner: string; pill: string; spinner: string;
+}> = {
+  indigo: {
+    chip: "bg-indigo-500 shadow-indigo-500/20",
+    text: "text-indigo-400",
+    line: "bg-indigo-400 shadow-[0_0_15px_rgba(129,140,248,0.8)]",
+    corner: "border-indigo-400",
+    pill: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
+    spinner: "border-indigo-500/20 border-t-indigo-500",
+  },
+  cyan: {
+    chip: "bg-cyan-500 shadow-cyan-500/20",
+    text: "text-cyan-400",
+    line: "bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.8)]",
+    corner: "border-cyan-400",
+    pill: "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
+    spinner: "border-cyan-500/20 border-t-cyan-500",
+  },
+};
+
 interface BarcodeScannerProps {
   onScan: (decodedText: string) => void;
   onClose: () => void;
+  accent?: ScannerAccent;
+  title?: string;
+  subtitle?: string;
 }
 
-export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
+export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
+  onScan,
+  onClose,
+  accent = "indigo",
+  title = "StockFlow Scanner",
+  subtitle = "MODO INTELIGENTE ACTIVO",
+}) => {
+  const a = SCANNER_ACCENTS[accent];
   const [isInitializing, setIsInitializing] = useState(true);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -86,12 +121,12 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
         {/* Header UI */}
         <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-10">
           <div className="flex items-center gap-x-3">
-            <div className="size-10 bg-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+            <div className={`size-10 ${a.chip} rounded-2xl flex items-center justify-center text-white shadow-lg`}>
               <Zap size={20} />
             </div>
             <div>
-              <h3 className="text-white font-black uppercase tracking-widest text-[10px]">StockFlow Scanner</h3>
-              <p className="text-indigo-400 text-[9px] font-black tracking-tighter">MODO INTELIGENTE ACTIVO</p>
+              <h3 className="text-white font-black uppercase tracking-widest text-[10px]">{title}</h3>
+              <p className={`${a.text} text-[9px] font-black tracking-tighter`}>{subtitle}</p>
             </div>
           </div>
           <button type="button" 
@@ -112,16 +147,16 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
             <motion.div 
               animate={{ top: ["20%", "80%", "20%"] }}
               transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-              className="absolute left-[15%] right-[15%] h-0.5 bg-indigo-400 shadow-[0_0_15px_rgba(129,140,248,0.8)] z-10"
+              className={`absolute left-[15%] right-[15%] h-0.5 ${a.line} z-10`}
             />
-            
+
             {/* Focus Corners */}
             <div className="absolute inset-0 border-[40px] border-black/40" />
             <div className="w-[70%] h-[42%] border-2 border-white/30 rounded-2xl relative">
-               <div className="absolute -top-1 -left-1 size-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-lg" />
-               <div className="absolute -top-1 -right-1 size-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-lg" />
-               <div className="absolute -bottom-1 -left-1 size-6 border-b-4 border-l-4 border-indigo-400 rounded-bl-lg" />
-               <div className="absolute -bottom-1 -right-1 size-6 border-b-4 border-r-4 border-indigo-400 rounded-br-lg" />
+               <div className={`absolute -top-1 -left-1 size-6 border-t-4 border-l-4 ${a.corner} rounded-tl-lg`} />
+               <div className={`absolute -top-1 -right-1 size-6 border-t-4 border-r-4 ${a.corner} rounded-tr-lg`} />
+               <div className={`absolute -bottom-1 -left-1 size-6 border-b-4 border-l-4 ${a.corner} rounded-bl-lg`} />
+               <div className={`absolute -bottom-1 -right-1 size-6 border-b-4 border-r-4 ${a.corner} rounded-br-lg`} />
             </div>
           </div>
 
@@ -134,7 +169,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-8 text-center"
               >
-                <div className="size-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-6" />
+                <div className={`size-16 border-4 ${a.spinner} rounded-full animate-spin mb-6`} />
                 <h4 className="text-white font-bold">Iniciando Cámara</h4>
                 <p className="text-slate-400 text-xs mt-2">Por favor conceda permisos si se solicita</p>
               </motion.div>
@@ -171,9 +206,9 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
           transition={{ delay: 0.3 }}
           className="mt-8 text-center px-8"
         >
-          <div className="inline-flex items-center gap-x-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-full mb-4">
-             <Camera size={14} className="text-indigo-400" />
-             <span className="text-indigo-400 font-black uppercase tracking-[0.2em] text-[9px]">Lector de Alta Precisión</span>
+          <div className={`inline-flex items-center gap-x-2 ${a.pill} border px-4 py-2 rounded-full mb-4`}>
+             <Camera size={14} className={a.text} />
+             <span className={`${a.text} font-black uppercase tracking-[0.2em] text-[9px]`}>Lector de Alta Precisión</span>
           </div>
           <h4 className="text-white font-bold text-lg">Encuadre el Código</h4>
           <p className="text-slate-400 text-sm mt-2 font-medium">

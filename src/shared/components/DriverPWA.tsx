@@ -1061,6 +1061,9 @@ export function DriverPWA() {
           <BarcodeScanner
             onScan={handleBarcodeScan}
             onClose={() => setIsScanning(false)}
+            accent="cyan"
+            title="Sf Driver"
+            subtitle="ESCÁNER DE COMPROBANTES"
           />
         )}
       </AnimatePresence>

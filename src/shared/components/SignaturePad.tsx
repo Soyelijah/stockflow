@@ -208,8 +208,13 @@ function SignatureModalBody({ onClose, onSave, defaultRecipientName, orderId }: 
         transition={{ type: "spring", damping: 25, stiffness: 350 }}
         className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden z-10 flex flex-col"
       >
-        {/* Decorative ambient background accent */}
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#10b981] via-indigo-500 to-rose-500" />
+        {/* Decorative ambient accent — animated shimmer (cyan driver brand) */}
+        <motion.div
+          className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-emerald-400 via-cyan-500 to-rose-500"
+          style={{ backgroundSize: "200% 100%" }}
+          animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+        />
 
         {/* Modal Header */}
         <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
@@ -246,7 +251,7 @@ function SignatureModalBody({ onClose, onSave, defaultRecipientName, orderId }: 
                 placeholder="Ej. Pierre Solier"
                 value={recipientName}
                 onChange={(e) => setRecipientName(e.target.value)}
-                className="w-full h-11 pl-4 pr-4 bg-slate-50/50 border border-slate-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-xs font-bold text-slate-800 rounded-2xl transition-all"
+                className="w-full h-11 pl-4 pr-4 bg-slate-50/50 border border-slate-200 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 text-xs font-bold text-slate-800 rounded-2xl transition-all"
               />
             </div>
 
@@ -306,7 +311,7 @@ function SignatureModalBody({ onClose, onSave, defaultRecipientName, orderId }: 
               />
               {isCanvasEmpty && (
                 <div className="absolute inset-x-4 bottom-12 pointer-events-none text-center select-none">
-                  <p className="text-[10px] text-indigo-900/45 font-black uppercase tracking-widest animate-pulse leading-snug">
+                  <p className="text-[10px] text-cyan-900/50 font-black uppercase tracking-widest animate-pulse leading-snug">
                     Firme sobre la pantalla
                   </p>
                   <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
@@ -318,11 +323,12 @@ function SignatureModalBody({ onClose, onSave, defaultRecipientName, orderId }: 
 
             {/* Micro secure tracing active tags */}
             <div className="flex items-center justify-between px-1 text-[8px] text-slate-400 font-bold uppercase tracking-wider">
-              <span className="flex items-center gap-1">
-                🛡️ GPS: {gpsCoords.latitude && gpsCoords.longitude ? "Enlazado" : "Obteniendo ubicación…"}
+              <span className="flex items-center gap-1.5">
+                <span className={`size-1.5 rounded-full animate-pulse ${gpsCoords.latitude && gpsCoords.longitude ? "bg-emerald-500" : "bg-amber-400"}`} />
+                GPS {gpsCoords.latitude && gpsCoords.longitude ? "Enlazado" : "Obteniendo ubicación…"}
               </span>
               <span>
-                ⏱️ Marca de Tiempo Activa
+                ⏱️ Marca de tiempo activa
               </span>
             </div>
           </div>
