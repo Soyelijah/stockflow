@@ -547,7 +547,7 @@ export function DriverPWA() {
                 </div>
                 <div className="flex gap-2">
                   <a
-                    href={activeNextStop.customerPhone ? `tel:${activeNextStop.customerPhone}` : undefined}
+                    href={activeNextStop.customerPhone ? `tel:${String(activeNextStop.customerPhone).replace(/[^\d+]/g, "")}` : undefined}
                     aria-disabled={!activeNextStop.customerPhone}
                     aria-label="Llamar al cliente"
                     className={cn(

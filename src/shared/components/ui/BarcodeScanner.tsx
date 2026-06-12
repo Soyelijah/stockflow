@@ -54,50 +54,59 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     const html5QrCode = new Html5Qrcode(containerId);
     scannerRef.current = html5QrCode;
 
+    const onDecoded = (decodedText: string) => {
+      if (scanHandled.current) return;
+      scanHandled.current = true;
+
+      if (html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          onScan(decodedText);
+        }).catch((err) => {
+          console.error("Error stopping scanner inside scan callback:", err);
+          onScan(decodedText);
+        });
+      } else {
+        onScan(decodedText);
+      }
+    };
+
+    const config = {
+      fps: 10,
+      qrbox: (viewWidth: number, viewHeight: number) => {
+        const size = Math.min(viewWidth, viewHeight) * 0.7;
+        return { width: size, height: size * 0.6 };
+      },
+      // No aspectRatio constraint: forcing it makes the Capacitor Android
+      // WebView hand back a black / non-playing <video> feed on many devices.
+    };
+
     const startScanner = async () => {
       try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length > 0) {
-          setHasPermission(true);
-          // Prefer back camera
-          const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
-          
-          await html5QrCode.start(
-            backCamera.id,
-            {
-              fps: 20,
-              qrbox: (viewWidth, viewHeight) => {
-                const size = Math.min(viewWidth, viewHeight) * 0.7;
-                return { width: size, height: size * 0.6 };
-              },
-              aspectRatio: 1.0
-            },
-            (decodedText) => {
-              if (scanHandled.current) return;
-              scanHandled.current = true;
-
-              if (html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                  onScan(decodedText);
-                }).catch((err) => {
-                  console.error("Error stopping scanner inside scan callback:", err);
-                  onScan(decodedText);
-                });
-              } else {
-                onScan(decodedText);
-              }
-            },
-            () => { /* silent frame error */ }
-          );
-          setIsInitializing(false);
-        } else {
+        // Start from a facingMode constraint, NOT a specific deviceId.
+        // deviceId-based start frequently yields a black/paused camera in the
+        // Capacitor WebView; the back-camera constraint is the reliable path.
+        await html5QrCode.start({ facingMode: "environment" }, config, onDecoded, () => {});
+        setHasPermission(true);
+        setIsInitializing(false);
+      } catch (err) {
+        console.warn("environment camera failed, retrying with explicit deviceId:", err);
+        // Fallback: enumerate and pick the back camera by label (e.g. webcams).
+        try {
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            const back = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+            await html5QrCode.start(back.id, config, onDecoded, () => {});
+            setHasPermission(true);
+            setIsInitializing(false);
+          } else {
+            setHasPermission(false);
+            setIsInitializing(false);
+          }
+        } catch (err2) {
+          console.error("Scanner Error:", err2);
           setHasPermission(false);
           setIsInitializing(false);
         }
-      } catch (err) {
-        console.error("Scanner Error:", err);
-        setHasPermission(false);
-        setIsInitializing(false);
       }
     };
 
