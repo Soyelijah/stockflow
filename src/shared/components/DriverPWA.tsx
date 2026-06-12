@@ -803,15 +803,118 @@ export function DriverPWA() {
 
       {/* TAB: MAPA */}
       {activeTab === "map" && (
-        <section className="pt-4">
-          {mapViewport}
-          <div className="px-4 pb-4">
-            <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Indicaciones</p>
-              <p className="text-[11px] font-bold text-slate-500 mt-2 leading-relaxed">
-                Sigue la ruta marcada hacia la parada activa. El marcador 🚚 muestra tu posición en tiempo real durante el tránsito.
-              </p>
+        <section className="pt-4 pb-4 space-y-4 text-left">
+          {/* MAP + LIVE OVERLAYS (map tab only — mapViewport untouched) */}
+          <div className="relative">
+            {mapViewport}
+
+            {/* GPS status chip */}
+            <div className="absolute top-3 right-7 z-10">
+              {activeNextStop?.status === "in_route" && activeNextStop?.currentLat ? (
+                <div className="flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-sm border border-white/10 rounded-full pl-2 pr-2.5 py-1 shadow-lg">
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                    <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
+                  </span>
+                  <span className="text-[8px] font-black uppercase tracking-wider text-white">GPS Live</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-sm border border-white/10 rounded-full pl-2 pr-2.5 py-1 shadow-lg">
+                  <span className="size-2 rounded-full bg-amber-400" />
+                  <span className="text-[8px] font-black uppercase tracking-wider text-white/90">GPS en espera</span>
+                </div>
+              )}
             </div>
+
+            {/* Legend */}
+            <div className="absolute bottom-7 left-7 z-10 flex gap-1.5">
+              {([
+                { c: "bg-indigo-500", t: "Bodega" },
+                { c: "bg-rose-500", t: "Destino" },
+                { c: "bg-slate-800", t: "Tú" },
+              ]).map((l) => (
+                <div key={l.t} className="flex items-center gap-1 bg-slate-900/75 backdrop-blur-sm border border-white/10 rounded-full px-2 py-1 shadow">
+                  <span className={cn("size-1.5 rounded-full", l.c)} />
+                  <span className="text-[7px] font-black uppercase tracking-wider text-white/90">{l.t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* INDICACIONES PANEL — real destination only */}
+          <div className="px-4">
+            {activeNextStop ? (
+              <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Indicaciones</p>
+                  <span className={cn(
+                    "text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border",
+                    activeNextStop.status === "in_route"
+                      ? "bg-rose-50 text-rose-600 border-rose-100"
+                      : "bg-amber-50 text-amber-600 border-amber-100"
+                  )}>
+                    {activeNextStop.status === "in_route" ? "En tránsito" : "Preparando"}
+                  </span>
+                </div>
+
+                {/* Origin → destination */}
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="size-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                      <Truck size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Origen</span>
+                      <p className="text-[12px] font-extrabold text-slate-700 leading-snug">Bodega Principal</p>
+                    </div>
+                  </div>
+                  <div className="ml-4 h-5 border-l-2 border-dashed border-slate-200" />
+                  <div className="flex items-center gap-3">
+                    <div className="size-8 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                      <MapPin size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Destino actual</span>
+                      <p className="text-[12px] font-extrabold text-slate-800 leading-snug truncate">{activeNextStop.customerName}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 leading-snug truncate">{activeNextStop.address}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Navegar */}
+                <a
+                  href={
+                    (activeNextStop.lat && activeNextStop.lng)
+                      ? `https://www.google.com/maps/dir/?api=1&destination=${activeNextStop.lat},${activeNextStop.lng}`
+                      : activeNextStop.address
+                        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activeNextStop.address)}`
+                        : undefined
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-disabled={!((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)}
+                  aria-label="Navegar al destino actual"
+                  className={cn(
+                    "w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-black uppercase tracking-wider text-[11px] transition-all",
+                    ((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)
+                      ? "bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white shadow-lg shadow-cyan-200 active:scale-[0.99]"
+                      : "bg-slate-100 text-slate-300 pointer-events-none"
+                  )}
+                >
+                  <Navigation size={15} /> Navegar al destino
+                </a>
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm space-y-3">
+                <div className="size-12 mx-auto rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
+                  <CheckCircle size={22} />
+                </div>
+                <div>
+                  <p className="text-[12px] font-black text-slate-700 uppercase tracking-wide">Sin destino activo</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1">Ruta completada. Retorna seguro a la bodega principal.</p>
+                </div>
+              </div>
+            )}
           </div>
         </section>
       )}
