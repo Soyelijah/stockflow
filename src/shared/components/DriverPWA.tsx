@@ -224,6 +224,31 @@ export function DriverPWA() {
   }, [activeNextStop?.id, activeNextStop?.status]);
 
   // Handle tactical Begin Transit trigger
+  // External-app intents. A plain <a href="tel:"|"https://maps"> does NOT escalate to an OS
+  // Intent inside the Capacitor Android WebView (even with manifest <queries>). Navigating to a
+  // native scheme (tel:/geo:) triggers the bridge's shouldOverrideUrlLoading → ACTION_VIEW → OS.
+  const dialPhone = (phone?: string) => {
+    if (!phone) return;
+    const clean = String(phone).replace(/[^\d+]/g, "");
+    if (clean) window.location.href = `tel:${clean}`;
+  };
+
+  const openMaps = (lat?: number, lng?: number, address?: string, label?: string) => {
+    // `any`: Capacitor injects window.Capacitor at runtime; it has no ambient type here.
+    const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
+    if (isNative) {
+      const uri = lat && lng
+        ? `geo:${lat},${lng}?q=${lat},${lng}${label ? `(${encodeURIComponent(label)})` : ""}`
+        : address
+          ? `geo:0,0?q=${encodeURIComponent(address)}`
+          : null;
+      if (uri) window.location.href = uri;
+    } else {
+      const dest = lat && lng ? `${lat},${lng}` : address ? encodeURIComponent(address) : null;
+      if (dest) window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const handleStartTransit = async (stopId: string) => {
     try {
       const docRef = doc(db, "shipments", stopId);
@@ -429,8 +454,8 @@ export function DriverPWA() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans max-w-md mx-auto relative overflow-x-hidden pb-28">
-      {/* Slim top bar — non-home tabs only (home uses RouteHero) */}
-      {activeTab !== "home" && (
+      {/* Slim top bar — stops/map only (home + profile have their own hero header) */}
+      {activeTab !== "home" && activeTab !== "profile" && (
       <header className="bg-slate-900 text-white px-5 pb-4 pt-[calc(1rem_+_env(safe-area-inset-top))] flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-x-3">
           <div className="size-10 bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center">
@@ -546,40 +571,34 @@ export function DriverPWA() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <a
-                    href={activeNextStop.customerPhone ? `tel:${String(activeNextStop.customerPhone).replace(/[^\d+]/g, "")}` : undefined}
-                    aria-disabled={!activeNextStop.customerPhone}
+                  <button
+                    type="button"
+                    onClick={() => dialPhone(activeNextStop.customerPhone)}
+                    disabled={!activeNextStop.customerPhone}
                     aria-label="Llamar al cliente"
                     className={cn(
                       "flex-1 h-11 rounded-2xl flex items-center justify-center gap-2 font-black uppercase tracking-wider text-[10px] transition-all",
                       activeNextStop.customerPhone
                         ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-[0.98]"
-                        : "bg-slate-100 text-slate-300 pointer-events-none"
+                        : "bg-slate-100 text-slate-300 cursor-not-allowed"
                     )}
                   >
                     <Phone size={14} /> Llamar
-                  </a>
-                  <a
-                    href={
-                      (activeNextStop.lat && activeNextStop.lng)
-                        ? `https://www.google.com/maps/dir/?api=1&destination=${activeNextStop.lat},${activeNextStop.lng}`
-                        : activeNextStop.address
-                          ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activeNextStop.address)}`
-                          : undefined
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-disabled={!((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openMaps(activeNextStop.lat, activeNextStop.lng, activeNextStop.address, activeNextStop.customerName)}
+                    disabled={!((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)}
                     aria-label="Navegar a la parada"
                     className={cn(
                       "flex-1 h-11 rounded-2xl flex items-center justify-center gap-2 font-black uppercase tracking-wider text-[10px] transition-all",
                       ((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)
                         ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:scale-[0.98]"
-                        : "bg-slate-100 text-slate-300 pointer-events-none"
+                        : "bg-slate-100 text-slate-300 cursor-not-allowed"
                     )}
                   >
                     <Navigation size={14} /> Navegar
-                  </a>
+                  </button>
                 </div>
               </div>
 
@@ -882,27 +901,20 @@ export function DriverPWA() {
                 </div>
 
                 {/* Navegar */}
-                <a
-                  href={
-                    (activeNextStop.lat && activeNextStop.lng)
-                      ? `https://www.google.com/maps/dir/?api=1&destination=${activeNextStop.lat},${activeNextStop.lng}`
-                      : activeNextStop.address
-                        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activeNextStop.address)}`
-                        : undefined
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-disabled={!((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)}
+                <button
+                  type="button"
+                  onClick={() => openMaps(activeNextStop.lat, activeNextStop.lng, activeNextStop.address, activeNextStop.customerName)}
+                  disabled={!((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)}
                   aria-label="Navegar al destino actual"
                   className={cn(
                     "w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-black uppercase tracking-wider text-[11px] transition-all",
                     ((activeNextStop.lat && activeNextStop.lng) || activeNextStop.address)
                       ? "bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white shadow-lg shadow-cyan-200 active:scale-[0.99]"
-                      : "bg-slate-100 text-slate-300 pointer-events-none"
+                      : "bg-slate-100 text-slate-300 cursor-not-allowed"
                   )}
                 >
                   <Navigation size={15} /> Navegar al destino
-                </a>
+                </button>
               </div>
             ) : (
               <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm space-y-3">
@@ -921,7 +933,7 @@ export function DriverPWA() {
 
       {/* TAB: PERFIL */}
       {activeTab === "profile" && (
-        <section className="p-4 space-y-4">
+        <section className="px-4 pb-4 pt-[calc(1rem_+_env(safe-area-inset-top))] space-y-4">
           <div className="rounded-[1.75rem] p-6 text-white bg-gradient-to-br from-cyan-700 via-cyan-800 to-slate-900 border border-white/10 shadow-lg">
             <div className="flex items-center gap-4">
               <div className="size-16 rounded-2xl bg-white/10 border border-white/20 ring-1 ring-white/20 flex items-center justify-center text-2xl font-black shrink-0">
