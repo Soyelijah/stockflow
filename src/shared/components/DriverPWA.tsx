@@ -8,7 +8,7 @@ import { cn } from "../../lib/utils";
 import {
   MapPin, Navigation, Truck, User, Phone, CheckCircle, Package,
   Loader2, Sparkles, LogOut, ArrowRight, ShieldCheck, QrCode, ClipboardList, Award, Home, Bell,
-  Camera, X, AlertTriangle,
+  Camera, X, AlertTriangle, ShoppingCart, Settings,
   type LucideIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -924,7 +924,7 @@ export function DriverPWA() {
         <section className="p-4 space-y-4">
           <div className="rounded-[1.75rem] p-6 text-white bg-gradient-to-br from-cyan-700 via-cyan-800 to-slate-900 border border-white/10 shadow-lg">
             <div className="flex items-center gap-4">
-              <div className="size-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl font-black shrink-0">
+              <div className="size-16 rounded-2xl bg-white/10 border border-white/20 ring-1 ring-white/20 flex items-center justify-center text-2xl font-black shrink-0">
                 {(profile?.name || "T").charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
@@ -953,6 +953,72 @@ export function DriverPWA() {
             <div>
               <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Pendientes</p>
               <p className="text-lg font-black text-amber-500 font-mono mt-1">{pendingStops.length}</p>
+            </div>
+          </div>
+
+          {/* Notificaciones push — refleja estado real de FCM */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={cn(
+                "size-10 rounded-2xl flex items-center justify-center border shrink-0",
+                fcmRegistered ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-500 border-amber-100"
+              )}>
+                <Bell size={18} className={fcmLoading ? "animate-pulse" : ""} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[12px] font-black text-slate-800">Notificaciones push</p>
+                <p className="text-[10px] font-bold text-slate-400 leading-snug">
+                  {fcmRegistered ? "Alertas de ruta activas" : "Activa alertas de viaje en tiempo real"}
+                </p>
+              </div>
+            </div>
+            {fcmRegistered ? (
+              <span className="shrink-0 px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 text-[9px] font-black uppercase tracking-wider rounded-full">
+                ✓ Activas
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleActivateNotifications}
+                disabled={fcmLoading}
+                aria-label="Activar notificaciones push"
+                className="shrink-0 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all active:scale-95"
+              >
+                {fcmLoading ? "..." : "Activar"}
+              </button>
+            )}
+          </div>
+
+          {/* Mis permisos — verídico según el rol driver (no inventado) */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm">
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">Mis permisos</p>
+            <div className="space-y-1">
+              {([
+                { icon: Truck, label: "Recibir hoja de ruta", allowed: true },
+                { icon: Navigation, label: "Iniciar y completar entregas", allowed: true },
+                { icon: QrCode, label: "Escanear comprobantes", allowed: true },
+                { icon: MapPin, label: "Reportar incidencias de ruta", allowed: true },
+                { icon: ShoppingCart, label: "Procesar ventas", allowed: false },
+                { icon: Settings, label: "Configurar el sistema", allowed: false },
+              ] as const).map(({ icon: PermIcon, label, allowed }) => (
+                <div key={label} className="flex items-center gap-3 py-1.5">
+                  <div className={cn(
+                    "size-8 rounded-xl flex items-center justify-center shrink-0",
+                    allowed ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"
+                  )}>
+                    <PermIcon size={14} />
+                  </div>
+                  <span className={cn(
+                    "flex-1 text-[12px] font-bold",
+                    allowed ? "text-slate-700" : "text-slate-400"
+                  )}>
+                    {label}
+                  </span>
+                  {allowed
+                    ? <CheckCircle size={15} className="text-emerald-500 shrink-0" />
+                    : <X size={15} className="text-slate-300 shrink-0" />}
+                </div>
+              ))}
             </div>
           </div>
 
