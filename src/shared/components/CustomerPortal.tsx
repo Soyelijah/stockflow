@@ -61,7 +61,10 @@ import {
   Landmark,
   Ticket,
   Crown,
-  QrCode
+  QrCode,
+  Home,
+  Store,
+  ClipboardList
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency, formatRUT, isValidRUTFormat, getCustomerTier, LOYALTY_TIERS, toDate } from "../../lib/utils";
@@ -4239,14 +4242,14 @@ export function CustomerPortal() {
           onClick={() => setActiveTab("home")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "home" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
-          <Star size={18} />
+          <Home size={18} />
           <span className="sf-microlabel">{t[lang].startNav}</span>
         </button>
         <button type="button" 
           onClick={() => setActiveTab("shop")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "shop" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
-          <ShoppingBag size={18} />
+          <Store size={18} />
           <span className="sf-microlabel">{t[lang].shop}</span>
         </button>
         <button type="button" 
@@ -4259,14 +4262,14 @@ export function CustomerPortal() {
           onClick={() => setActiveTab("coupons")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "coupons" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
-          <Tag size={18} />
+          <Gift size={18} />
           <span className="sf-microlabel">{t[lang].couponsNav}</span>
         </button>
         <button type="button" 
           onClick={() => setActiveTab("orders")}
           className={cn("flex-1 flex flex-col items-center space-y-1 transition-all sf-tap sf-spring", activeTab === "orders" ? "text-orange-600 scale-110 font-bold" : "text-slate-400")}
         >
-          <Truck size={18} />
+          <ClipboardList size={18} />
           <span className="sf-microlabel">{t[lang].ordersNav}</span>
         </button>
       </nav>

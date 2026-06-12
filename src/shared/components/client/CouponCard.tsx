@@ -69,10 +69,15 @@ export function CouponCard({
           {coupon.cost > 0 ? `${coupon.cost} pts` : "Gratis"}
         </span>
 
-        {/* Perforations simulating ticket troquelado */}
-        <div className="perforation-line" />
-        <div className="perforation-dot perforation-dot-top" />
-        <div className="perforation-dot perforation-dot-bottom" />
+        {/* Perforations simulating ticket troquelado (exactly 7 circles matching the portal background) */}
+        <div className="absolute right-[-6px] top-0 bottom-0 w-[12px] flex flex-col justify-between py-1.5 z-20 pointer-events-none">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div
+              key={i}
+              className="w-[12px] h-[12px] rounded-full bg-[#f8fafc]"
+            />
+          ))}
+        </div>
       </div>
 
       {/* Right Ticket Info Block */}

@@ -970,6 +970,9 @@ export function MobilePOS() {
                 <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">{settings.businessName}</h1>
                 <div className="flex items-center gap-1.5 mt-1">
                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none">POS Móvil</p>
+                  <span className="bg-indigo-50 text-indigo-600 border border-indigo-100/50 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">
+                    Vendedor
+                  </span>
                   {offlineQueue.length > 0 && (
                     <button
                       type="button"
@@ -1880,21 +1883,28 @@ export function MobilePOS() {
           <span className="text-[10px] font-black uppercase tracking-tight">Tienda</span>
         </button>
         
-        <button type="button" 
-          onClick={() => setActiveTab("cart")}
-          className={cn(
-            "flex flex-col items-center space-y-1 transition-all relative",
-            activeTab === "cart" ? "text-indigo-600 scale-110" : "text-slate-300"
-          )}
-        >
-          <ShoppingCart size={24} />
-          <span className="text-[10px] font-black uppercase tracking-tight">Carrito</span>
-          {cartCount > 0 && (
-            <span className="absolute -top-1 -right-2 bg-rose-500 text-white text-[10px] font-black size-5 rounded-full flex items-center justify-center border-2 border-white">
-              {cartCount}
-            </span>
-          )}
-        </button>
+        <div className="relative -mt-8 z-20">
+          <motion.button 
+            type="button" 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setActiveTab("cart")}
+            className={cn(
+              "w-16 h-16 rounded-full flex flex-col items-center justify-center transition-all border-4 border-white shadow-lg relative",
+              activeTab === "cart" 
+                ? "bg-indigo-600 text-white shadow-[0_8px_20px_-6px_rgba(79,70,229,0.6)] scale-105" 
+                : "bg-indigo-500 text-white hover:bg-indigo-600 shadow-[0_6px_16px_-6px_rgba(99,102,241,0.4)]"
+            )}
+            aria-label="Ver Carrito de Compras"
+          >
+            <ShoppingCart size={22} className="mb-0.5" />
+            <span className="text-[8px] font-black uppercase tracking-tight">Carrito</span>
+            {cartCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black size-5 rounded-full flex items-center justify-center border-2 border-white">
+                {cartCount}
+              </span>
+            )}
+          </motion.button>
+        </div>
 
         <button type="button" 
           onClick={() => setActiveTab("profile")}
