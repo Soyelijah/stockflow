@@ -652,13 +652,17 @@ export function POS() {
           if (result.currentStock < item.quantity) {
             throw new Error(`Stock insuficiente para ${item.name} en sucursal (Disponible: ${result.currentStock}, Solicitado: ${item.quantity})`);
           }
+          // C1 Phase 3c: freeze cost from the private mirror (privileged read), done in
+          // the transaction's READ phase before any write per Firestore rules. /products
+          // is the transition fallback until the Phase 4 strip, then 0.
+          const privSnap = await resTransaction.get(doc(db, "product_private", item.id));
           productSnaps[item.id] = {
             productRef: result.productRef,
             stockRef: result.stockRef,
             isLegacyStock: result.isLegacyStock,
             currentStock: result.currentStock,
             newStock: result.currentStock - item.quantity,
-            costPrice: result.productSnap.data()?.costPrice || 0,
+            costPrice: Number(privSnap.data()?.costPrice ?? result.productSnap.data()?.costPrice ?? 0),
           };
         }
 
@@ -707,8 +711,10 @@ export function POS() {
             documentType,
             quantity: item.quantity,
             amount: item.price * item.quantity,
-            cost: (item.costPrice || pData.costPrice) * item.quantity,
-            profit: (item.price - (item.costPrice || pData.costPrice)) * item.quantity,
+            // C1 Phase 3c: cost/profit frozen from the private mirror read above, not the
+            // client cart's item.costPrice (which is stripped from /products in Phase 4).
+            cost: pData.costPrice * item.quantity,
+            profit: (item.price - pData.costPrice) * item.quantity,
             userId: profile?.uid,
             userName: profile?.name,
             customerId: selectedCustomer?.id || null,
