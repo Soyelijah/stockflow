@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   collection,
   query,
@@ -79,7 +79,21 @@ import {
 export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) {
   const { profile, user } = useAuth();
   const { selectedBranchId } = useBranch();
-  const [products, setProducts] = useState<any[]>([]);
+  const [rawProducts, setRawProducts] = useState<any[]>([]);
+  const [costMap, setCostMap] = useState<Map<string, any>>(new Map());
+  // C1 Phase 3a: merge the private cost/supplier mirror into the catalog by doc id.
+  // Every downstream reader (valuation, supplier name, OC, selection) keeps reading
+  // p.costPrice / p.supplierId unchanged — they now resolve from product_private
+  // (privileged isCostViewer read). /products still carries the fields until the
+  // Phase 4 strip, so private wins and the raw /products value is the fallback.
+  const products = useMemo(
+    () => rawProducts.map(p => ({
+      ...p,
+      costPrice: costMap.get(p.id)?.costPrice ?? p.costPrice ?? 0,
+      supplierId: costMap.get(p.id)?.supplierId ?? p.supplierId ?? null,
+    })),
+    [rawProducts, costMap]
+  );
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -234,7 +248,13 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
     // If the operations team needs paginated views, that's a follow-up UX work; for now
     // capping protects against accidental N×100k re-fetches on each doc change.
     const unsubProds = onSnapshot(query(collection(db, "products"), orderBy("name"), limit(1000)), (snap) => {
-      setProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setRawProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    // C1 Phase 3a: privileged listener on the private cost/supplier mirror (isCostViewer).
+    const unsubPrivate = onSnapshot(query(collection(db, "product_private"), limit(1000)), (snap) => {
+      const m = new Map<string, any>();
+      snap.docs.forEach(d => m.set(d.id, d.data()));
+      setCostMap(m);
     });
     const unsubSupps = onSnapshot(query(collection(db, "suppliers"), orderBy("name"), limit(500)), (snap) => {
       setSuppliers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -258,6 +278,7 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
     });
     return () => {
       unsubProds();
+      unsubPrivate();
       unsubSupps();
       unsubCats();
       unsubCusts();

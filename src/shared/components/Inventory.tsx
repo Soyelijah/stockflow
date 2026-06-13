@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   where,
+  documentId,
   limit,
   writeBatch,
   serverTimestamp,
@@ -193,7 +194,27 @@ export function Inventory() {
 
       const snap = await getDocs(q);
       const prods = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProducts(prods);
+
+      // C1 Phase 3a: merge private cost/supplier for the VISIBLE PAGE only (≤PAGE_SIZE
+      // ids) — pagination is preserved, we never pull the full catalog here. Chunked by
+      // 30 to respect Firestore's `in` limit. /products still carries the fields until
+      // the Phase 4 strip; the private mirror wins, raw /products is the fallback.
+      const pageIds = prods.map(p => p.id);
+      const privById = new Map<string, any>();
+      for (let i = 0; i < pageIds.length; i += 30) {
+        const chunk = pageIds.slice(i, i + 30);
+        if (!chunk.length) continue;
+        const privSnap = await getDocs(
+          query(collection(db, "product_private"), where(documentId(), "in", chunk))
+        );
+        privSnap.forEach(d => privById.set(d.id, d.data()));
+      }
+      const mergedProds = prods.map(p => ({
+        ...p,
+        costPrice: privById.get(p.id)?.costPrice ?? (p as any).costPrice ?? 0,
+        supplierId: privById.get(p.id)?.supplierId ?? (p as any).supplierId ?? null,
+      }));
+      setProducts(mergedProds);
 
       const lastVisibleDoc = snap.docs[snap.docs.length - 1];
       if (direction === "init") {
@@ -225,8 +246,19 @@ export function Inventory() {
 
   const handleExportCSV = async () => {
     try {
-      const snap = await getDocs(query(collection(db, "products"), orderBy("name")));
-      const allProds = snap.docs.map(doc => doc.data());
+      // C1 Phase 3a: full-catalog export joins the COMPLETE private mirror (one extra
+      // collection read). Explicitly OK for the CSV path — the user asked for the whole
+      // catalog. costPrice resolves from product_private (privileged), raw is fallback.
+      const [snap, privSnap] = await Promise.all([
+        getDocs(query(collection(db, "products"), orderBy("name"))),
+        getDocs(collection(db, "product_private")),
+      ]);
+      const privById = new Map<string, any>();
+      privSnap.forEach(d => privById.set(d.id, d.data()));
+      const allProds = snap.docs.map(doc => {
+        const data = doc.data() as any;
+        return { ...data, costPrice: privById.get(doc.id)?.costPrice ?? data.costPrice ?? 0 };
+      });
 
       const headers = ["Nombre", "Categoría", "Precio", "Costo", "Stock Actual", "Stock Mínimo"];
       const csvRows = [
