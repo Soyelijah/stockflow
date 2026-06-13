@@ -44,9 +44,11 @@ import {
   Wifi,
   WifiOff,
   TrendingUp,
-  Coins
+  Coins,
+  Home
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { MobilePOSHome } from "./MobilePOSHome";
 import { useSettings } from "../../contexts/SettingsContext";
 import { useBranch } from "../../contexts/BranchContext";
 import { readProductAndStockInTx, writeStockInTx, resolveBranchIdForStockOp } from "../../lib/productStock";
@@ -86,7 +88,7 @@ export function MobilePOS() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [documentType, setDocumentType] = useState<"boleta" | "factura">("boleta");
   const [paymentMethod, setPaymentMethod] = useState<"efectivo" | "tarjeta" | "transferencia" | "digital">("efectivo");
-  const [activeTab, setActiveTab] = useState<"shop" | "cart" | "profile">("shop");
+  const [activeTab, setActiveTab] = useState<"home" | "shop" | "cart" | "profile">("home");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [lastOrder, setLastOrder] = useState<any>(null);
   const [visibleCount, setVisibleCount] = useState(16);
@@ -1050,6 +1052,29 @@ export function MobilePOS() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto pb-32">
         <AnimatePresence mode="wait">
+          {activeTab === "home" && (
+            <motion.div
+              key="home"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="pt-4"
+            >
+              <MobilePOSHome
+                shiftData={shiftData}
+                salesTarget={SALES_TARGET}
+                commissionRate={COMMISSION_RATE}
+                vendedorName={shiftData.vendedorName || profile?.name || ""}
+                onScan={() => setIsScanning(true)}
+                onCustomer={() => setActiveTab("cart")}
+                onOpenShift={() => setActiveTab("profile")}
+                onArqueo={() => setActiveTab("profile")}
+                onJumpToProfile={() => setActiveTab("profile")}
+              />
+            </motion.div>
+          )}
+
           {activeTab === "shop" && (
             <motion.div 
               key="shop"
@@ -1872,7 +1897,17 @@ export function MobilePOS() {
 
       {/* Bottom Navigation */}
       <nav className="bg-white border-t border-slate-100 px-6 pt-4 pb-10 flex items-center justify-around fixed bottom-0 left-0 right-0 z-50">
-        <button type="button" 
+        <button type="button"
+          onClick={() => setActiveTab("home")}
+          className={cn(
+            "flex flex-col items-center space-y-1 transition-all",
+            activeTab === "home" ? "text-indigo-600 scale-110" : "text-slate-300"
+          )}
+        >
+          <Home size={24} />
+          <span className="text-[10px] font-black uppercase tracking-tight">Inicio</span>
+        </button>
+        <button type="button"
           onClick={() => setActiveTab("shop")}
           className={cn(
             "flex flex-col items-center space-y-1 transition-all",
