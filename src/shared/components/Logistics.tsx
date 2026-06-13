@@ -511,6 +511,17 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
         });
       }
 
+      // C1 dual-write: cost/supplier to the private mirror (same doc id), atomic with creation.
+      // /products keeps carrying them until the Phase 4 strip.
+      batch.set(doc(db, "product_private", prodRef.id), {
+        costPrice: Number(quickCreateData.costPrice) || 0,
+        supplierId: quickCreateData.supplierId || null,
+        productId: prodRef.id,
+        updatedAt: serverTimestamp(),
+        updatedBy: profile?.uid || "",
+        deletedAt: null,
+      });
+
       await batch.commit();
 
       // After creation, select it

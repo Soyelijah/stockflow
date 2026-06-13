@@ -445,6 +445,17 @@ export function Inventory() {
             timestamp: serverTimestamp()
           });
         }
+
+        // C1 dual-write: cost/supplier go to the private mirror (same doc id), atomic with
+        // the catalog update. /products keeps carrying them until the Phase 4 strip.
+        batch.set(doc(db, "product_private", editingProduct.id), {
+          costPrice: finalData.costPrice,
+          supplierId: finalData.supplierId || null,
+          productId: editingProduct.id,
+          updatedAt: serverTimestamp(),
+          updatedBy: userUidVal,
+          deletedAt: null,
+        }, { merge: true });
         await batch.commit();
       } else {
         const prodRef = await addDoc(collection(db, "products"), {
@@ -463,6 +474,16 @@ export function Inventory() {
           branchId: createBranchId,
           stock: Number(finalData.stock) || 0,
           lastUpdated: serverTimestamp(),
+        });
+
+        // C1 dual-write: cost/supplier to the private mirror (same doc id as /products).
+        await setDoc(doc(db, "product_private", prodRef.id), {
+          costPrice: finalData.costPrice,
+          supplierId: finalData.supplierId || null,
+          productId: prodRef.id,
+          updatedAt: serverTimestamp(),
+          updatedBy: userUidVal,
+          deletedAt: null,
         });
 
         if (finalData.stock > 0) {
