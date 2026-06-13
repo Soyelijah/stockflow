@@ -127,6 +127,13 @@ export function DriverPWA() {
     }
   };
 
+  // Reset scroll to top on tab change. Without this, switching from a
+  // scrolled-down tab carries the scroll offset over and pushes the next
+  // tab's hero header up under the status bar (false "safe-area" overlap).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeTab]);
+
   // Load shipments real-time
   useEffect(() => {
     if (!profile?.uid) return;
