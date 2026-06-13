@@ -84,6 +84,8 @@ export function DriverPWA() {
   const [isFailedModalOpen, setIsFailedModalOpen] = useState(false);
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
+  const [scanVerifying, setScanVerifying] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [transitInterval, setTransitInterval] = useState<NodeJS.Timeout | null>(null);
 
@@ -387,14 +389,23 @@ export function DriverPWA() {
     // Standard checking format: if orderId is inside the scanned buffer
     const cleanScanned = code.trim().toLowerCase();
     const cleanOrderId = activeNextStop.orderId.trim().toLowerCase();
+    const isMatch = cleanScanned === cleanOrderId;
 
-    if (cleanScanned === cleanOrderId) {
-      setPendingDeliverStopId(activeNextStop.id);
-      setIsSignatureOpen(true);
-    } else {
-      setScannerError(`Código incorrecto. Escaneó: "${code}". Se esperaba comprobante de Orden #${activeNextStop.orderId}`);
-      setTimeout(() => setScannerError(null), 6000);
-    }
+    // Brief "verifying" feedback after the scanner closes, then surface the result
+    // prominently. The comparison + signature trigger are unchanged.
+    setScanVerifying(true);
+    setTimeout(() => {
+      setScanVerifying(false);
+      if (isMatch) {
+        setScanSuccess("Comprobante verificado");
+        setTimeout(() => setScanSuccess(null), 2500);
+        setPendingDeliverStopId(activeNextStop.id);
+        setIsSignatureOpen(true);
+      } else {
+        setScannerError(`Código incorrecto. Escaneó: "${code}". Se esperaba comprobante de Orden #${activeNextStop.orderId}`);
+        setTimeout(() => setScannerError(null), 7000);
+      }
+    }, 550);
   };
 
   const showSuccessBanner = (msg: string) => {
@@ -491,6 +502,38 @@ export function DriverPWA() {
           <CheckCircle size={16} />
           <span>{successMessage}</span>
         </div>
+      )}
+
+      {/* Scan feedback — verifying overlay (prominent, above the signature sheet) */}
+      {scanVerifying && (
+        <div className="fixed inset-0 z-[180] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white rounded-3xl px-7 py-6 shadow-2xl flex flex-col items-center gap-3">
+            <Loader2 size={28} className="animate-spin text-cyan-600" />
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-700">Verificando comprobante…</p>
+          </div>
+        </div>
+      )}
+
+      {/* Scan feedback — success toast (top, above the signature sheet) */}
+      {scanSuccess && (
+        <div className="fixed top-[calc(1rem_+_env(safe-area-inset-top))] left-4 right-4 z-[180] bg-emerald-500 text-white p-4 rounded-2xl shadow-2xl font-black text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 animate-soft-bounce">
+          <CheckCircle size={16} />
+          <span>{scanSuccess}</span>
+        </div>
+      )}
+
+      {/* Scan feedback — error toast (prominent, tap to dismiss; no longer buried in the card) */}
+      {scannerError && (
+        <button
+          type="button"
+          onClick={() => setScannerError(null)}
+          aria-label="Cerrar aviso de error de escaneo"
+          className="fixed top-[calc(1rem_+_env(safe-area-inset-top))] left-4 right-4 z-[180] bg-rose-500 text-white p-4 rounded-2xl shadow-2xl text-left flex items-start gap-2.5 active:scale-[0.99] transition-transform"
+        >
+          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+          <span className="text-[11px] font-bold leading-snug flex-1">{scannerError}</span>
+          <X size={16} className="shrink-0 mt-0.5 opacity-80" />
+        </button>
       )}
 
       {activeTab === "home" && (
@@ -636,12 +679,6 @@ export function DriverPWA() {
                 </div>
               ) : null}
 
-              {/* ERROR BANNER FOR CODE VERIFICATION */}
-              {scannerError && (
-                <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-[10px] font-bold font-sans">
-                  ⚠️ {scannerError}
-                </div>
-              )}
 
               {/* Tactical Control Actions buttons */}
               <div className="flex flex-col gap-3 pt-1">
