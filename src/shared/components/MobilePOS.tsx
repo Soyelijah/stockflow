@@ -50,6 +50,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { MobilePOSHome } from "./MobilePOSHome";
 import { MoneyTicker } from "./ui/sf";
+import { PaymentDonut } from "./PaymentDonut";
 import { useSettings } from "../../contexts/SettingsContext";
 import { useBranch } from "../../contexts/BranchContext";
 import { readProductAndStockInTx, writeStockInTx, resolveBranchIdForStockOp } from "../../lib/productStock";
@@ -1746,25 +1747,34 @@ export function MobilePOS() {
                     </div>
                   </div>
 
-                  {/* Payment Methods Audit logs */}
-                  <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 space-y-2">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Arqueo por Tipo de Pago</p>
-                    <div className="space-y-1.5 text-[10px] font-bold text-slate-600">
-                      <div className="flex justify-between">
-                        <span>💵 Efectivo Registrado:</span>
-                        <span className="text-slate-805 text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.efectivo || 0)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>💳 Tarjetas:</span>
-                        <span className="text-slate-805 text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.tarjeta || 0)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>🔄 Transferencias:</span>
-                        <span className="text-slate-805 text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.transferencia || 0)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>📱 Billeteras Virtuales:</span>
-                        <span className="text-slate-805 text-slate-900 font-extrabold">{formatCurrency(shiftData.salesByMethod?.digital || 0)}</span>
+                  {/* MÉTODO DE PAGO — donut + leyenda (worker_mobile v2) */}
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-3">Método de pago · distribución del turno</p>
+                    <div className="flex items-center gap-4">
+                      <PaymentDonut byMethod={shiftData.salesByMethod || {}} />
+                      <div className="flex-1 space-y-2">
+                        {([
+                          { k: "efectivo", lbl: "Efectivo", dot: "bg-emerald-500" },
+                          { k: "tarjeta", lbl: "Tarjetas", dot: "bg-blue-500" },
+                          { k: "transferencia", lbl: "Transferencia", dot: "bg-amber-500" },
+                          { k: "digital", lbl: "Virtual", dot: "bg-indigo-500" },
+                        ] as const).map((m) => {
+                          const methodTotal =
+                            (shiftData.salesByMethod?.efectivo || 0) +
+                            (shiftData.salesByMethod?.tarjeta || 0) +
+                            (shiftData.salesByMethod?.transferencia || 0) +
+                            (shiftData.salesByMethod?.digital || 0);
+                          const v = shiftData.salesByMethod?.[m.k] || 0;
+                          const pct = methodTotal ? Math.round((v / methodTotal) * 100) : 0;
+                          return (
+                            <div key={m.k} className="flex items-center gap-2">
+                              <span className={cn("size-2 rounded-full shrink-0", m.dot)} />
+                              <span className="flex-1 text-[10px] font-black uppercase tracking-wider text-slate-500">{m.lbl}</span>
+                              <span className="text-[11px] font-black text-slate-900 tabular-nums">{formatCurrency(v)}</span>
+                              <span className="text-[9px] font-black text-slate-400 w-7 text-right tabular-nums">{pct}%</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
