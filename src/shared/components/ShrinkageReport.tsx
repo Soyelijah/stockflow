@@ -109,6 +109,8 @@ export function ShrinkageReport() {
   // Data
   const [lossMovements, setLossMovements] = useState<Movement[]>([]);
   const [products, setProducts] = useState<ProductInfo[]>([]);
+  // C1 Phase 3b: private cost mirror (isCostViewer), merged into productMap by doc id.
+  const [costMap, setCostMap] = useState<Map<string, any>>(new Map());
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -134,9 +136,11 @@ export function ShrinkageReport() {
   // Build product map
   const productMap = useMemo(() => {
     const map = new Map<string, ProductInfo>();
-    products.forEach((p) => map.set(p.id, p));
+    products.forEach((p) =>
+      map.set(p.id, { ...p, costPrice: costMap.get(p.id)?.costPrice ?? p.costPrice ?? 0 })
+    );
     return map;
-  }, [products]);
+  }, [products, costMap]);
 
   // Subscribe to products
   useEffect(() => {
@@ -155,7 +159,16 @@ export function ShrinkageReport() {
         })
       );
     });
-    return unsub;
+    // C1 Phase 3b: privileged listener on the private cost mirror (isCostViewer).
+    const unsubPrivate = onSnapshot(collection(db, "product_private"), (snap) => {
+      const m = new Map<string, any>();
+      snap.docs.forEach((d) => m.set(d.id, d.data()));
+      setCostMap(m);
+    });
+    return () => {
+      unsub();
+      unsubPrivate();
+    };
   }, []);
 
   // Subscribe to loss movements. Multi-branch (Tier 1.4b): scope by selectedBranchId.

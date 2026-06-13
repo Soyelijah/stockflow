@@ -65,6 +65,8 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [chartData, setChartData] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
+  // C1 Phase 3b: private cost mirror (isCostViewer), joined into stock valuation by doc id.
+  const [costMap, setCostMap] = useState<Map<string, any>>(new Map());
   const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
   const [expenseChartData, setExpenseChartData] = useState<any[]>([]);
   
@@ -165,7 +167,9 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     );
 
     allProducts.forEach(p => {
-      const cost = Number(p.costPrice || p.price * 0.6 || 0);
+      // C1 Phase 3b: cost comes from the private mirror; raw /products is the transition
+      // fallback (strip is Phase 4), then the legacy price*0.6 estimate as last resort.
+      const cost = Number(costMap.get(p.id)?.costPrice ?? p.costPrice ?? 0) || p.price * 0.6 || 0;
       const qty = Number(p.stock || 0);
       const itemCostVal = cost * qty;
       totalStockCost += itemCostVal;
@@ -184,7 +188,17 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       projectedExpenses,
       inactiveStockCost
     };
-  }, [allProducts, stats.totalProfit, stats.totalExpenses, recentTransactions]);
+  }, [allProducts, costMap, stats.totalProfit, stats.totalExpenses, recentTransactions]);
+
+  // C1 Phase 3b: the "Alta Rentabilidad" ranking must also value cost from the private
+  // mirror — otherwise the Phase 4 strip of /products.costPrice leaves its sort, % margen
+  // and utilidad unitaria computing against 0 / wrong cost. Private wins, raw is fallback.
+  const highMarginProducts = useMemo(() => {
+    return [...allProducts]
+      .map(p => ({ ...p, costPrice: costMap.get(p.id)?.costPrice ?? p.costPrice ?? 0 }))
+      .sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice)))
+      .slice(0, 4);
+  }, [allProducts, costMap]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 1000);
@@ -234,6 +248,13 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       setLowStockProducts(lowStockList.slice(0, 5));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, "products (Dashboard)");
+    });
+
+    // C1 Phase 3b: privileged listener on the private cost mirror (isCostViewer).
+    const unsubPrivate = onSnapshot(query(collection(db, "product_private"), limit(1000)), (snap) => {
+      const m = new Map<string, any>();
+      snap.docs.forEach((d) => m.set(d.id, d.data()));
+      setCostMap(m);
     });
 
     const isAdminEffect = profile?.role === "admin" || profile?.role === "manager";
@@ -395,6 +416,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     return () => {
       unsubCust();
       unsubProducts();
+      unsubPrivate();
       unsubTransactions();
       unsubExpenses();
     };
@@ -1051,7 +1073,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             <div className="space-y-6">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Productos de Alta Rentabilidad</h3>
               <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-4">
-                {[...allProducts].sort((a, b) => (Number(b.price) - Number(b.costPrice)) - (Number(a.price) - Number(a.costPrice))).slice(0, 4).map((p) => (
+                {highMarginProducts.map((p) => (
                   <div key={p.id} className="bg-emerald-50/20 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between gap-1.5">
                     <div>
                       <p className="text-[11px] font-black text-slate-800">{p.name}</p>
