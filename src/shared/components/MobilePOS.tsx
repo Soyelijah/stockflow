@@ -64,7 +64,7 @@ interface CartItem {
   id: string;
   name: string;
   price: number;
-  costPrice: number;
+  // C1 Phase 3d: the seller never handles cost — costPrice removed from the cart item.
   quantity: number;
   maxStock: number;
 }
@@ -450,8 +450,7 @@ export function MobilePOS() {
                 documentType: sale.documentType || "boleta",
                 quantity: item.quantity,
                 amount: item.price * item.quantity,
-                cost: (item.costPrice || item.price * 0.7) * item.quantity, // fallback
-                profit: (item.price - (item.costPrice || item.price * 0.7)) * item.quantity,
+                // C1 Phase 3d: seller sales carry NO cost/profit — keys omitted (not 0).
                 branchId: offlineSyncBranchId,
                 userId: profile?.uid || "sys",
                 userName: profile?.name || "Cajero",
@@ -532,7 +531,14 @@ export function MobilePOS() {
   useEffect(() => {
     const q = query(collection(db, "products"), orderBy("name"));
     const unsubProds = onSnapshot(q, (snapshot) => {
-      setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      // C1 Phase 3d: the seller never handles cost. Drop costPrice from the product
+      // objects so no MobilePOS code path can read it (the wire field itself is removed
+      // from /products at the Phase 4 strip). MobilePOS must NEVER read product_private.
+      setProducts(snapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        delete data.costPrice;
+        return { id: doc.id, ...data };
+      }));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, "products (MobilePOS)");
     });
@@ -587,13 +593,12 @@ export function MobilePOS() {
          if (existing.quantity >= stockVal) return prev;
          return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
        }
-       return [...prev, { 
-         id: product.id, 
-         name: product.name, 
-         price: Number(product.price) || 0, 
-         costPrice: Number(product.costPrice) || 0,
-         quantity: 1, 
-         maxStock: stockVal 
+       return [...prev, {
+         id: product.id,
+         name: product.name,
+         price: Number(product.price) || 0,
+         quantity: 1,
+         maxStock: stockVal
        }];
     });
   };
@@ -760,7 +765,6 @@ export function MobilePOS() {
       id: item.id || "",
       name: item.name || "",
       price: item.price || 0,
-      costPrice: item.costPrice || 0,
       quantity: item.quantity || 1
     }));
 
@@ -828,7 +832,8 @@ export function MobilePOS() {
               isLegacyStock: result.isLegacyStock,
               currentStock: result.currentStock,
               newStock: result.currentStock - item.quantity,
-              costPrice: result.productSnap.data()?.costPrice || 0,
+              // C1 Phase 3d: seller does NOT read cost (no /products.costPrice, and never
+              // product_private — rules deny it). cost/profit are not written here.
             };
           }
 
@@ -861,8 +866,9 @@ export function MobilePOS() {
               documentType,
               quantity: item.quantity,
               amount: item.price * item.quantity,
-              cost: (item.costPrice || pData.costPrice) * item.quantity,
-              profit: (item.price - (item.costPrice || pData.costPrice)) * item.quantity,
+              // C1 Phase 3d: seller sales carry NO cost/profit — keys omitted (not 0) so
+              // the Dashboard recompute distinguishes them by field absence and values
+              // margin from product_private at current cost.
               branchId: onlineSaleBranchId,
               userId: profile?.uid,
               userName: profile?.name,
