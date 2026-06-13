@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { MobilePOSHome } from "./MobilePOSHome";
+import { MoneyTicker } from "./ui/sf";
 import { useSettings } from "../../contexts/SettingsContext";
 import { useBranch } from "../../contexts/BranchContext";
 import { readProductAndStockInTx, writeStockInTx, resolveBranchIdForStockOp } from "../../lib/productStock";
@@ -1300,7 +1301,7 @@ export function MobilePOS() {
               className="p-6 space-y-6"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-black text-slate-800 tracking-tight">Tu Carrito</h2>
+                <h2 className="text-[22px] font-black text-slate-900 tracking-[-0.025em]">Tu Carrito</h2>
                 <button type="button" onClick={() => setCart([])} className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Vaciar</button>
               </div>
 
@@ -1561,7 +1562,7 @@ export function MobilePOS() {
               )}
 
               {cart.length > 0 && (
-                <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-4">
+                <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-3xl p-6 text-white space-y-4 shadow-[0_14px_32px_-10px_rgba(15,23,42,0.45)]">
                   <div className="flex justify-between items-center text-white/40 font-bold uppercase tracking-widest text-[10px]">
                     <span>Subtotal</span>
                     <span>{formatCurrency(cartTotal)}</span>
@@ -1574,7 +1575,7 @@ export function MobilePOS() {
                   )}
                   <div className="flex justify-between items-end">
                     <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Monto Total</span>
-                    <span className="text-2xl font-black text-white">{formatCurrency(finalTotal)}</span>
+                    <MoneyTicker value={finalTotal} className="text-2xl font-black text-white" />
                   </div>
                   <button type="button" 
                     disabled={isProcessing || (documentType === "factura" && !selectedCustomer)}
@@ -1584,7 +1585,7 @@ export function MobilePOS() {
                       (documentType === "factura" && !selectedCustomer) ? "bg-slate-800 text-slate-500 cursor-not-allowed" : "bg-white text-slate-900"
                     )}
                   >
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={16} /> <span>Pagar Ahora</span></>}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={16} /> <span>Cobrar {formatCurrency(finalTotal)}</span></>}
                   </button>
                   {documentType === "factura" && !selectedCustomer && (
                     <p className="text-center text-[10px] font-bold text-rose-400 uppercase tracking-widest">Se requiere cliente para Factura</p>
