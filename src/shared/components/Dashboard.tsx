@@ -64,6 +64,10 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
+  // C1 profit-recompute (Option B): raw sale line-items kept in state so the
+  // profit-dependent aggregations recompute reactively when the private cost mirror
+  // (costMap) loads — instead of being frozen at transactions-snapshot time.
+  const [salesTxs, setSalesTxs] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   // C1 Phase 3b: private cost mirror (isCostViewer), joined into stock valuation by doc id.
   const [costMap, setCostMap] = useState<Map<string, any>>(new Map());
@@ -72,7 +76,6 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
   
   const [isMounted, setIsMounted] = useState(false);
   const [activeDashboardTab, setActiveDashboardTab] = useState<"overview" | "charts" | "finances" | "sales" | "inventory">("overview");
-  const allProductsRef = React.useRef<any[]>([]);
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
   
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
@@ -200,6 +203,64 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       .slice(0, 4);
   }, [allProducts, costMap]);
 
+  // C1 profit-recompute (Option B): the profit-dependent aggregations live here so they
+  // recompute reactively when costMap (private cost mirror) or allProducts change — not
+  // frozen at transactions-snapshot time. Frozen profit (POS desktop, source "web") is
+  // trusted; missing profit (MobilePOS seller under Option A) is recomputed at current
+  // cost. Never overstate: missing productId or missing private cost ⇒ profit 0.
+  const profitAgg = useMemo(() => {
+    let totalProfit = 0;
+    const salesByDate: Record<string, number> = {};
+    const profitByDate: Record<string, number> = {};
+    const categoriesProfit: Record<string, number> = {};
+
+    salesTxs.forEach((t: any) => {
+      const amount = Number(t.amount) || 0;
+      const quantity = Number(t.quantity) || 0;
+      let profit: number;
+      if (typeof t.profit === "number") {
+        profit = Number(t.profit) || 0;
+      } else {
+        const priv = t.productId ? costMap.get(t.productId) : undefined;
+        profit = (priv && typeof priv.costPrice === "number")
+          ? (amount - Number(priv.costPrice) * quantity)
+          : 0;
+      }
+      totalProfit += profit;
+
+      const d = t.timestamp?.toDate ? t.timestamp.toDate() : new Date();
+      const dateStr = d.toLocaleDateString();
+      salesByDate[dateStr] = (salesByDate[dateStr] || 0) + amount;
+      profitByDate[dateStr] = (profitByDate[dateStr] || 0) + profit;
+
+      const prod = allProducts.find(p => p.id === t.productId || p.name === t.productName);
+      const cat = prod?.category || "Otros";
+      categoriesProfit[cat] = (categoriesProfit[cat] || 0) + profit;
+    });
+
+    const categoryData = Object.entries(categoriesProfit).map(([name, profit]) => ({ name, profit }));
+    const chartData = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString();
+      return {
+        name: d.toLocaleDateString('es-CL', { weekday: 'short' }),
+        sales: salesByDate[dateStr] || 0,
+        profit: profitByDate[dateStr] || 0,
+      };
+    }).reverse();
+
+    return { totalProfit, chartData, categoryData };
+  }, [salesTxs, costMap, allProducts]);
+
+  // Publish the recomputed aggregations into the existing state consumed by the KPI
+  // cards, charts and PDF export (keeps every downstream reader unchanged).
+  useEffect(() => {
+    setChartData(profitAgg.chartData);
+    setCategoryData(profitAgg.categoryData);
+    setStats(prev => ({ ...prev, totalProfit: profitAgg.totalProfit }));
+  }, [profitAgg]);
+
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 1000);
     return () => clearTimeout(timer);
@@ -238,7 +299,6 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
       });
 
       setAllProducts(prods);
-      allProductsRef.current = prods;
       setStats(prev => ({
         ...prev,
         totalProducts: snapshot.size,
@@ -291,26 +351,18 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
     const unsubTransactions = onSnapshot(qTransactions, (snapshot) => {
       let salesCount = 0;
       let totalSalesAmount = 0;
-      let totalProfitAmount = 0;
-      const salesByDate: Record<string, number> = {};
-      const profitByDate: Record<string, number> = {};
       const productCounts: Record<string, { count: number, name: string }> = {};
       const customerSales: Record<string, { id: string, name: string, total: number, visits: number }> = {};
-      const categoriesProfit: Record<string, number> = {};
-      
+
+      // Profit-independent aggregations stay here. Profit-dependent ones (totalProfit,
+      // chartData, categoryData) are derived in the profitAgg memo from salesTxs so they
+      // recompute when the private cost mirror loads — see C1 profit-recompute above.
       const txs = snapshot.docs.map(doc => {
         const data = doc.data();
         if (data.type === "sale") {
           salesCount++;
           const amount = Number(data.amount) || 0;
-          const profit = Number(data.profit) || 0;
           totalSalesAmount += amount;
-          totalProfitAmount += profit;
-          
-          const d = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
-          const dateStr = d.toLocaleDateString();
-          salesByDate[dateStr] = (salesByDate[dateStr] || 0) + amount;
-          profitByDate[dateStr] = (profitByDate[dateStr] || 0) + profit;
 
           if (data.productName) {
             productCounts[data.productName] = {
@@ -327,11 +379,6 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
             customerSales[cId].total += amount;
             customerSales[cId].visits += 1;
           }
-
-          // Use the ref to avoid dependency cycle
-          const prod = allProductsRef.current.find(p => p.id === data.productId || p.name === data.productName);
-          const cat = prod?.category || "Otros";
-          categoriesProfit[cat] = (categoriesProfit[cat] || 0) + profit;
         }
         return { id: doc.id, ...data } as any;
       });
@@ -346,34 +393,17 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      // Category Profitability
-      const catChart = Object.entries(categoriesProfit).map(([name, profit]) => ({ name, profit }));
-
-      // Prepare chart data for last 7 days
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toLocaleDateString();
-        return {
-          name: d.toLocaleDateString('es-CL', { weekday: 'short' }),
-          sales: salesByDate[dateStr] || 0,
-          profit: profitByDate[dateStr] || 0
-        };
-      }).reverse();
-
+      setSalesTxs(txs.filter((t: any) => t.type === "sale"));
       setRecentTransactions(txs.slice(0, 10));
       setTopProducts(sortedProducts);
       setTopCustomers(sortedCustomers);
-      setCategoryData(catChart);
-      setChartData(last7Days);
-      
+
       const totalSalesAllTime = txs.reduce((acc: number, current: any) => acc + (current.type === 'sale' ? (Number(current.amount) || 0) : 0), 0);
       const uniqueCustomersCount = Object.keys(customerSales).length;
 
-      setStats(prev => ({ 
-        ...prev, 
+      setStats(prev => ({
+        ...prev,
         recentSales: salesCount,
-        totalProfit: totalProfitAmount,
         avgTicket: salesCount > 0 ? totalSalesAmount / salesCount : 0,
         salesVelocity: salesCount / (snapshot.size || 1), // Sales per transaction density
         avgLifetimeValue: uniqueCustomersCount > 0 ? totalSalesAllTime / uniqueCustomersCount : 0
