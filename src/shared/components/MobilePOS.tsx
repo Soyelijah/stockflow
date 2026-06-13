@@ -1083,21 +1083,22 @@ export function MobilePOS() {
               exit={{ opacity: 0, x: 20 }}
               className="p-6 space-y-4"
             >
-              {/* Buscador Optimizado para Móvil */}
+              {/* Header — Catálogo + product count (worker_mobile v2) */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-[22px] font-black tracking-[-0.025em] text-slate-900">Catálogo</h2>
+                <span className="px-2.5 py-1 bg-purple-50 text-purple-600 border border-purple-100 text-[9px] font-black uppercase tracking-wider rounded-full tabular-nums">
+                  {filteredProducts.length} productos
+                </span>
+              </div>
+
+              {/* Buscador Optimizado para Móvil — scan a la derecha (v2) */}
               <div className="flex items-center gap-x-2">
-                <button type="button" 
-                  onClick={() => setIsScanning(true)}
-                  className="size-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 active:bg-indigo-50 active:text-indigo-600 transition-all shrink-0 shadow-sm"
-                  title="Escanear Código de Barras"
-                >
-                  <Camera size={20} />
-                </button>
                 <div className="relative flex-1">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                   <input
                     type="text"
                     aria-label="Buscar productos por nombre, SKU o código de barras"
-                    placeholder="Buscar por nombre, SKU o código de barras…"
+                    placeholder="Buscar por nombre, SKU o código…"
                     className="w-full h-12 bg-white border border-slate-100 rounded-2xl pl-12 pr-10 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
                     value={searchTerm}
                     onChange={(e) => {
@@ -1106,7 +1107,7 @@ export function MobilePOS() {
                     }}
                   />
                   {searchTerm && (
-                    <button type="button" 
+                    <button type="button"
                       onClick={() => {
                         setSearchTerm("");
                         setVisibleCount(16);
@@ -1117,6 +1118,14 @@ export function MobilePOS() {
                     </button>
                   )}
                 </div>
+                <button type="button"
+                  onClick={() => setIsScanning(true)}
+                  className="size-12 bg-indigo-600 hover:bg-indigo-500 rounded-2xl flex items-center justify-center text-white active:scale-95 transition-all shrink-0 shadow-[0_8px_18px_-8px_rgba(79,70,229,0.55)]"
+                  aria-label="Escanear código de barras"
+                  title="Escanear Código de Barras"
+                >
+                  <Camera size={20} />
+                </button>
               </div>
 
               {/* Category Slider */}
@@ -1138,16 +1147,6 @@ export function MobilePOS() {
                     <span>{cat}</span>
                   </button>
                 ))}
-              </div>
-
-              {/* Status Indicators & Count */}
-              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 px-1 pt-1">
-                <span>Catálogo de Ventas</span>
-                <span className="text-indigo-600">
-                  {filteredProducts.length === 1 
-                    ? "1 producto encontrado" 
-                    : `${filteredProducts.length} productos`}
-                </span>
               </div>
 
               {/* Product Grid optimized for thousands of items (Virtual window rendering) */}
@@ -1268,6 +1267,15 @@ export function MobilePOS() {
                   );
                 })}
               </div>
+
+              {/* Empty state — no matching products (worker_mobile v2) */}
+              {filteredProducts.length === 0 && (
+                <div className="text-center py-12 text-slate-400">
+                  <Package size={36} className="mx-auto text-slate-300" />
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] mt-3">Sin resultados</p>
+                  <p className="text-[11px] font-medium mt-1.5">Prueba con otro término o categoría.</p>
+                </div>
+              )}
 
               {/* Show more / pagination button handles scaled files (up to thousands of items) */}
               {filteredProducts.length > visibleCount && (
