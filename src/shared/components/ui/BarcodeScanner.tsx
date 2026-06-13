@@ -59,9 +59,22 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const containerId = "barcode-scanner-viewport";
   const scanHandled = useRef(false);
 
+  // Keep the latest callbacks in refs so the native scan effect can run EXACTLY ONCE
+  // on mount without depending on [onScan, onClose]. Parents pass inline arrows
+  // (e.g. onClose={() => setIsScanning(false)}) whose identity changes on every
+  // render; the driver re-renders ~1/s from its GPS watch + shipment listener, so a
+  // dependency on those would restart scan() each tick and reopen the Google Code
+  // Scanner Activity in a close-then-reopen loop that can't be dismissed.
+  const onScanRef = useRef(onScan);
+  const onCloseRef = useRef(onClose);
+  onScanRef.current = onScan;
+  onCloseRef.current = onClose;
+  const nativeLaunched = useRef(false);
+
   // --- NATIVE path: Google Code Scanner (separate Activity, MIUI-safe) ---
   useEffect(() => {
-    if (!NATIVE) return;
+    if (!NATIVE || nativeLaunched.current) return;
+    nativeLaunched.current = true;
     let alive = true;
 
     const run = async () => {
@@ -78,23 +91,29 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
           await MLKit.installGoogleBarcodeScannerModule();
         }
         const { barcodes } = await MLKit.scan();
-        if (!alive) return;
         const code = barcodes?.[0]?.rawValue;
         if (code && !scanHandled.current) {
           scanHandled.current = true;
-          onScan(code);
+          onScanRef.current(code);
         } else {
-          onClose(); // user cancelled or no barcode read
+          onCloseRef.current(); // no barcode in result
         }
       } catch (err) {
-        console.error("MLKit scan error:", err);
-        if (alive) { setHasPermission(false); setIsInitializing(false); }
+        // A user cancel (X / back) rejects with "scan canceled." — that is a close,
+        // not a failure. Only a genuine error shows the "could not open" state.
+        const msg = String((err as { message?: string })?.message ?? err).toLowerCase();
+        if (msg.includes("cancel")) {
+          onCloseRef.current();
+        } else {
+          console.error("MLKit scan error:", err);
+          if (alive) { setHasPermission(false); setIsInitializing(false); }
+        }
       }
     };
 
     run();
     return () => { alive = false; };
-  }, [onScan, onClose]);
+  }, []);
 
   // --- WEB path: html5-qrcode (desktop / PWA) ---
   useEffect(() => {
@@ -108,13 +127,13 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
 
       if (html5QrCode.isScanning) {
         html5QrCode.stop().then(() => {
-          onScan(decodedText);
+          onScanRef.current(decodedText);
         }).catch((err) => {
           console.error("Error stopping scanner inside scan callback:", err);
-          onScan(decodedText);
+          onScanRef.current(decodedText);
         });
       } else {
-        onScan(decodedText);
+        onScanRef.current(decodedText);
       }
     };
 
@@ -159,7 +178,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
         scannerRef.current.stop().catch(console.error);
       }
     };
-  }, [onScan]);
+  }, []);
 
   // ===== NATIVE render: the Google scanner Activity covers this; brand the brief
   //        loading moment + the error state. No WebView camera preview (MIUI-safe). =====
