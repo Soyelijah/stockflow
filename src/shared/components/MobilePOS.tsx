@@ -870,7 +870,7 @@ export function MobilePOS() {
               // the Dashboard recompute distinguishes them by field absence and values
               // margin from product_private at current cost.
               branchId: onlineSaleBranchId,
-              userId: profile?.uid,
+              userId: profile?.uid || "sys",
               userName: profile?.name,
               customerId: selectedCustomer?.id || null,
               customerName: selectedCustomer?.name || "VENTA GENERAL",
