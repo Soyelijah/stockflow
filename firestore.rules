@@ -66,6 +66,13 @@ service cloud.firestore {
       return request.resource.data;
     }
 
+    // C1 D2 (defense in depth): after the Phase 4 strip the public /products doc must
+    // NEVER carry costPrice/supplierId again — those live only in /product_private. Reject
+    // any create/update that would put them back onto the public catalog doc.
+    function noCostFieldsOnProduct() {
+      return !incoming().keys().hasAny(['costPrice', 'supplierId']);
+    }
+
     function existing() {
       return resource.data;
     }
@@ -158,8 +165,9 @@ service cloud.firestore {
       // Catalog is global (single retailer's catalog shared across branches).
       // Per-branch inventory lives in /product_stock (Tier 1.1).
       allow read: if true; // Public for Customer Portal
-      allow create: if isAdmin() || isLogistics();
-      allow update: if isSeller() || isAdmin() || isLogistics();
+      // C1 D2: cost/supplier may never re-enter the public catalog doc (see noCostFieldsOnProduct).
+      allow create: if (isAdmin() || isLogistics()) && noCostFieldsOnProduct();
+      allow update: if (isSeller() || isAdmin() || isLogistics()) && noCostFieldsOnProduct();
       allow delete: if isAdmin() || isLogistics();
     }
 
