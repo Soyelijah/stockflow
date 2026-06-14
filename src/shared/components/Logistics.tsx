@@ -490,7 +490,8 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
         sku: quickCreateData.sku || "",
         barcode: finalBarcode,
         barcodes: [finalBarcode],
-        costPrice: Number(quickCreateData.costPrice) || 0,
+        // C1 Phase 5: costPrice/supplierId removed from the PUBLIC /products payload —
+        // mirrored to product_private only (see the dual-write below).
         price: Number(quickCreateData.price) || 0,
         wholesalePrice: Number(quickCreateData.wholesalePrice) || Number(quickCreateData.price) || 0,
         wholesaleMinQty: Number(quickCreateData.wholesaleMinQty) || 6,
@@ -499,7 +500,6 @@ export function Logistics({ onNavigate }: { onNavigate?: (page: any) => void }) 
         description: quickCreateData.description || "",
         categoryId: quickCreateData.categoryId || "",
         category: cat?.name || "Sin Categoría",
-        supplierId: quickCreateData.supplierId || "",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         updatedBy: profile?.name || "Admin"

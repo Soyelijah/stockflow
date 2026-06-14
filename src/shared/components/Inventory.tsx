@@ -426,6 +426,12 @@ export function Inventory() {
       const updatedByName = profile?.name || "Admin";
       const userUidVal = profile?.uid || "";
 
+      // C1 Phase 5: cost/supplier no longer go into the PUBLIC /products payload — they
+      // live only in product_private now (the dual-writes below still mirror them there).
+      const publicProductData: any = { ...finalData };
+      delete publicProductData.costPrice;
+      delete publicProductData.supplierId;
+
       if (editingProduct) {
         // Multi-branch (Tier 1.4b): stock edits happen in the context of the selected
         // branch. If admin is on "*" aggregated view, this writes to the "default" branch
@@ -446,7 +452,7 @@ export function Inventory() {
         // mirror — we dual-write to it so legacy readers see something correct. Tier 1.5
         // will drop the products.stock field entirely.
         batch.update(prodRef, {
-          ...finalData,
+          ...publicProductData,
           updatedAt: serverTimestamp(),
           updatedBy: updatedByName
         });
@@ -491,7 +497,7 @@ export function Inventory() {
         await batch.commit();
       } else {
         const prodRef = await addDoc(collection(db, "products"), {
-          ...finalData,
+          ...publicProductData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           updatedBy: updatedByName
