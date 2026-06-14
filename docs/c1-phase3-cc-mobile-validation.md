@@ -12,16 +12,57 @@ Owner: **CC-mobile** (Xiaomi `UGKNRODMRGQCIZUO`, the real APK enforcement path).
 
 ## 1. Role read-matrix on `/product_private` (empirical, via the rules)
 
-Run the read-only probe (it only reads — nothing to clean up on pass or fail):
+### Test accounts — use DEDICATED THROWAWAYS, never real users
+
+The real claim-holders are real people's accounts (the owner is the CEO's personal
+account; manager/logistics/seller are real team members). **Do NOT use or reset real
+users' passwords, and do NOT log in as a real seller to make test sales** (it pollutes
+real transactions, stock and loyalty points).
+
+Instead, create one disposable account per role via the Admin SDK, emails
+`c1gate-<role>-<timestamp>@stockflow.test` (the timestamp avoids reusing a stale id),
+strong known passwords (env/local only — never logged, never in the repo).
+
+Each test user needs THREE things (verified against the real code — a custom claim alone
+is NOT enough for the staff app):
+
+1. **Firebase Auth user** (the account).
+2. **Custom claims `{ role, branchId }`** — `setCustomUserClaims(uid, { role, branchId })`.
+   `branchId` per `defaultBranchForRole` (src/lib/branches.ts:43): `owner`/`admin`/
+   `logistics` → `"*"` (cross-branch); `manager`/`seller`/`driver`/`customer` → `"default"`.
+3. **`/users/{uid}` mirror doc** for every STAFF role (owner/admin/manager/logistics/
+   seller/driver), fields `{ uid, role, branchId, email, name, createdAt }`. This is
+   REQUIRED and the **`uid` field is mandatory**: AuthContext (src/contexts/AuthContext.tsx)
+   sets `profile = null` when a staff claim is present but `/users/{uid}` is missing
+   (≈L128-132), AND on the happy path it does `profile = docSnap.data()` WITHOUT injecting
+   `authUser.uid` (≈L136/146) — it trusts the doc's own `uid` field. Omit `uid` and
+   `profile.uid` is `undefined`, so an online MobilePOS sale writes `userId: undefined`
+   (MobilePOS.tsx:873) and Firestore rejects the write with a generic (NOT
+   permission-denied) error. `customer` does not need the mirror unless the customer app
+   demands it.
+
+The CHECK 1 probe authenticates and reads Firestore directly (it bypasses AuthContext),
+so for the probe the **claim alone** is what the rules evaluate — the `/users` mirror is
+only needed for the CHECKS 2–4 app logins (seller in MobilePOS, admin/owner in Dashboard).
+The CHECKS 2–4 test sale must use a DISPOSABLE test product (don't decrement real stock).
+
+> ⚠️ **Mandatory teardown.** A throwaway `owner`/`admin` with a known password is a real
+> privilege grant. After validation, DELETE all c1gate-* accounts (and their claims +
+> mirror docs + any test product/transactions), then re-run the probe to confirm they no
+> longer authenticate. Report the teardown as part of the sign-off. Leaving them is a
+> backdoor.
+
+Run the read-only probe with the throwaway creds (it only reads — nothing to clean up on
+the probe's pass/fail path; teardown above is about the accounts you created):
 
 ```bash
-C1_PROBE_CREDS='{"owner":{"email":"...","password":"..."},
-                 "admin":{"email":"admin@stockflow.com","password":"..."},
-                 "manager":{"email":"manager@stockflow.com","password":"..."},
-                 "logistics":{"email":"logistics@stockflow.com","password":"..."},
-                 "seller":{"email":"seller@stockflow.com","password":"..."},
-                 "driver":{"email":"driver@stockflow.cl","password":"..."},
-                 "customer":{"email":"...","password":"..."}}' \
+C1_PROBE_CREDS='{"owner":{"email":"c1gate-owner@stockflow.test","password":"..."},
+                 "admin":{"email":"c1gate-admin@stockflow.test","password":"..."},
+                 "manager":{"email":"c1gate-manager@stockflow.test","password":"..."},
+                 "logistics":{"email":"c1gate-logistics@stockflow.test","password":"..."},
+                 "seller":{"email":"c1gate-seller@stockflow.test","password":"..."},
+                 "driver":{"email":"c1gate-driver@stockflow.test","password":"..."},
+                 "customer":{"email":"c1gate-customer@stockflow.test","password":"..."}}' \
   pnpm tsx scripts/c1-probe-product-private.ts
 ```
 
