@@ -47,6 +47,10 @@ import {
   Activity,
   PieChart,
   LucideProps,
+  Check,
+  ChevronRight,
+  ShieldCheck,
+  Mail,
 } from "lucide-react";
 
 // Whitelist de iconos para tree-shaking óptimo (Enmienda #1)
@@ -97,6 +101,10 @@ export const sfIconMap: Record<string, React.ComponentType<LucideProps>> = {
   UserPlus,
   Activity,
   PieChart,
+  Check,
+  ChevronRight,
+  ShieldCheck,
+  Mail,
 };
 
 export type SfIconName = keyof typeof sfIconMap;
