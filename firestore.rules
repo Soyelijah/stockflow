@@ -11,36 +11,29 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // C2 (Tier S): claim-only role helpers — read the custom claim, never the /users doc
+    // (CLAUDE.md §5). The claim is authoritative (set only by setUserRole + bootstrap-admin);
+    // /users.role is a UI mirror. Refactored from doc-lookups after the c2-audit-claims
+    // audit confirmed claim==doc for every privileged user (0 divergences, 0 lockout).
+    // Same battle-tested accessor as isCostViewer/isCustomer/isCrossBranch.
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.role == 'owner' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager'))
-      );
+      return isSignedIn() &&
+        request.auth.token.get('role', '') in ['owner', 'admin', 'manager'];
     }
 
     function isLogistics() {
-      return isSignedIn() && (
-        isAdmin() ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'logistics')
-      );
+      return isSignedIn() &&
+        request.auth.token.get('role', '') in ['owner', 'admin', 'manager', 'logistics'];
     }
 
     function isSeller() {
-      return isSignedIn() && (
-        isAdmin() ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller')
-      );
+      return isSignedIn() &&
+        request.auth.token.get('role', '') in ['owner', 'admin', 'manager', 'seller'];
     }
 
     function isDriver() {
-      return isSignedIn() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver')
-      );
+      return isSignedIn() &&
+        request.auth.token.get('role', '') == 'driver';
     }
 
     // Tier 5.A3: explicit "internal workforce" check, excludes customer role.
