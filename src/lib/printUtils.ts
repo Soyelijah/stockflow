@@ -1,5 +1,24 @@
 import { formatCurrency, formatDate } from "./utils";
 
+export function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+export function openPrintableHtml(printWindow: Window, html: string): void {
+  const printUrl = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  printWindow.addEventListener("load", () => {
+    printWindow.focus();
+    printWindow.print();
+    window.setTimeout(() => URL.revokeObjectURL(printUrl), 60_000);
+  }, { once: true });
+  printWindow.location.replace(printUrl);
+}
+
 export interface ReceiptData {
   orderId: string;
   timestamp: any;
@@ -28,7 +47,7 @@ export const printReceipt = (data: ReceiptData) => {
   const itemsHtml = data.items.map(item => `
     <tr class="item-row">
       <td class="item-cell">
-        <div class="item-name">${item.name}</div>
+        <div class="item-name">${escapeHtml(item.name)}</div>
         <div class="item-details">${item.quantity} UN x ${formatCurrency(item.price)}</div>
       </td>
       <td class="amount-cell">${formatCurrency(item.quantity * item.price)}</td>
@@ -38,7 +57,7 @@ export const printReceipt = (data: ReceiptData) => {
   const html = `
     <html>
       <head>
-        <title>Ticket - ${data.orderId}</title>
+        <title>Ticket - ${escapeHtml(data.orderId)}</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
           
@@ -274,13 +293,13 @@ export const printReceipt = (data: ReceiptData) => {
       </head>
       <body>
         <div class="header">
-          <div class="business-name">${data.businessName}</div>
+          <div class="business-name">${escapeHtml(data.businessName)}</div>
           <div class="sub-header">
-            ${data.address ? `<div>${data.address}</div>` : ''}
-            ${data.phone ? `<div>TEL: ${data.phone}</div>` : ''}
+            ${data.address ? `<div>${escapeHtml(data.address)}</div>` : ''}
+            ${data.phone ? `<div>TEL: ${escapeHtml(data.phone)}</div>` : ''}
           </div>
-          <div class="order-badge">ORDEN #${data.orderId.toUpperCase()}</div>
-          <div class="sub-header" style="margin-top: 4px;">${formatDate(data.timestamp)}</div>
+          <div class="order-badge">ORDEN #${escapeHtml(data.orderId.toUpperCase())}</div>
+          <div class="sub-header" style="margin-top: 4px;">${escapeHtml(formatDate(data.timestamp))}</div>
         </div>
 
         <div class="divider"></div>
@@ -314,12 +333,12 @@ export const printReceipt = (data: ReceiptData) => {
         <div class="payment-info">
           <div class="info-line">
             <span class="info-label">Método de Pago</span>
-            <span class="info-val">${data.paymentMethod.toUpperCase() || 'EFECTIVO'}</span>
+            <span class="info-val">${escapeHtml(data.paymentMethod.toUpperCase() || 'EFECTIVO')}</span>
           </div>
           ${data.customerName ? `
           <div class="info-line">
             <span class="info-label">Cliente</span>
-            <span class="info-val">${data.customerName}</span>
+            <span class="info-val">${escapeHtml(data.customerName)}</span>
           </div>
           ` : ''}
           
@@ -344,16 +363,9 @@ export const printReceipt = (data: ReceiptData) => {
           <div>Documento no válido como factura</div>
         </div>
 
-        <script>
-          window.onload = () => {
-            window.print();
-            setTimeout(() => window.close(), 500);
-          }
-        </script>
       </body>
     </html>
   `;
 
-  printWindow.document.write(html);
-  printWindow.document.close();
+  openPrintableHtml(printWindow, html);
 };

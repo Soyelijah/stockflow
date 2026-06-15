@@ -23,6 +23,7 @@ import { useBranch } from "../../contexts/BranchContext";
 import { CROSS_BRANCH_SENTINEL } from "../../lib/branches";
 import { useSettings } from "../../contexts/SettingsContext";
 import { getStockInsights, StockInsight } from "../../services/aiService";
+import { escapeHtml, openPrintableHtml } from "../../lib/printUtils";
 
 const DashboardAreaChart = React.lazy(() => import("./DashboardCharts").then(m => ({ default: m.DashboardAreaChart })));
 const DashboardPieChart = React.lazy(() => import("./DashboardCharts").then(m => ({ default: m.DashboardPieChart })));
@@ -658,8 +659,8 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
         </head>
         <body>
           <div class="header">
-            <h1>REPORTE DE CIERRE - ${settings.businessName}</h1>
-            <p>Fecha: ${new Date().toLocaleString()}</p>
+            <h1>REPORTE DE CIERRE - ${escapeHtml(settings.businessName)}</h1>
+            <p>Fecha: ${escapeHtml(new Date().toLocaleString())}</p>
           </div>
           
           <div class="section">
@@ -679,12 +680,10 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: any) => void }) 
           <div class="footer" style="margin-top: 100px; border-top: 1px dashed #ccc; padding-top: 20px; text-align: center;">
             <p>Generado por StockFlow ERP</p>
           </div>
-          <script>window.print();</script>
         </body>
       </html>
     `;
-    printWindow.document.write(reportHtml);
-    printWindow.document.close();
+    openPrintableHtml(printWindow, reportHtml);
   };
 
   return (

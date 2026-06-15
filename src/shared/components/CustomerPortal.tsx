@@ -4745,8 +4745,13 @@ ${lang === "es" ? "Beneficio:" : "Benefit:"}     +${Math.floor(selectedReceipt.f
                       `;
                       const win = window.open("", "_blank");
                       if (win) {
-                        win.document.write(`<pre style="font-family: monospace; font-size: 14px; padding: 20px;">${receiptText}</pre>`);
-                        win.document.close();
+                        win.document.title = lang === "es" ? "Recibo" : "Receipt";
+                        const pre = win.document.createElement("pre");
+                        pre.style.fontFamily = "monospace";
+                        pre.style.fontSize = "14px";
+                        pre.style.padding = "20px";
+                        pre.textContent = receiptText;
+                        win.document.body.appendChild(pre);
                         win.print();
                       }
                     }}
