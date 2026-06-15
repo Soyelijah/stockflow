@@ -44,6 +44,8 @@ import {
   Wifi,
   WifiOff,
   UserPlus,
+  Activity,
+  PieChart,
   LucideProps,
 } from "lucide-react";
 
@@ -93,6 +95,8 @@ export const sfIconMap: Record<string, React.ComponentType<LucideProps>> = {
   Wifi,
   WifiOff,
   UserPlus,
+  Activity,
+  PieChart,
 };
 
 export type SfIconName = keyof typeof sfIconMap;

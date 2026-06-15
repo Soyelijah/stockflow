@@ -19,6 +19,7 @@ const Logistics = React.lazy(() => import("../../shared/components/Logistics").t
 const Customers = React.lazy(() => import("../../shared/components/Customers").then(m => ({ default: m.Customers })));
 const Profile = React.lazy(() => import("../../shared/components/Profile").then(m => ({ default: m.Profile })));
 const MobilePOS = React.lazy(() => import("../../shared/components/MobilePOS").then(m => ({ default: m.MobilePOS })));
+const RoleMobileShell = React.lazy(() => import("../../shared/components/RoleMobileShell").then(m => ({ default: m.RoleMobileShell })));
 const ShrinkageReport = React.lazy(() => import("../../shared/components/ShrinkageReport").then(m => ({ default: m.ShrinkageReport })));
 
 const PageFallback = () => (
@@ -41,6 +42,18 @@ export function AdminRoutes() {
           <Route path="/" element={<MobilePOS />} />
           <Route path="/mobile" element={<MobilePOS />} />
           <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </React.Suspense>
+    );
+  }
+
+  // Staff mobile surfaces from design handoff: manager, logistics and admin use
+  // dedicated role shells instead of the desktop Layout.
+  if (profile?.role === "manager" || profile?.role === "logistics" || profile?.role === "admin") {
+    return (
+      <React.Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/*" element={<RoleMobileShell />} />
         </Routes>
       </React.Suspense>
     );
