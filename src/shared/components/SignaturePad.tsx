@@ -292,7 +292,7 @@ function SignatureModalBody({ onClose, onSave, defaultRecipientName, orderId }: 
                   className="text-[9px] font-black uppercase tracking-wider text-rose-500 hover:text-rose-650 flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   <RotateCcw size={10} />
-                  Limpiar Limpio
+                  Limpiar
                 </button>
               )}
             </div>
