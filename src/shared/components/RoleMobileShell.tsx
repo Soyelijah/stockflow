@@ -43,7 +43,7 @@ const roleAccent: Record<MobileRole, { label: string; short: string; subtitle: s
   manager: {
     label: "Jefe",
     short: "J",
-    subtitle: "Jefe de Local",
+    subtitle: "JEFE",
     gradient: "from-amber-500 via-indigo-600 to-indigo-950",
     solid: "from-amber-500 to-amber-600",
     soft: "bg-amber-50 text-amber-600 border-amber-100",
@@ -52,7 +52,7 @@ const roleAccent: Record<MobileRole, { label: string; short: string; subtitle: s
   logistics: {
     label: "Logistica",
     short: "L",
-    subtitle: "Operador Logistico",
+    subtitle: "LOGÍSTICA",
     gradient: "from-blue-500 via-indigo-600 to-indigo-950",
     solid: "from-blue-500 to-blue-600",
     soft: "bg-blue-50 text-blue-600 border-blue-100",
@@ -61,7 +61,7 @@ const roleAccent: Record<MobileRole, { label: string; short: string; subtitle: s
   admin: {
     label: "Admin",
     short: "A",
-    subtitle: "Administrador General",
+    subtitle: "ADMIN",
     gradient: "from-purple-500 via-indigo-600 to-indigo-950",
     solid: "from-purple-500 to-purple-600",
     soft: "bg-purple-50 text-purple-600 border-purple-100",
@@ -968,7 +968,7 @@ function KardexTab({ movements }: { movements: AnyDoc[] }) {
           { id: "all", label: "Todos" },
           { id: "sale", label: "Ventas" },
           { id: "transfer", label: "Traslados" },
-          { id: "receive", label: "Recepciones" },
+          { id: "receive", label: "Recepción" },
           { id: "adjust", label: "Ajustes" },
         ].map((f) => {
           const active = filter === f.id;
@@ -1118,7 +1118,7 @@ function BranchesTab({ branches, onOpenBranch }: { branches: any[]; onOpenBranch
       <div className="grid grid-cols-3 gap-2 rounded-[22px] border border-slate-100 bg-white p-3 shadow-sm">
         <MiniStat label="Cumplimiento avg" value={`${avg}%`} />
         <MiniStat label="Mejor sucursal" value={branches[0]?.name || "Centro"} accent="emerald" />
-        <MiniStat label="Atención" value={String(branches.filter((b) => b.status === "attention").length)} accent="amber" />
+        <MiniStat label="Necesita Atención" value={String(branches.filter((b) => b.status === "attention").length)} accent="amber" />
       </div>
       <div className="space-y-3">{branches.map((b, i) => (
         <React.Fragment key={b.id}>
