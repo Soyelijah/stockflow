@@ -43,16 +43,16 @@ const roleAccent: Record<MobileRole, { label: string; short: string; subtitle: s
   manager: {
     label: "Jefe",
     short: "J",
-    subtitle: "JEFE",
+    subtitle: "Jefe de Local",
     gradient: "from-amber-500 via-indigo-600 to-indigo-950",
     solid: "from-amber-500 to-amber-600",
     soft: "bg-amber-50 text-amber-600 border-amber-100",
     text: "text-amber-600",
   },
   logistics: {
-    label: "Logistica",
+    label: "Logística",
     short: "L",
-    subtitle: "LOGÍSTICA",
+    subtitle: "Operador Logístico",
     gradient: "from-blue-500 via-indigo-600 to-indigo-950",
     solid: "from-blue-500 to-blue-600",
     soft: "bg-blue-50 text-blue-600 border-blue-100",
@@ -61,7 +61,7 @@ const roleAccent: Record<MobileRole, { label: string; short: string; subtitle: s
   admin: {
     label: "Admin",
     short: "A",
-    subtitle: "ADMIN",
+    subtitle: "Administrador General",
     gradient: "from-purple-500 via-indigo-600 to-indigo-950",
     solid: "from-purple-500 to-purple-600",
     soft: "bg-purple-50 text-purple-600 border-purple-100",
@@ -1011,7 +1011,7 @@ function KardexRow({ move }: { move: any }) {
     <div className="sf-press flex items-center gap-3 rounded-[18px] border border-slate-100 bg-white px-3 py-3 shadow-sm">
       <IconChip name={move.type === "sale" ? "ShoppingCart" : move.type === "receive" ? "Package" : "RefreshCw"} palette={palette} size={42} icSize={16} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5"><span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500">{move.sku}</span><Pill kind="neutral">{move.type === "sale" ? "Venta" : move.type === "receive" ? "Recepcion" : move.type === "adjust" ? "Ajuste" : "Traslado"}</Pill></div>
+        <div className="flex items-center gap-1.5"><span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500">{move.sku}</span><Pill kind="neutral">{move.type === "sale" ? "Venta" : move.type === "receive" ? "Recepción" : move.type === "adjust" ? "Ajuste" : "Traslado"}</Pill></div>
         <p className="mt-1 truncate text-[12px] font-extrabold text-slate-900">{move.product}</p>
         <p className="mt-1 text-[10px] font-bold text-slate-400">{move.at} · {move.by}</p>
       </div>
