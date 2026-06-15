@@ -6,14 +6,19 @@
 // via the CLIENT SDK (the same enforcement path the app hits).
 //
 // Non-destructive: it operates ONLY on its own throwaway product docs
-// (__c1d2probe__ / __c1d2probe2__, clean — no cost fields) and deletes them in a finally
+// (c1d2probe-clean-001 / c1d2probe-cost-002, clean — no cost fields) and deletes them in a finally
 // block so cleanup runs on BOTH the pass and the fail path. It never touches real
 // products and never creates a product_private mirror.
 //
-// Credentials: a PRIVILEGED throwaway account (isCostViewer — owner/admin/manager/
-// logistics; admin is fine) via env, never the repo, never logged:
+// Credentials: a throwaway account the /products WRITE rules accept. The two ALLOW cases
+// need isAdmin() or isLogistics() to resolve — and in firestore.rules isAdmin() is
+// claim-only ONLY for role="owner"; role="admin"/"manager"/"logistics" resolve via a
+// /users/{uid} doc-lookup, NOT the claim alone. So use EITHER a claim-only role="owner"
+// throwaway, OR an admin/logistics throwaway that ALSO has a /users mirror. A claim-only
+// role="admin" (no mirror) FAILS the two ALLOW cases (isAdmin()=false). The cost-field
+// DENY cases pass regardless. Creds via env, never the repo, never logged:
 //
-//   C1_D2_CREDS='{"email":"c1gate-admin-<ts>@stockflow.test","password":"..."}' \
+//   C1_D2_CREDS='{"email":"c1gate-owner-<ts>@stockflow.test","password":"..."}' \
 //     pnpm tsx scripts/c1-probe-d2-writes.ts
 //
 // Exit 0 = every case matched (DENY where expected, ALLOW where expected); non-zero on
@@ -25,8 +30,11 @@ import { getFirestore, doc, setDoc, updateDoc, deleteDoc } from "firebase/firest
 import firebaseConfig from "../firebase-applet-config.json";
 
 const DB_ID = (firebaseConfig as any).firestoreDatabaseId;
-const PROBE_ID = "__c1d2probe__";
-const PROBE_ID2 = "__c1d2probe2__";
+// Non-reserved doc IDs: Firestore rejects ids matching __.*__ with INVALID_ARGUMENT
+// BEFORE any rule is evaluated, so the probe must NOT use the __x__ pattern (it would
+// fail with errors that look like — but are not — a rules problem).
+const PROBE_ID = "c1d2probe-clean-001";
+const PROBE_ID2 = "c1d2probe-cost-002";
 
 function loadCreds(): { email: string; password: string } {
   const raw = process.env.C1_D2_CREDS;
@@ -104,7 +112,7 @@ async function main() {
 
     // ALLOW: clean stock/barcode update.
     await expectResult(rows, "update clean stock/barcodes", "ALLOW", () =>
-      updateDoc(ref, { stock: 7, barcodes: [PROBE_ID, "__alt__"] })
+      updateDoc(ref, { stock: 7, barcodes: [PROBE_ID, "alt-bc-001"] })
     );
   } finally {
     // Cleanup on BOTH pass and fail paths.
