@@ -6,7 +6,7 @@ import { db, getMessagingInstance } from "./firebase";
  * Requests notification permission, registers the FCM service worker statically,
  * retrieves the registration token, and indexes it in the Firestore 'fcm_tokens' collection.
  */
-export async function requestFCMToken(userId: string, role: "driver" | "customer" | "admin"): Promise<string | null> {
+export async function requestFCMToken(userId: string): Promise<string | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
     console.warn("[FCM Client] Service workers or window environment not viable.");
     return null;
@@ -54,10 +54,12 @@ export async function requestFCMToken(userId: string, role: "driver" | "customer
 
       // 5. Index token mapping inside our database
       const fcmRef = doc(db, "fcm_tokens", token);
+      // Security (Propuesta 2): never persist a client-supplied `role` here.
+      // The server resolves tokens by `userId` (fcmListener.ts queries
+      // where("userId","==",...)), so `role` was write-only, untrusted, and unused.
       await setDoc(fcmRef, {
         token,
         userId,
-        role,
         updatedAt: serverTimestamp()
       }, { merge: true });
 

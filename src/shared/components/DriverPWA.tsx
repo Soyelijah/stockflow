@@ -114,7 +114,7 @@ export function DriverPWA() {
     if (!profile?.uid) return;
     setFcmLoading(true);
     try {
-      const token = await requestFCMToken(profile.uid, "driver");
+      const token = await requestFCMToken(profile.uid);
       if (token) {
         setFcmRegistered(true);
         showSuccessBanner("🔔 ¡Notificaciones de Ruta Activadas!");

@@ -750,7 +750,7 @@ export function CustomerPortal() {
     if (!customer?.id) return;
     setFcmLoading(true);
     try {
-      const token = await requestFCMToken(customer.id, "customer");
+      const token = await requestFCMToken(customer.id);
       if (token) {
         setFcmRegistered(true);
         setFcmToast({
