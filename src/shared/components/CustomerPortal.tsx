@@ -4253,10 +4253,18 @@ export function CustomerPortal() {
           <span className="sf-microlabel">{t[lang].shop}</span>
         </button>
         <button type="button" 
-          onClick={() => setIsQRSheetOpen(true)}
-          className={cn("size-10 rounded-xl flex items-center justify-center text-white -mt-8 shadow-md transition-all shrink-0 sf-tap sf-spring", isQRSheetOpen ? "bg-orange-600 scale-110" : "bg-slate-900 shadow-slate-200")}
+          onClick={() => setShowCart(true)}
+          className={cn(
+            "relative -mt-9 flex size-[56px] place-items-center items-center justify-center rounded-[22px] bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-[0_12px_24px_-4px_rgba(249,115,22,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 transition-all shrink-0 sf-tap"
+          )}
+          aria-label={t[lang].orderCartTitle}
         >
-           <QrCode size={18} />
+          <ShoppingCart size={22} strokeWidth={2.5} />
+          {cart.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-full font-black text-[9px] flex items-center justify-center border-2 border-white shadow-sm">
+              {cart.reduce((s, item) => s + item.quantity, 0)}
+            </span>
+          )}
         </button>
         <button type="button" 
           onClick={() => setActiveTab("coupons")}
