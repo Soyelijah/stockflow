@@ -47,9 +47,10 @@ export function AdminRoutes() {
     );
   }
 
-  // Staff mobile surfaces from design handoff: manager, logistics and admin use
-  // dedicated role shells instead of the desktop Layout.
-  if (profile?.role === "manager" || profile?.role === "logistics" || profile?.role === "admin") {
+  // Staff mobile surfaces from design handoff: manager, logistics, admin and owner use
+  // dedicated role shells instead of the desktop Layout. (owner maps to the admin shell
+  // via RoleMobileShell:109; without this it fell through to the cramped desktop Layout.)
+  if (profile?.role === "manager" || profile?.role === "logistics" || profile?.role === "admin" || profile?.role === "owner") {
     return (
       <React.Suspense fallback={<PageFallback />}>
         <Routes>
