@@ -10,7 +10,9 @@ import {
   serverTimestamp,
   increment,
   orderBy,
-  runTransaction
+  runTransaction,
+  limit,
+  where
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import { db, handleFirestoreError, OperationType } from "../../lib/firebase";
@@ -45,11 +47,13 @@ import {
   WifiOff,
   TrendingUp,
   Coins,
-  Home
+  Home,
+  Zap,
+  Building2
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { MobilePOSHome } from "./MobilePOSHome";
-import { MoneyTicker } from "./ui/sf";
+import { MoneyTicker, Avatar } from "./ui/sf";
 import { PaymentDonut } from "./PaymentDonut";
 import { useSettings } from "../../contexts/SettingsContext";
 import { useBranch } from "../../contexts/BranchContext";
@@ -72,7 +76,12 @@ interface CartItem {
 export function MobilePOS() {
   const { profile, logout, user } = useAuth();
   const { settings } = useSettings();
-  const { selectedBranchId } = useBranch();
+  const { branches, selectedBranchId } = useBranch();
+
+  const branchLabel = useMemo(() => {
+    const branch = branches.find((b) => b.id === selectedBranchId);
+    return branch?.name?.replace(/^Sucursal\s+/i, "") || "Centro";
+  }, [branches, selectedBranchId]);
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -528,6 +537,8 @@ export function MobilePOS() {
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [couponError, setCouponError] = useState("");
 
+  const [recentTxns, setRecentTxns] = useState<any[]>([]);
+
   useEffect(() => {
     const q = query(collection(db, "products"), orderBy("name"));
     const unsubProds = onSnapshot(q, (snapshot) => {
@@ -550,8 +561,110 @@ export function MobilePOS() {
       handleFirestoreError(error, OperationType.LIST, "customers (MobilePOS)");
     });
 
-    return () => { unsubProds(); unsubCust(); };
+    const qTxns = query(
+      collection(db, "transactions"),
+      orderBy("timestamp", "desc"),
+      limit(100)
+    );
+    const unsubTxns = onSnapshot(qTxns, (snapshot) => {
+      setRecentTxns(snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          dateObj: data.timestamp?.toDate ? data.timestamp.toDate() : (data.timestamp ? new Date(data.timestamp) : new Date())
+        };
+      }));
+    }, (error) => {
+      console.warn("Failed to listen to transactions:", error);
+    });
+
+    return () => { unsubProds(); unsubCust(); unsubTxns(); };
   }, []);
+
+  const weeklySales = useMemo(() => {
+    const days = [
+      { d: "lun", index: 1, v: 0 },
+      { d: "mar", index: 2, v: 0 },
+      { d: "mié", index: 3, v: 0 },
+      { d: "jue", index: 4, v: 0 },
+      { d: "vie", index: 5, v: 0 },
+      { d: "sáb", index: 6, v: 0 },
+      { d: "dom", index: 0, v: 0 }
+    ];
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + distanceToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const sellerTxns = recentTxns.filter(tx => {
+      const isSeller = tx.userId === (profile?.uid || "");
+      const isThisWeek = tx.dateObj >= monday && tx.dateObj <= sunday;
+      return isSeller && isThisWeek;
+    });
+
+    sellerTxns.forEach(tx => {
+      const dayIdx = tx.dateObj.getDay();
+      const match = days.find(d => d.index === dayIdx);
+      if (match) {
+        match.v += tx.amount || 0;
+      }
+    });
+
+    const todayDayIdx = now.getDay();
+    offlineQueue.forEach(sale => {
+      const match = days.find(d => d.index === todayDayIdx);
+      if (match) {
+        match.v += sale.total || 0;
+      }
+    });
+
+    return days.map(({ d, v }) => ({ d, v }));
+  }, [recentTxns, profile, offlineQueue]);
+
+  const recentSellerTxns = useMemo(() => {
+    const sellerTxns = recentTxns.filter(tx => tx.userId === (profile?.uid || ""));
+    const ordersMap = new Map<string, any>();
+    
+    sellerTxns.forEach(tx => {
+      const orderId = tx.orderId || tx.id;
+      if (!ordersMap.has(orderId)) {
+        ordersMap.set(orderId, {
+          id: orderId,
+          customer: tx.customerName || "VENTA GENERAL",
+          amount: tx.amount || 0,
+          method: tx.paymentMethod || "efectivo",
+          doc: tx.documentType || "boleta",
+          at: tx.dateObj.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }),
+          timestamp: tx.dateObj
+        });
+      } else {
+        const order = ordersMap.get(orderId);
+        order.amount += tx.amount || 0;
+      }
+    });
+
+    const offlineOrders = offlineQueue.map(sale => ({
+      id: sale.orderId,
+      customer: sale.customerName || "VENTA GENERAL",
+      amount: sale.total,
+      method: sale.paymentMethod,
+      doc: sale.documentType,
+      at: new Date(sale.timestamp).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date(sale.timestamp),
+      isOffline: true
+    }));
+
+    const allOrders = [...offlineOrders, ...Array.from(ordersMap.values())];
+    return allOrders.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 5);
+  }, [recentTxns, profile, offlineQueue]);
 
   const categories = useMemo(() => {
     const cats = new Set(
@@ -965,54 +1078,42 @@ export function MobilePOS() {
 
         {/* Inner layout wrapper */}
         <div className="flex-1 flex flex-col h-full overflow-hidden relative pt-6 md:pt-10">
-          {/* Mobile Header */}
-          <header className="bg-white px-6 pt-4 pb-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-x-3">
-              <div className="relative size-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-                <Store size={20} />
-                {offlineQueue.length > 0 && (
-                  <div className="absolute -top-1.5 -right-1.5 bg-amber-500 border-2 border-white text-white font-mono text-[9px] font-extrabold size-5 rounded-full flex items-center justify-center shadow-md">
-                    {offlineQueue.length}
-                  </div>
-                )}
+          {/* Mobile Header (RoleTopBar Style) */}
+          <header className="sticky top-0 z-30 flex h-[74px] items-center justify-between gap-3 border-b border-slate-950/[0.04] bg-[#f8f9fc]/80 px-4 backdrop-blur-xl shrink-0">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="relative">
+                <Avatar initial={(profile?.name || "Vendedor").trim().charAt(0).toUpperCase()} size={40} palette="indigoSolid" />
+                <span className={cn(
+                  "absolute -bottom-1 -right-1 size-3 rounded-full border-2 border-white transition-colors duration-300",
+                  isOffline ? "bg-rose-450" : "bg-emerald-400"
+                )} />
               </div>
-              <div>
-                <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">{settings.businessName}</h1>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none">POS Móvil</p>
-                  <span className="bg-indigo-50 text-indigo-600 border border-indigo-100/50 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">
-                    Vendedor
-                  </span>
-                  {offlineQueue.length > 0 && (
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/20 rounded-full text-[8px] font-black text-amber-600 uppercase tracking-widest animate-pulse cursor-pointer"
-                      aria-label={`Sincronizar ${offlineQueue.length} ventas offline pendientes`}
-                      onClick={handleSyncOfflineSales}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSyncOfflineSales(); } }}
-                      title="Sincronizar ventas offline"
-                    >
-                      <span className="w-1.2 h-1.2 rounded-full bg-amber-500" />
-                      Pending Sync ({offlineQueue.length})
-                    </button>
-                  )}
-                </div>
+              <div className="min-w-0">
+                <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-400">Vendedor</p>
+                <p className="truncate text-[12px] font-black text-slate-900">{profile?.name || "Vendedor"}</p>
               </div>
             </div>
-            {/* Dynamic Connectivity Controls (Paso 2.2) */}
-            <div className="flex items-center gap-x-2">
+            <div className="flex items-center gap-2">
+              <button type="button" className="sf-tap flex h-9 items-center gap-1.5 rounded-xl border border-slate-100 bg-white px-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-indigo-700 shadow-sm" aria-label="Cambiar sucursal">
+                <Building2 size={11} />
+                {branchLabel}
+              </button>
+
               {offlineQueue.length > 0 && (
-                <button type="button" 
+                <button 
+                  type="button" 
                   onClick={handleSyncOfflineSales}
                   disabled={isSyncingOfflineSales}
-                  className="px-2 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition animate-pulse"
+                  className="sf-tap flex h-9 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 text-[9px] font-black uppercase tracking-[0.12em] text-amber-700 shadow-sm animate-pulse"
                   title="Sincronizar ventas offline"
                 >
-                  {isSyncingOfflineSales ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                  {isSyncingOfflineSales ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                   <span>Sync ({offlineQueue.length})</span>
                 </button>
               )}
-              <button type="button"
+
+              <button 
+                type="button"
                 onClick={() => {
                   const newVal = !isOffline;
                   setIsOffline(newVal);
@@ -1026,14 +1127,18 @@ export function MobilePOS() {
                     : "🌐 Modo En Línea Activado: Las llamadas a la base de datos se restablecerán.");
                 }}
                 className={cn(
-                  "p-2 rounded-xl flex items-center justify-center transition-all border",
+                  "sf-tap relative grid size-9 place-items-center rounded-xl border shadow-sm transition-all",
                   isOffline 
-                    ? "bg-rose-50 border-rose-250 text-rose-500" 
-                    : "bg-emerald-50 border-emerald-250 text-emerald-600"
+                    ? "bg-rose-50 border-rose-100 text-rose-500" 
+                    : "bg-white border-slate-100 text-slate-700"
                 )}
                 title={isOffline ? "Modo Offline (Haga clic para conectar)" : "Modo Online (Haga clic para desconectar)"}
               >
-                {isOffline ? <WifiOff size={16} /> : <Wifi size={16} />}
+                {isOffline ? <WifiOff size={15} /> : <Wifi size={15} />}
+              </button>
+
+              <button type="button" onClick={logout} className="sf-tap grid size-9 place-items-center rounded-xl border border-slate-100 bg-white text-slate-500 shadow-sm" aria-label="Cerrar sesión">
+                <LogOut size={15} />
               </button>
             </div>
           </header>
@@ -1074,11 +1179,29 @@ export function MobilePOS() {
                 salesTarget={SALES_TARGET}
                 commissionRate={COMMISSION_RATE}
                 vendedorName={shiftData.vendedorName || profile?.name || ""}
-                onScan={() => setIsScanning(true)}
-                onCustomer={() => setActiveTab("cart")}
+                onScan={() => {
+                  setActiveTab("shop");
+                  setTimeout(() => setIsScanning(true), 150);
+                }}
+                onCustomer={() => setIsCustomerModalOpen(true)}
                 onOpenShift={() => setActiveTab("profile")}
-                onArqueo={() => setActiveTab("profile")}
+                onArqueo={() => {
+                  if (registerOpen) {
+                    setCountedCashInput(
+                      String(
+                        (shiftData.efectivoInicial || 0) +
+                          (shiftData.salesByMethod?.efectivo || 0) -
+                          (shiftData.retiros || []).reduce((sum: number, r: any) => sum + r.amount, 0)
+                      )
+                    );
+                    setShowCierreModal(true);
+                  } else {
+                    alert("🔒 Caja cerrada: Para realizar el arqueo, primero abra el turno.");
+                  }
+                }}
                 onJumpToProfile={() => setActiveTab("profile")}
+                weeklySales={weeklySales}
+                recentTxns={recentSellerTxns}
               />
             </motion.div>
           )}
@@ -1920,61 +2043,100 @@ export function MobilePOS() {
         )}
       </AnimatePresence>
 
-      {/* Bottom Navigation */}
-      <nav className="bg-white border-t border-slate-100 px-6 pt-4 pb-10 flex items-center justify-around fixed bottom-0 left-0 right-0 z-50">
-        <button type="button"
+      {/* Bottom Navigation (RoleBottomNav style with 5 slots: Inicio, Tienda, Cobrar (FAB), Carrito, Perfil) */}
+      <nav className="absolute bottom-3 left-3 right-3 z-40 flex h-[70px] items-center justify-around rounded-[30px] border border-slate-950/[0.06] bg-white/95 px-3 shadow-[0_16px_40px_-8px_rgba(15,23,42,0.30),inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-xl">
+        {/* Slot 1: Inicio */}
+        <button
+          type="button"
           onClick={() => setActiveTab("home")}
           className={cn(
-            "flex flex-col items-center space-y-1 transition-all",
-            activeTab === "home" ? "text-indigo-600 scale-110" : "text-slate-300"
+            "relative flex flex-1 flex-col items-center gap-1 text-slate-400 transition-transform",
+            activeTab === "home" && "-translate-y-0.5 text-indigo-600"
           )}
+          aria-label="Inicio"
         >
-          <Home size={24} />
-          <span className="text-[10px] font-black uppercase tracking-tight">Inicio</span>
+          {activeTab === "home" && <span className="absolute -top-1 size-1.5 rounded-full bg-indigo-600 shadow-[0_0_0_4px_rgba(79,70,229,0.15)]" />}
+          <Home size={20} strokeWidth={activeTab === "home" ? 2.6 : 2} />
+          <span className="text-[8px] font-black uppercase tracking-[0.04em]">Inicio</span>
         </button>
-        <button type="button"
+
+        {/* Slot 2: Tienda */}
+        <button
+          type="button"
           onClick={() => setActiveTab("shop")}
           className={cn(
-            "flex flex-col items-center space-y-1 transition-all",
-            activeTab === "shop" ? "text-indigo-600 scale-110" : "text-slate-300"
+            "relative flex flex-1 flex-col items-center gap-1 text-slate-400 transition-transform",
+            activeTab === "shop" && "-translate-y-0.5 text-indigo-600"
           )}
+          aria-label="Tienda"
         >
-          <Store size={24} />
-          <span className="text-[10px] font-black uppercase tracking-tight">Tienda</span>
+          {activeTab === "shop" && <span className="absolute -top-1 size-1.5 rounded-full bg-indigo-600 shadow-[0_0_0_4px_rgba(79,70,229,0.15)]" />}
+          <Store size={20} strokeWidth={activeTab === "shop" ? 2.6 : 2} />
+          <span className="text-[8px] font-black uppercase tracking-[0.04em]">Tienda</span>
         </button>
-        
-        <div className="relative -mt-8 z-20">
-          <motion.button 
-            type="button" 
+
+        {/* Slot 3: FAB Cobrar */}
+        <div className="relative flex-1 flex justify-center -mt-9">
+          <motion.button
+            type="button"
             whileTap={{ scale: 0.95 }}
-            onClick={() => setActiveTab("cart")}
-            className={cn(
-              "w-16 h-16 rounded-full flex flex-col items-center justify-center transition-all border-4 border-white shadow-lg relative",
-              activeTab === "cart" 
-                ? "bg-indigo-600 text-white shadow-[0_8px_20px_-6px_rgba(79,70,229,0.6)] scale-105" 
-                : "bg-indigo-500 text-white hover:bg-indigo-600 shadow-[0_6px_16px_-6px_rgba(99,102,241,0.4)]"
-            )}
-            aria-label="Ver Carrito de Compras"
+            onClick={() => {
+              if (cart.length === 0) {
+                alert("🛒 El carrito está vacío. Agrega productos de la Tienda.");
+                setActiveTab("shop");
+              } else if (activeTab === "cart") {
+                initiatePayment();
+              } else {
+                setActiveTab("cart");
+              }
+            }}
+            aria-label="Cobrar"
+            className="sf-tap relative grid size-[60px] place-items-center rounded-3xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-white shadow-[0_16px_28px_-6px_rgba(79,70,229,0.55)]"
           >
-            <ShoppingCart size={22} className="mb-0.5" />
-            <span className="text-[8px] font-black uppercase tracking-tight">Carrito</span>
-            {cartCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black size-5 rounded-full flex items-center justify-center border-2 border-white">
+            <Zap size={24} strokeWidth={2.7} className={cn(cart.length > 0 && "animate-pulse")} />
+            {cart.length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 border-2 border-white text-white font-mono text-[9px] font-black size-5 rounded-full flex items-center justify-center shadow-md animate-bounce">
                 {cartCount}
               </span>
             )}
           </motion.button>
         </div>
 
-        <button type="button" 
+        {/* Slot 4: Carrito */}
+        <button
+          type="button"
+          onClick={() => setActiveTab("cart")}
+          className={cn(
+            "relative flex flex-1 flex-col items-center gap-1 text-slate-400 transition-transform",
+            activeTab === "cart" && "-translate-y-0.5 text-indigo-600"
+          )}
+          aria-label="Carrito"
+        >
+          {activeTab === "cart" && <span className="absolute -top-1 size-1.5 rounded-full bg-indigo-600 shadow-[0_0_0_4px_rgba(79,70,229,0.15)]" />}
+          <div className="relative">
+            <ShoppingCart size={20} strokeWidth={activeTab === "cart" ? 2.6 : 2} />
+            {cartCount > 0 && activeTab !== "cart" && (
+              <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white text-[8px] font-black size-4 rounded-full flex items-center justify-center border border-white">
+                {cartCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[8px] font-black uppercase tracking-[0.04em]">Carrito</span>
+        </button>
+
+        {/* Slot 5: Perfil */}
+        <button
+          type="button"
           onClick={() => setActiveTab("profile")}
           className={cn(
-            "flex flex-col items-center space-y-1 transition-all",
-            activeTab === "profile" ? "text-indigo-600 scale-110" : "text-slate-300"
+            "relative flex flex-1 flex-col items-center gap-1 text-slate-400 transition-transform",
+            activeTab === "profile" && "-translate-y-0.5 text-indigo-600"
           )}
+          aria-label="Perfil"
         >
-          <User size={24} />
-          <span className="text-[10px] font-black uppercase tracking-tight">Perfil</span>
+          {activeTab === "profile" && <span className="absolute -top-1 size-1.5 rounded-full bg-indigo-600 shadow-[0_0_0_4px_rgba(79,70,229,0.15)]" />}
+          <User size={20} strokeWidth={activeTab === "profile" ? 2.6 : 2} />
+          <span className="text-[8px] font-black uppercase tracking-[0.04em]">Perfil</span>
         </button>
       </nav>
 

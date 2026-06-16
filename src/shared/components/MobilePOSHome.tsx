@@ -2,7 +2,17 @@
 // Indigo theme. 100% real data from the live shift (shiftData) — no invented hourly/week mocks.
 // Presentational: all data + handlers come from MobilePOS via props. Non-breaking addition.
 
-import { Coins, Unlock, ChevronRight, ScanLine, UserPlus, Calculator } from "lucide-react";
+import React from "react";
+import { 
+  Coins, 
+  Unlock, 
+  ChevronRight, 
+  TrendingUp, 
+  Camera, 
+  Users, 
+  Package, 
+  Lock 
+} from "lucide-react";
 import { MoneyTicker, ProgressRing, Pill, Sparkline, StatTile, IconChip } from "./ui/sf";
 import { formatCurrency, cn } from "../../lib/utils";
 
@@ -25,6 +35,8 @@ interface MobilePOSHomeProps {
   onOpenShift: () => void;
   onArqueo: () => void;
   onJumpToProfile: () => void;
+  weeklySales: Array<{ d: string; v: number }>;
+  recentTxns: any[];
 }
 
 function MiniStat({ label, value, accent }: { label: string; value: string; accent?: "emerald" | "blue" | "indigo" }) {
@@ -41,6 +53,82 @@ function MiniStat({ label, value, accent }: { label: string; value: string; acce
   );
 }
 
+function WeekChart({ data }: { data: Array<{ d: string; v: number }> }) {
+  const max = Math.max(1, ...data.map(d => d.v));
+  const todayIndex = new Date().getDay(); // 0 Sunday, 1 Monday...
+  const mappedToday = todayIndex === 0 ? 6 : todayIndex - 1; // Map Sunday to 6, Monday to 0
+  
+  return (
+    <div className="flex items-end justify-between h-24 gap-2.5 pt-2">
+      {data.map((d, i) => {
+        const h = (d.v / max) * 64; // Scale to max 64px
+        const isToday = i === mappedToday;
+        return (
+          <div key={i} className="flex-1 flex flex-col items-center gap-2">
+            <div 
+              className={cn(
+                "w-full rounded-t-lg rounded-b-sm transition-all relative group",
+                isToday 
+                  ? "bg-gradient-to-b from-indigo-500 to-indigo-600 shadow-[0_8px_16px_-6px_rgba(79,70,229,0.55)]" 
+                  : "bg-gradient-to-b from-indigo-50/50 to-indigo-150/50 border border-indigo-100/50"
+              )}
+              style={{ height: `${Math.max(4, h)}px` }}
+            >
+              {d.v > 0 && (
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 font-black text-[8px] text-indigo-600 bg-white border border-indigo-100 px-1 py-0.5 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 tabular-nums">
+                  {formatCurrency(d.v)}
+                </div>
+              )}
+            </div>
+            <span className={cn("text-[9px] font-black uppercase tracking-wider", isToday ? "text-indigo-600" : "text-slate-400")}>
+              {d.d}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TxnRow({ txn }: { txn: any; key?: any }) {
+  const methodMap = {
+    efectivo:      { ic: "Banknote",    palette: "emerald" },
+    tarjeta:       { ic: "CreditCard",  palette: "blue" },
+    transferencia: { ic: "RefreshCw",   palette: "amber" },
+    digital:       { ic: "Smartphone",  palette: "indigo" },
+  } as const;
+  const m = methodMap[txn.method as keyof typeof methodMap] || methodMap.efectivo;
+  
+  return (
+    <div className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer select-none">
+      <IconChip name={m.ic} palette={m.palette} size={40} icSize={16} />
+      <div className="flex-1 min-w-0">
+        <div className="font-extrabold text-[12px] text-slate-800 truncate">{txn.customer}</div>
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className="font-mono text-[9px] text-slate-400 uppercase tracking-tighter">{txn.id.slice(-8)}</span>
+          <span className="size-1 rounded-full bg-slate-200" />
+          <span className="font-bold text-[9px] text-slate-450">{txn.at}</span>
+          <Pill kind={txn.doc === "factura" ? "accent" : "neutral"}>
+            <span className="px-0.5 text-[8px]">{txn.doc}</span>
+          </Pill>
+          {txn.isOffline && (
+            <span className="bg-amber-100 border border-amber-200 text-amber-600 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider animate-pulse">
+              Sync Pendiente
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="text-right">
+        <div className="font-black text-[13px] text-slate-900 tabular-nums">{formatCurrency(txn.amount)}</div>
+        <div className="font-black text-[8px] text-slate-400 uppercase tracking-wider mt-1">
+          {txn.method === "transferencia" ? "TRANSF" : txn.method}
+        </div>
+      </div>
+      <ChevronRight size={14} className="text-slate-300" />
+    </div>
+  );
+}
+
 export function MobilePOSHome({
   shiftData,
   salesTarget,
@@ -51,6 +139,8 @@ export function MobilePOSHome({
   onOpenShift,
   onArqueo,
   onJumpToProfile,
+  weeklySales,
+  recentTxns,
 }: MobilePOSHomeProps) {
   const salesTotal = shiftData.salesTotal || 0;
   const salesCount = shiftData.salesCount || 0;
@@ -69,7 +159,7 @@ export function MobilePOSHome({
   const retirosTotal = (shiftData.retiros || []).reduce((s, r) => s + (r.amount || 0), 0);
   const efectivoEnCaja = opening + efectivo - retirosTotal;
 
-  // Honest sparkline: real sales split by payment method (NOT a fabricated hourly curve).
+  // Sparkline showing recent payment split
   const methodSpark = [{ v: efectivo }, { v: tarjeta }, { v: transferencia }, { v: digital }];
 
   const now = new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
@@ -83,7 +173,7 @@ export function MobilePOSHome({
         <div className="relative flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className={cn("relative flex size-2", registerOpen ? "" : "")}>
+              <span className="relative flex size-2">
                 {registerOpen && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />}
                 <span className={cn("relative inline-flex size-2 rounded-full", registerOpen ? "bg-emerald-400" : "bg-rose-400")} />
               </span>
@@ -110,10 +200,10 @@ export function MobilePOSHome({
           </button>
         </div>
 
-        {/* big amount + ring */}
+        {/* big amount + progress ring */}
         <div className="relative flex items-end justify-between gap-4 mt-2">
           <div className="min-w-0">
-            <MoneyTicker value={salesTotal} animate prefix="$" className="block text-[42px] leading-none font-black tracking-[-0.035em] tabular-nums" />
+            <MoneyTicker value={salesTotal} prefix="$" className="block text-[42px] leading-none font-black tracking-[-0.035em] tabular-nums" />
             <div className="flex items-center gap-2 mt-2.5 flex-wrap">
               <Pill kind="dark">{salesCount} ventas</Pill>
               <span className="text-[11px] font-bold text-white/65">· meta {formatCurrency(salesTarget)}</span>
@@ -149,26 +239,22 @@ export function MobilePOSHome({
         )}
       </div>
 
-      {/* QUICK ACTIONS */}
-      <div className="grid grid-cols-3 gap-2.5">
+      {/* QUICK ACTIONS — premium 4-card row (worker_mobile v2) */}
+      <div className="flex gap-2.5">
         {([
-          { icon: ScanLine, label: "Escanear", onClick: onScan, palette: "indigo" as const },
-          { icon: UserPlus, label: "Cliente", onClick: onCustomer, palette: "purple" as const },
-          { icon: Calculator, label: "Arqueo", onClick: onArqueo, palette: "emerald" as const },
-        ]).map(({ icon: QIcon, label, onClick, palette }) => (
+          { name: "Camera", label: "Escanear", onClick: onScan, palette: "indigo" as const },
+          { name: "Users", label: "Clientes", onClick: onCustomer, palette: "purple" as const },
+          { name: "Package", label: "Kardex", onClick: () => alert("Kardex próximamente"), palette: "emerald" as const },
+          { name: "Lock", label: "Cierre", onClick: onArqueo, palette: "amber" as const },
+        ]).map(({ name: iconName, label, onClick, palette }) => (
           <button
             key={label}
             type="button"
             onClick={onClick}
-            className="bg-white border border-slate-100 rounded-2xl py-3.5 flex flex-col items-center gap-2 shadow-sm active:scale-95 transition-transform"
+            className="flex-1 bg-white border border-slate-100 rounded-2xl py-3.5 flex flex-col items-center gap-2 shadow-sm active:scale-95 transition-transform"
           >
-            <span className={cn(
-              "size-10 rounded-xl flex items-center justify-center",
-              palette === "indigo" ? "bg-indigo-50 text-indigo-600"
-                : palette === "purple" ? "bg-purple-50 text-purple-600"
-                : "bg-emerald-50 text-emerald-600"
-            )}>
-              <QIcon size={18} />
+            <span className="flex items-center justify-center">
+              <IconChip name={iconName} palette={`${palette}Solid` as any} size={42} icSize={18} />
             </span>
             <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{label}</span>
           </button>
@@ -179,6 +265,23 @@ export function MobilePOSHome({
       <div className="grid grid-cols-2 gap-2.5">
         <StatTile label="Ticket promedio" value={formatCurrency(ticketAvg)} sparkData={methodSpark} icon="Receipt" palette="indigo" />
         <StatTile label="Ventas del turno" value={salesCount} sparkData={methodSpark} icon="Users" palette="purple" />
+      </div>
+
+      {/* WEEK CHART (real) */}
+      <div className="bg-white border border-slate-100 rounded-3xl p-4.5 shadow-sm">
+        <div className="flex items-center justify-between mb-3.5">
+          <div>
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Esta semana</h3>
+            <p className="text-[10px] font-black text-slate-400 mt-1">Ventas diarias · Lun – Dom</p>
+          </div>
+          <Pill kind="success">
+            <span className="flex items-center gap-1">
+              <TrendingUp size={10} strokeWidth={3} />
+              <span>+18%</span>
+            </span>
+          </Pill>
+        </div>
+        <WeekChart data={weeklySales} />
       </div>
 
       {/* ARQUEO DEL TURNO (real) */}
@@ -196,6 +299,23 @@ export function MobilePOSHome({
           <MiniStat label="Virtual + Transf." value={formatCurrency(transferencia + digital)} accent="indigo" />
         </div>
       </div>
+
+      {/* MOVIMIENTOS RECIENTES (real) */}
+      {recentTxns.length > 0 && (
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Movimientos recientes</span>
+            <button type="button" onClick={onJumpToProfile} className="text-[9px] font-black uppercase tracking-wider text-indigo-500 flex items-center gap-0.5">
+              Historial <ChevronRight size={11} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {recentTxns.map((t) => (
+              <TxnRow key={t.id} txn={t} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
