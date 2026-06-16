@@ -43,10 +43,6 @@ service cloud.firestore {
       return isAdmin() || isLogistics() || isSeller() || isDriver();
     }
 
-    function isCustomer() {
-      return isSignedIn() && request.auth.token.get('role', '') == 'customer';
-    }
-
     // C1 (Tier S): claim-only predicate for cost/supplier visibility.
     // owner ∨ admin ∨ manager ∨ logistics. seller/driver/customer/anon DENIED.
     // Pure custom claim (no /users doc-lookup) per CLAUDE.md §5 — keeps cost reads cheap.
