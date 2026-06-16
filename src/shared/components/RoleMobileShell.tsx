@@ -8,6 +8,7 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  LogOut,
   Menu,
   Package,
   PieChart,
@@ -403,6 +404,7 @@ function RoleTopBar({ role, accent, name, branchLabel, onLogout }: {
   branchLabel: string;
   onLogout: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="sticky top-0 z-30 flex h-[74px] items-center justify-between gap-3 border-b border-slate-950/[0.04] bg-[#f8f9fc]/80 px-4 backdrop-blur-xl">
       <div className="flex min-w-0 items-center gap-3">
@@ -424,9 +426,46 @@ function RoleTopBar({ role, accent, name, branchLabel, onLogout }: {
           <Bell size={15} />
           <span className="absolute right-2 top-2 size-1.5 rounded-full bg-rose-500" />
         </button>
-        <button type="button" onClick={onLogout} className="sf-tap grid size-9 place-items-center rounded-xl border border-slate-100 bg-white text-slate-500 shadow-sm" aria-label="Menu">
-          <Menu size={15} />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Menú"
+            aria-expanded={menuOpen}
+            className="sf-tap grid size-9 place-items-center rounded-xl border border-slate-100 bg-white text-slate-700 shadow-sm"
+          >
+            {menuOpen ? <X size={15} /> : <Menu size={15} />}
+          </button>
+          <AnimatePresence>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" aria-hidden onClick={() => setMenuOpen(false)} />
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.14 }}
+                  role="menu"
+                  className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl"
+                >
+                  <div className="border-b border-slate-50 px-3 py-2.5">
+                    <p className="truncate text-[11px] font-black text-slate-900">{name}</p>
+                    <p className="text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">{accent.subtitle}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setMenuOpen(false); onLogout(); }}
+                    className="sf-tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-[11px] font-bold text-rose-600 hover:bg-rose-50"
+                  >
+                    <LogOut size={13} />
+                    Cerrar sesión
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </header>
   );
