@@ -19,7 +19,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, getDocs, query, collection, where } from "firebase/firestore";
 
 let pass = 0;
 let fail = 0;
@@ -50,7 +50,8 @@ await env.withSecurityRulesDisabled(async (c) => {
   await setDoc(doc(db, "categories", "cat1"), { name: "Bebidas" });
   await setDoc(doc(db, "products", "prod1"), { name: "Item", price: 1000 });
   await setDoc(doc(db, "settings", "global"), { businessName: "X", currency: "CLP" });
-  await setDoc(doc(db, "coupons", "coup1"), { code: "X", active: true });
+  await setDoc(doc(db, "coupons", "coup-active"), { code: "ACT", active: true });
+  await setDoc(doc(db, "coupons", "coup-inactive"), { code: "INA", active: false });
 });
 
 console.log("=== /categories read — Fase A: signed-in ALLOW, anon DENY ===");
@@ -59,16 +60,32 @@ for (const r of ROLES) {
   await check(`${r} read /categories ALLOWED`, assertSucceeds(read(ctx(r), "categories", "cat1")));
 }
 
-console.log("\n=== no-regression controls (unchanged public reads stay public) ===");
+console.log("\n=== no-regression controls (/products, /settings stay public) ===");
 await check("anon read /products ALLOWED (control)", assertSucceeds(read(anon, "products", "prod1")));
 await check("anon read /settings/global ALLOWED (control)", assertSucceeds(read(anon, "settings", "global")));
-await check("anon read /coupons ALLOWED (control, unchanged)", assertSucceeds(read(anon, "coupons", "coup1")));
+
+console.log("\n=== /coupons read — Fase B: public active-only; staff (isSeller) read all ===");
+const listAll = (c: any) => getDocs(query(collection(c.firestore(), "coupons")));
+const listActive = (c: any) => getDocs(query(collection(c.firestore(), "coupons"), where("active", "==", true)));
+await check("anon GET active coupon ALLOWED", assertSucceeds(read(anon, "coupons", "coup-active")));
+await check("anon GET inactive coupon DENIED", assertFails(read(anon, "coupons", "coup-inactive")));
+await check("anon list UNFILTERED DENIED", assertFails(listAll(anon)));
+await check("anon list where active==true ALLOWED", assertSucceeds(listActive(anon)));
+await check("customer GET active coupon ALLOWED", assertSucceeds(read(ctx("customer"), "coupons", "coup-active")));
+await check("customer GET inactive coupon DENIED", assertFails(read(ctx("customer"), "coupons", "coup-inactive")));
+await check("customer list UNFILTERED DENIED", assertFails(listAll(ctx("customer"))));
+await check("seller GET inactive coupon ALLOWED (POS 'Inactivo')", assertSucceeds(read(ctx("seller"), "coupons", "coup-inactive")));
+await check("seller list UNFILTERED ALLOWED", assertSucceeds(listAll(ctx("seller"))));
+await check("admin GET inactive coupon ALLOWED", assertSucceeds(read(ctx("admin"), "coupons", "coup-inactive")));
+await check("admin list UNFILTERED ALLOWED (Settings mgmt)", assertSucceeds(listAll(ctx("admin"))));
+await check("logistics GET inactive coupon DENIED (not isSeller)", assertFails(read(ctx("logistics"), "coupons", "coup-inactive")));
+await check("driver GET inactive coupon DENIED (not isSeller)", assertFails(read(ctx("driver"), "coupons", "coup-inactive")));
 
 await env.cleanup();
 
 console.log("");
 if (fail === 0) {
-  console.log(`🏁 FIRESTORE RULES PROBE GREEN — ${pass}/${pass} assertions passed (Fase A).`);
+  console.log(`🏁 FIRESTORE RULES PROBE GREEN — ${pass}/${pass} assertions passed (Fase A + B).`);
   process.exit(0);
 } else {
   console.log(`❌ FIRESTORE RULES PROBE RED — ${fail} failed, ${pass} passed.`);

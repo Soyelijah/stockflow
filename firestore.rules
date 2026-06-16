@@ -337,7 +337,11 @@ service cloud.firestore {
     }
 
     match /coupons/{couponId} {
-      allow read: if true;
+      // P5 Fase B: public/customer/anon read only ACTIVE coupons; staff (isSeller =
+      // owner/admin/manager/seller) read all — POS/MobilePOS read inactive to show the
+      // "Inactivo" message, and Settings lists all for management. An UNFILTERED public
+      // list is rejected, so the CustomerPortal listener queries where('active','==',true).
+      allow read: if resource.data.active == true || isSeller();
       allow write: if isAdmin();
     }
 
