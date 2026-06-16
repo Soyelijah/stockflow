@@ -65,11 +65,11 @@ export function ModernAlert({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200]"
           />
           
           {/* Modal Container */}
-          <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
+          <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}

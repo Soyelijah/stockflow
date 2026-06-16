@@ -104,7 +104,7 @@ export function CartSheet({
                   return (
                     <div
                       key={item.id}
-                      className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-x-4"
+                      className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center gap-x-2"
                     >
                       <div className="size-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm overflow-hidden select-none">
                         {product?.image ? (
@@ -125,7 +125,7 @@ export function CartSheet({
                         )}
                       </div>
                       <div className="flex-1 text-left min-w-0">
-                        <h4 className="text-[11px] font-black text-slate-800 line-clamp-1">
+                        <h4 className="text-[11px] font-black text-slate-800 line-clamp-2">
                           {item.name}
                         </h4>
                         <p className="text-[9px] font-bold text-slate-500">
@@ -141,7 +141,7 @@ export function CartSheet({
                         <button
                           type="button"
                           onClick={() => onUpdateQuantity(item.id, -1)}
-                          className="size-6 flex items-center justify-center text-slate-400 hover:text-rose-500 cursor-pointer"
+                          className="size-5 flex items-center justify-center text-slate-400 hover:text-rose-500 cursor-pointer"
                         >
                           <Minus size={10} />
                         </button>
@@ -159,12 +159,12 @@ export function CartSheet({
                               );
                             }
                           }}
-                          className="w-8 text-center bg-transparent border-none text-[10px] font-black text-slate-800 focus:ring-0 p-0"
+                          className="w-6 text-center bg-transparent border-none text-[10px] font-black text-slate-800 focus:ring-0 p-0"
                         />
                         <button
                           type="button"
                           onClick={() => onUpdateQuantity(item.id, 1)}
-                          className="size-6 flex items-center justify-center text-slate-400 hover:text-indigo-600 cursor-pointer"
+                          className="size-5 flex items-center justify-center text-slate-400 hover:text-indigo-600 cursor-pointer"
                         >
                           <Plus size={10} />
                         </button>
@@ -172,7 +172,7 @@ export function CartSheet({
                       <button
                         type="button"
                         onClick={() => onRemoveFromCart(item.id)}
-                        className="p-1 text-slate-300 hover:text-rose-500 transition-colors cursor-pointer shrink-0"
+                        className="p-0.5 text-slate-300 hover:text-rose-500 transition-colors cursor-pointer shrink-0"
                       >
                         <Trash2 size={14} />
                       </button>
