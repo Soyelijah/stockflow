@@ -757,8 +757,6 @@ export function Settings() {
               ...(token ? { "Authorization": `Bearer ${token}` } : {})
             },
             body: JSON.stringify({
-              operatorEmail: profile?.email || "admin@stockflow.com",
-              operatorUid: profile?.uid || "sys",
               action: "ROLE_CHANGE",
               targetId: userId,
               details: { previousRole, newRole, branchId }

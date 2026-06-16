@@ -5,21 +5,41 @@ import { requireAuthBearer, AuditLogSchema, AuthenticatedRequest } from "../serv
 
 export const auditRouter = Router();
 
+type AuditLogPayload = {
+  action: string;
+  targetId?: string;
+  details?: Record<string, unknown>;
+};
+
+export function buildAuditLogRecord(
+  parsed: AuditLogPayload,
+  user: AuthenticatedRequest["user"],
+  ipAddress: string
+) {
+  const { action, targetId, details } = parsed;
+
+  return {
+    operatorEmail: user?.email || "sistema@stockflow.com",
+    operatorUid: user?.uid || "sys-cron",
+    action,
+    targetId,
+    details: details || {},
+    ipAddress,
+    timestamp: admin.firestore.FieldValue.serverTimestamp()
+  };
+}
+
 // Endpoint for the React client to post custom high-integrity audit logs
 auditRouter.post("/audit/log", requireAuthBearer as any, async (req: AuthenticatedRequest, res) => {
   try {
     // Validate payload with Zod
     const parsed = AuditLogSchema.parse(req.body);
 
-    const docRef = await adminDb.collection("role_audit").add({
-      operatorEmail: parsed.operatorEmail || req.user?.email || "sistema@stockflow.com",
-      operatorUid: parsed.operatorUid || req.user?.uid || "sys-cron",
-      action: parsed.action,
-      targetId: parsed.targetId,
-      details: parsed.details || {},
-      ipAddress: req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1",
-      timestamp: admin.firestore.FieldValue.serverTimestamp()
-    });
+    const docRef = await adminDb.collection("role_audit").add(buildAuditLogRecord(
+      parsed,
+      req.user,
+      req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1"
+    ));
 
     res.json({ success: true, id: docRef.id });
   } catch (err: any) {

@@ -197,8 +197,6 @@ export function Expenses() {
                 ...(token ? { "Authorization": `Bearer ${token}` } : {})
               },
               body: JSON.stringify({
-                operatorEmail: user?.email || "sistema@stockflow.com",
-                operatorUid: user?.uid || "sys",
                 action: "EXPENSE_DELETED",
                 targetId: id,
                 details: { description }
@@ -259,8 +257,6 @@ export function Expenses() {
             ...(token ? { "Authorization": `Bearer ${token}` } : {})
           },
           body: JSON.stringify({
-            operatorEmail: user?.email || "sistema@stockflow.com",
-            operatorUid: user?.uid || "sys",
             action: editingExpense ? "EXPENSE_MODIFIED" : "EXPENSE_CREATED",
             targetId: editingExpense ? editingExpense.id : "new-expense",
             details: { ...formData, id: editingExpense?.id }
