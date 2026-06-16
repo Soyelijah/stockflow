@@ -174,7 +174,11 @@ service cloud.firestore {
     }
 
     match /categories/{catId} {
-      allow read: if true; // Public for Customer Portal
+      // P5 Fase A: tightened from public → signed-in. Categories have NO anonymous
+      // consumer — the public CustomerPortal derives categories from /products and
+      // never reads /categories; all real readers (Inventory/Logistics/CategoryManager)
+      // are authenticated staff. create/update/delete unchanged.
+      allow read: if isSignedIn();
       allow write: if isAdmin() || isLogistics();
     }
 
