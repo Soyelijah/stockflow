@@ -1022,7 +1022,10 @@ export function CustomerPortal() {
   // Seed default clients on mount to ensure test credentials always exist
   // Sync real-time active coupons from Firestore
   useEffect(() => {
-    const q = query(collection(db, "coupons"));
+    // P5 Fase B: filter to active server-side. Backward-compatible with the current
+    // public rule, and required once /coupons read tightens to `active==true || isSeller()`.
+    // The client-side .filter(c => c.active) below is kept as defense-in-depth.
+    const q = query(collection(db, "coupons"), where("active", "==", true));
     const unsub = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Coupon));
       setCoupons(docs.filter(c => c.active));
