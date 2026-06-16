@@ -194,6 +194,7 @@ export function CustomerPortal() {
       loyaltyCouponMessage: (code: string, desc: string) => `Presenta el código "${code}" en la caja del local para aplicar un ${desc}.`,
       businessCouponMessage: (code: string, desc: string) => `Presenta el código "${code}" en caja para aplicar: ${desc}.`,
       registeredInSystem: "REGISTRADO EN SISTEMA",
+      requiresTier: (tier: string) => `Requiere ${tier}`,
       pointsMissingForCoupon: (pts: number, desc: string) => `Faltan ${pts} pts para este cupón (${desc})`,
       // Wallet Screen
       digitalCardTitle: "Tu Tarjeta Digital",
@@ -479,6 +480,7 @@ export function CustomerPortal() {
       loyaltyCouponMessage: (code: string, desc: string) => `Present code "${code}" at checkout to apply ${desc}.`,
       businessCouponMessage: (code: string, desc: string) => `Present code "${code}" at checkout to apply: ${desc}.`,
       registeredInSystem: "REGISTERED IN SYSTEM",
+      requiresTier: (tier: string) => `Requires ${tier}`,
       pointsMissingForCoupon: (pts: number, desc: string) => `${pts} pts left for this coupon (${desc})`,
       // Wallet Screen
       digitalCardTitle: "Your Digital Card",
@@ -3031,24 +3033,6 @@ export function CustomerPortal() {
                           </div>
                         )}
 
-                        {/* Show next upcoming locked company coupon if any */}
-                        {coupons.filter(c => !eligibleRealCoupons.some(erc => erc.id === c.id)).slice(0, 1).map((lockedC) => {
-                          const minPointsNeeded = (LOYALTY_TIERS as any)[lockedC.minTier]?.min || 0;
-                          return (
-                            <div key={lockedC.id} className="p-5 rounded-[2rem] border border-slate-100 bg-slate-50 flex items-center justify-between opacity-60">
-                              <div className="flex items-center gap-x-4">
-                                <div className="text-2xl">{lockedC.img || "🎟️"}</div>
-                                <div>
-                                  <h4 className="font-bold text-xs text-slate-800">{lockedC.title}</h4>
-                                  <p className="sf-microlabel text-slate-500 mt-0.5">
-                                    {t[lang].levelLabel} {lockedC.minTier} ({minPointsNeeded} pts)
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-slate-400"><Lock size={16} /></div>
-                            </div>
-                          );
-                        })}
 
                         {!hasUnlocked && coupons.length === 0 && (
                           <div className="p-5 text-center text-slate-400 rounded-3xl bg-slate-50 border border-slate-100">
@@ -3512,7 +3496,7 @@ export function CustomerPortal() {
                     {coupons.length > 0 ? (
                       <div className="grid grid-cols-1 gap-4">
                         {coupons.map((offer, idx) => {
-                          const isEligible = customer.points >= (LOYALTY_TIERS as any)[offer.minTier].min;
+                          const isEligible = (customer.points || 0) >= ((LOYALTY_TIERS as any)[offer.minTier]?.min || 0);
                           const isUsed = customer?.usedCoupons && customer.usedCoupons.includes(offer.code);
                           
                           const mappedCoupon = {
@@ -3524,7 +3508,8 @@ export function CustomerPortal() {
                             expiry: lang === "es" ? "Sin expira" : "No expiry",
                             color: getCouponHexColor(offer.color),
                             icon: offer.img === "🍎" ? "percent" : offer.img === "🧼" ? "gift" : "percent",
-                            claimed: activatedOffers.includes(offer.id)
+                            claimed: activatedOffers.includes(offer.id),
+                            minTier: offer.minTier
                           };
 
                           return (
@@ -3532,6 +3517,8 @@ export function CustomerPortal() {
                               key={offer.id || idx}
                               coupon={mappedCoupon}
                               customerPoints={customer.points || 0}
+                              lockedLabel={t[lang].locked}
+                              tierLabel={offer.minTier ? t[lang].requiresTier(offer.minTier) : undefined}
                               onClaim={() => {
                                 if (!isEligible || isUsed) return;
                                 setAlertConfig({

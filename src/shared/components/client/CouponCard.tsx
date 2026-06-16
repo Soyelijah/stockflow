@@ -1,6 +1,6 @@
 import React from "react";
 import { Gift, Crown, Truck, Percent, Clock } from "lucide-react";
-import { cn } from "../../../lib/utils";
+import { cn, LOYALTY_TIERS } from "../../../lib/utils";
 import { Pill } from "../ui/sf/Pill";
 
 export interface Coupon {
@@ -13,6 +13,7 @@ export interface Coupon {
   color: string;
   icon: string;
   claimed?: boolean;
+  minTier?: "BRONZE" | "SILVER" | "GOLD" | "PLATINUM";
 }
 
 export interface CouponCardProps {
@@ -21,6 +22,8 @@ export interface CouponCardProps {
   onClaim?: () => void;
   onUse?: () => void;
   lang?: "es" | "en";
+  lockedLabel?: string;
+  tierLabel?: string;
   key?: React.Key;
 }
 
@@ -45,7 +48,12 @@ export function CouponCard({
   onClaim,
   onUse,
   lang = "es",
+  lockedLabel,
+  tierLabel,
 }: CouponCardProps) {
+  const minPointsRequired = coupon.minTier ? ((LOYALTY_TIERS as any)[coupon.minTier]?.min || 0) : 0;
+  const isTierEligible = customerPoints >= minPointsRequired;
+  const isLocked = !isTierEligible && !coupon.claimed;
   const affordable = customerPoints >= coupon.cost;
   const isClaimed = coupon.claimed;
   
@@ -54,7 +62,10 @@ export function CouponCard({
 
   return (
     <div
-      className="relative flex bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-[0_4px_14px_-8px_rgba(15,23,42,0.2)]"
+      className={cn(
+        "relative flex bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-[0_4px_14px_-8px_rgba(15,23,42,0.2)]",
+        isLocked && "opacity-60 grayscale-[25%]"
+      )}
       style={{ minHeight: 120 }}
     >
       {/* Left Perforated Ticket Block */}
@@ -92,6 +103,19 @@ export function CouponCard({
           >
             {coupon.code}
           </span>
+          {coupon.minTier && (
+            <span
+              className={cn(
+                "text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border",
+                coupon.minTier === "PLATINUM" ? "bg-slate-900 text-white border-slate-950"
+                : coupon.minTier === "GOLD" ? "bg-amber-50 text-amber-600 border-amber-100"
+                : coupon.minTier === "SILVER" ? "bg-slate-100 text-slate-600 border-slate-200"
+                : "bg-orange-50 text-orange-700 border-orange-100"
+              )}
+            >
+              {tierLabel || (lang === "es" ? `Requiere ${coupon.minTier}` : `Requires ${coupon.minTier}`)}
+            </span>
+          )}
           {isClaimed && (
             <Pill kind="success" className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5">
               {lang === "es" ? "Activo" : "Active"}
@@ -126,6 +150,14 @@ export function CouponCard({
             >
               {lang === "es" ? "Usar" : "Use"}
             </button>
+          ) : isLocked ? (
+            <button
+              type="button"
+              disabled
+              className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border-none text-slate-400 bg-slate-100 cursor-not-allowed shadow-none"
+            >
+              {lockedLabel || (lang === "es" ? "Bloqueado" : "Locked")}
+            </button>
           ) : (
             <button
               type="button"
@@ -146,7 +178,7 @@ export function CouponCard({
                   : undefined,
               }}
             >
-              {coupon.cost} pts
+              {coupon.cost > 0 ? `${coupon.cost} pts` : (lang === "es" ? "Reclamar" : "Claim")}
             </button>
           )}
         </div>
