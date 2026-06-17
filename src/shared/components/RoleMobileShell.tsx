@@ -1532,6 +1532,7 @@ function CreateTransferSheet({ open, onClose, branches, selectedBranchId, produc
           <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3">
             <Search size={14} className="text-slate-400" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre o SKU…"
+              aria-label="Buscar producto por nombre o SKU"
               className="w-full bg-transparent py-2.5 text-[13px] font-medium text-slate-900 outline-none placeholder-slate-400" />
           </div>
           {matches.length > 0 && (
@@ -1551,10 +1552,10 @@ function CreateTransferSheet({ open, onClose, branches, selectedBranchId, produc
                 <div key={it.productId} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
                   <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-800">{it.productName}</span>
                   <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={() => setQty(it.productId, -1)} className="sf-tap grid size-7 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600"><Minus size={13} strokeWidth={3} /></button>
+                    <button type="button" aria-label={`Quitar una unidad de ${it.productName}`} onClick={() => setQty(it.productId, -1)} className="sf-tap grid size-7 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600"><Minus size={13} strokeWidth={3} /></button>
                     <span className="w-6 text-center text-[13px] font-black text-slate-900">{it.qty}</span>
-                    <button type="button" onClick={() => setQty(it.productId, 1)} className="sf-tap grid size-7 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600"><Plus size={13} strokeWidth={3} /></button>
-                    <button type="button" onClick={() => removeItem(it.productId)} className="sf-tap ml-1 grid size-7 place-items-center rounded-lg text-rose-400"><Trash2 size={14} /></button>
+                    <button type="button" aria-label={`Agregar una unidad de ${it.productName}`} onClick={() => setQty(it.productId, 1)} className="sf-tap grid size-7 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600"><Plus size={13} strokeWidth={3} /></button>
+                    <button type="button" aria-label={`Eliminar ${it.productName} del traslado`} onClick={() => removeItem(it.productId)} className="sf-tap ml-1 grid size-7 place-items-center rounded-lg text-rose-400"><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))}
