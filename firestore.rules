@@ -150,6 +150,26 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Inter-branch stock transfers (P5 FAB action — Logística). Claim-based isLogistics
+    // (owner/admin/manager/logistics), branch-scoped by `branchId` (= origin sucursal).
+    // Status enum fixed: pending | in_transit | received.
+    match /transfers/{transferId} {
+      allow read, list: if isLogistics() && (isCrossBranch() || inMyBranch(resourceBranch()));
+      // Create: only "pending"; branchId must be a real branch in the creator's scope.
+      allow create: if isLogistics() &&
+        isValidBranchId(incomingBranch()) &&
+        (isCrossBranch() || inMyBranch(incomingBranch())) &&
+        incoming().status == 'pending';
+      // Update: ONLY status + dispatch/reception metadata may change. items/origin/
+      // destination/branchId are IMMUTABLE post-creation. Status confined to the enum.
+      allow update: if isLogistics() &&
+        (isCrossBranch() || inMyBranch(resourceBranch())) &&
+        incoming().diff(existing()).affectedKeys()
+          .hasOnly(['status', 'sentAt', 'sentBy', 'receivedAt', 'receivedBy', 'updatedAt']) &&
+        incoming().status in ['pending', 'in_transit', 'received'];
+      allow delete: if isAdmin();
+    }
+
     match /products/{productId} {
       // Catalog is global (single retailer's catalog shared across branches).
       // Per-branch inventory lives in /product_stock (Tier 1.1).

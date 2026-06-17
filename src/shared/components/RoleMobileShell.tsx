@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
   Bell,
   Building2,
   Camera,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   LogOut,
   Menu,
+  Minus,
   Package,
   PieChart,
   Plus,
@@ -26,10 +28,11 @@ import {
   X,
   Mail,
   Smartphone,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+import { addDoc, collection, limit, onSnapshot, orderBy, query, serverTimestamp, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useBranch } from "../../contexts/BranchContext";
@@ -199,9 +202,40 @@ export function RoleMobileShell() {
   const [selectedBranch, setSelectedBranch] = useState<any | null>(null);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
+  // P5 FAB action — Logística: inter-branch transfers (create sheet + live list).
+  const [transferSheetOpen, setTransferSheetOpen] = useState(false);
+  const [transfers, setTransfers] = useState<AnyDoc[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+
   useEffect(() => {
     setActiveTab(defaultTab[role]);
   }, [role]);
+
+  // Live /transfers for logistics/admin, branch-scoped. Cross-branch ("*") lists all;
+  // a pinned branch filters by branchId (no composite index → sorted client-side).
+  useEffect(() => {
+    if (role !== "logistics" && role !== "admin") return;
+    const base = collection(db, "transfers");
+    const q = selectedBranchId === "*"
+      ? query(base, orderBy("createdAt", "desc"), limit(60))
+      : query(base, where("branchId", "==", selectedBranchId), limit(60));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as AnyDoc[];
+        rows.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+        setTransfers(rows);
+      },
+      () => setTransfers([])
+    );
+    return () => unsub();
+  }, [role, selectedBranchId]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const branchLabel = useMemo(() => {
     if (selectedBranchId === "*") return "Centro";
@@ -335,7 +369,7 @@ export function RoleMobileShell() {
           {role === "logistics" && (
             <>
               {activeTab === "home" && <LogisticsHome deliveries={deliveries} stockAlerts={stockAlerts} onJump={setActiveTab} onOpenDelivery={setSelectedDelivery} />}
-              {activeTab === "transfers" && <TransfersTab />}
+              {activeTab === "transfers" && <TransfersTab transfers={transfers} branches={branches} onCreate={() => setTransferSheetOpen(true)} />}
               {activeTab === "kardex" && <KardexTab movements={data.movements} />}
               {activeTab === "profile" && <RoleProfile role={role} accent={accent} name={profile?.name || "Felipe"} email={profile?.email || ""} onLogout={logout} />}
             </>
@@ -356,11 +390,9 @@ export function RoleMobileShell() {
           onChange={setActiveTab}
           fabLabel={fab.label}
           onFab={() => {
-            if (role === "manager") {
-              // Si es Jefe, al pulsar el FAB abrimos aprobaciones en caso de que hubiese, o navegamos a equipo
-              setActiveTab(fab.target);
-            } else if (role === "logistics") {
-              setActiveTab(fab.target);
+            if (role === "logistics") {
+              // FAB acción real: abre el sheet de crear traslado (no solo navega).
+              setTransferSheetOpen(true);
             } else {
               setActiveTab(fab.target);
             }
@@ -392,6 +424,29 @@ export function RoleMobileShell() {
           onClose={() => setSelectedUser(null)}
           member={selectedUser}
         />
+        <CreateTransferSheet
+          open={transferSheetOpen}
+          onClose={() => setTransferSheetOpen(false)}
+          branches={branches}
+          selectedBranchId={selectedBranchId}
+          products={data.products}
+          profile={profile}
+          onCreated={() => setToast("Traslado creado · pendiente de envío")}
+        />
+
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              className="absolute inset-x-4 bottom-24 z-[60] flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-black text-white shadow-[0_16px_40px_rgba(15,23,42,0.3)]"
+            >
+              <Check size={14} strokeWidth={3} className="text-emerald-400" />
+              {toast}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -939,27 +994,76 @@ function DeliveryRow({ delivery, onTap }: { delivery: any; onTap?: (delivery: an
   );
 }
 
-function TransfersTab() {
-  // GAP (data integrity): there is NO inter-branch transfers collection or product
-  // definition yet, and /shipments are driver deliveries — not inter-branch transfers.
-  // We do NOT fabricate transfer records out of stock alerts. Honest empty state until the
-  // data model is defined (product decision). See vault Open Loops.
+const TRANSFER_STATUS_LABEL: Record<string, string> = {
+  pending: "Pendiente",
+  in_transit: "En ruta",
+  received: "Recibido",
+};
+
+function branchNameById(branches: any[], id: string): string {
+  if (id === "*") return "Todas";
+  const b = branches.find((x) => x.id === id);
+  return (b?.name || id || "—").replace(/^Sucursal\s+/i, "");
+}
+
+function TransfersTab({ transfers, branches, onCreate }: { transfers: AnyDoc[]; branches: any[]; onCreate: () => void }) {
+  const [filter, setFilter] = useState<string>("all");
+  const counts = {
+    pending: transfers.filter((t) => t.status === "pending").length,
+    in_transit: transfers.filter((t) => t.status === "in_transit").length,
+    received: transfers.filter((t) => t.status === "received").length,
+  };
+  const shown = filter === "all" ? transfers : transfers.filter((t) => t.status === filter);
   return (
     <div className="space-y-4 px-4">
       <div className="flex items-center justify-between">
         <h1 className="text-[22px] font-black tracking-[-0.025em] text-slate-950">Traslados</h1>
-        <Pill kind="accent">0 activos</Pill>
+        <Pill kind="accent">{counts.pending} activos</Pill>
       </div>
-      <Segmented value="all" onChange={() => undefined} options={[["all", "Todos"], ["pending", "Pendiente"], ["intransit", "En ruta"], ["received", "Recibido"]]} />
-      
-      {/* Transfers Tab KPI tiles: en cero real ya que no hay traslados */}
+      <Segmented value={filter} onChange={setFilter} options={[["all", "Todos"], ["pending", "Pendiente"], ["in_transit", "En ruta"], ["received", "Recibido"]]} />
+
       <div className="grid grid-cols-3 gap-2 rounded-[22px] border border-slate-100 bg-white p-3 shadow-sm">
-        <MiniStat label="Pendientes" value="0" accent="indigo" />
-        <MiniStat label="En ruta" value="0" accent="amber" />
-        <MiniStat label="Hoy total" value="0" accent="emerald" />
+        <MiniStat label="Pendientes" value={String(counts.pending)} accent="indigo" />
+        <MiniStat label="En ruta" value={String(counts.in_transit)} accent="amber" />
+        <MiniStat label="Recibidos" value={String(counts.received)} accent="emerald" />
       </div>
 
-      <EmptyState icon={RefreshCw} title="Sin traslados — módulo pendiente" />
+      <button
+        type="button"
+        onClick={onCreate}
+        className="sf-tap flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-blue-500/25"
+      >
+        <Plus size={15} strokeWidth={3} /> Crear nuevo traslado
+      </button>
+
+      {shown.length === 0 ? (
+        <EmptyState icon={RefreshCw} title={transfers.length === 0 ? "Sin traslados todavía" : "Sin traslados en este filtro"} />
+      ) : (
+        <div className="space-y-2.5">
+          {shown.map((t) => {
+            const itemCount = Array.isArray(t.items) ? t.items.reduce((s: number, it: any) => s + (Number(it.qty) || 0), 0) : 0;
+            return (
+              <div key={t.id} className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2 text-[13px] font-black text-slate-900">
+                    <span className="truncate">{branchNameById(branches, t.origin)}</span>
+                    <ArrowRight size={13} strokeWidth={3} className="shrink-0 text-blue-500" />
+                    <span className="truncate">{branchNameById(branches, t.destination)}</span>
+                  </div>
+                  <Pill kind={t.status === "received" ? "success" : t.status === "in_transit" ? "warning" : "accent"}>
+                    {TRANSFER_STATUS_LABEL[t.status] || t.status}
+                  </Pill>
+                </div>
+                <p className="mt-1.5 text-[10px] font-black uppercase tracking-[0.10em] text-slate-400">
+                  {itemCount} {itemCount === 1 ? "unidad" : "unidades"} · {Array.isArray(t.items) ? t.items.length : 0} ítems
+                  {t.createdByName ? ` · ${t.createdByName}` : ""}
+                </p>
+                {t.note ? <p className="mt-1 text-[11px] font-medium text-slate-500">{t.note}</p> : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1320,6 +1424,160 @@ interface SheetShellProps {
   children: React.ReactNode;
   height?: string;
   dark?: boolean;
+}
+
+interface TransferItem { productId: string; productName: string; qty: number }
+
+function CreateTransferSheet({ open, onClose, branches, selectedBranchId, products, profile, onCreated }: {
+  open: boolean;
+  onClose: () => void;
+  branches: any[];
+  selectedBranchId: string;
+  products: AnyDoc[];
+  profile: any;
+  onCreated: () => void;
+}) {
+  const pinned = selectedBranchId !== "*";
+  const realBranches = (branches || []).filter((b) => b.id && b.id !== "*");
+  const defaultOrigin = pinned ? selectedBranchId : (realBranches[0]?.id || "default");
+  const [origin, setOrigin] = useState<string>(defaultOrigin);
+  const [destination, setDestination] = useState<string>("");
+  const [items, setItems] = useState<TransferItem[]>([]);
+  const [note, setNote] = useState("");
+  const [search, setSearch] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset when (re)opened.
+  useEffect(() => {
+    if (open) {
+      setOrigin(defaultOrigin);
+      setDestination("");
+      setItems([]);
+      setNote("");
+      setSearch("");
+      setError(null);
+      setSubmitting(false);
+    }
+  }, [open, defaultOrigin]);
+
+  const matches = search.trim().length < 2 ? [] : (products || [])
+    .filter((p) => {
+      const q = search.trim().toLowerCase();
+      return String(p.name || "").toLowerCase().includes(q) || String(p.sku || p.barcode || "").toLowerCase().includes(q);
+    })
+    .filter((p) => !items.some((it) => it.productId === p.id))
+    .slice(0, 6);
+
+  const addItem = (p: AnyDoc) => { setItems((prev) => [...prev, { productId: p.id, productName: p.name || "Producto", qty: 1 }]); setSearch(""); };
+  const setQty = (id: string, delta: number) => setItems((prev) => prev.map((it) => it.productId === id ? { ...it, qty: Math.max(1, it.qty + delta) } : it));
+  const removeItem = (id: string) => setItems((prev) => prev.filter((it) => it.productId !== id));
+
+  const destinationOptions = realBranches.filter((b) => b.id !== origin);
+
+  const submit = async () => {
+    setError(null);
+    if (!origin || origin === "*") { setError("Selecciona la sucursal de origen."); return; }
+    if (!destination) { setError("Selecciona la sucursal de destino."); return; }
+    if (destination === origin) { setError("El destino debe ser distinto al origen."); return; }
+    if (items.length === 0) { setError("Agrega al menos un producto."); return; }
+    setSubmitting(true);
+    try {
+      await addDoc(collection(db, "transfers"), {
+        origin,
+        destination,
+        items: items.map((it) => ({ productId: it.productId, productName: it.productName, qty: it.qty })),
+        note: note.trim(),
+        status: "pending",
+        branchId: origin,
+        createdBy: profile?.uid || "",
+        createdByName: profile?.name || profile?.email || "Logística",
+        createdAt: serverTimestamp(),
+      });
+      onCreated();
+      onClose();
+    } catch (e: any) {
+      setError(e?.code === "permission-denied" ? "Sin permisos para crear el traslado." : "No se pudo crear el traslado. Intenta de nuevo.");
+      setSubmitting(false);
+    }
+  };
+
+  const branchName = (id: string) => (realBranches.find((b) => b.id === id)?.name || id || "—").replace(/^Sucursal\s+/i, "");
+
+  return (
+    <SheetShell open={open} onClose={onClose} title="Nuevo traslado" subtitle="Entre sucursales · Logística" height="86%">
+      <div className="space-y-3.5">
+        {/* Origen / Destino */}
+        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400 mb-2">Sucursal de origen</p>
+          {pinned ? (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-black text-slate-900">{branchName(origin)}</div>
+          ) : (
+            <select value={origin} onChange={(e) => { setOrigin(e.target.value); if (e.target.value === destination) setDestination(""); }}
+              className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none">
+              {realBranches.map((b) => <option key={b.id} value={b.id}>{branchName(b.id)}</option>)}
+            </select>
+          )}
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400 mb-2 mt-3.5">Sucursal de destino</p>
+          <select value={destination} onChange={(e) => setDestination(e.target.value)}
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none">
+            <option value="">Selecciona destino…</option>
+            {destinationOptions.map((b) => <option key={b.id} value={b.id}>{branchName(b.id)}</option>)}
+          </select>
+        </div>
+
+        {/* Productos */}
+        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400 mb-2">Productos a trasladar</p>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3">
+            <Search size={14} className="text-slate-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre o SKU…"
+              className="w-full bg-transparent py-2.5 text-[13px] font-medium text-slate-900 outline-none placeholder-slate-400" />
+          </div>
+          {matches.length > 0 && (
+            <div className="mt-2 overflow-hidden rounded-xl border border-slate-100">
+              {matches.map((p) => (
+                <button key={p.id} type="button" onClick={() => addItem(p)}
+                  className="sf-tap flex w-full items-center justify-between gap-2 border-b border-slate-100 bg-white px-3 py-2.5 text-left last:border-b-0 hover:bg-blue-50/40">
+                  <span className="truncate text-[12px] font-bold text-slate-800">{p.name}</span>
+                  <Plus size={14} strokeWidth={3} className="shrink-0 text-blue-600" />
+                </button>
+              ))}
+            </div>
+          )}
+          {items.length > 0 && (
+            <div className="mt-2.5 space-y-2">
+              {items.map((it) => (
+                <div key={it.productId} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-800">{it.productName}</span>
+                  <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={() => setQty(it.productId, -1)} className="sf-tap grid size-7 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600"><Minus size={13} strokeWidth={3} /></button>
+                    <span className="w-6 text-center text-[13px] font-black text-slate-900">{it.qty}</span>
+                    <button type="button" onClick={() => setQty(it.productId, 1)} className="sf-tap grid size-7 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600"><Plus size={13} strokeWidth={3} /></button>
+                    <button type="button" onClick={() => removeItem(it.productId)} className="sf-tap ml-1 grid size-7 place-items-center rounded-lg text-rose-400"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Nota */}
+        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400 mb-2">Nota (opcional)</p>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej. retiro en bodega central…"
+            className="w-full min-h-[56px] resize-none rounded-xl border border-slate-100 bg-slate-50 p-3 text-[13px] font-medium text-slate-900 outline-none placeholder-slate-400" />
+        </div>
+
+        {error && <p className="px-1 text-[11px] font-bold text-rose-600">{error}</p>}
+
+        <button type="button" disabled={submitting} onClick={submit}
+          className="sf-tap flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-[12px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-blue-500/25 disabled:opacity-60">
+          {submitting ? "Creando…" : <><RefreshCw size={15} strokeWidth={3} /> Crear traslado</>}
+        </button>
+      </div>
+    </SheetShell>
+  );
 }
 
 function SheetShell({ open, onClose, title, subtitle, children, height = "auto", dark = false }: SheetShellProps) {
