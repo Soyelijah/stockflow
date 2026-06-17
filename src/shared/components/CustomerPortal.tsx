@@ -1314,12 +1314,14 @@ export function CustomerPortal() {
 
     try {
       setLoading(true);
-      const newPoints = (customer.points || 0) - reward.pointsCost;
-      
+
       const randHex = Math.random().toString(36).substring(2, 8).toUpperCase();
       const validationCode = `RDM-${reward.id.replace('rew-', '').substring(0, 4).toUpperCase()}-${randHex}`;
 
-      // 1. Create a redemption receipt doc in Firestore
+      // Create a PENDING redemption request ONLY. Security (staff-mediated model): the client
+      // must NOT deduct points nor write a transaction — points are deducted STAFF-SIDE at the
+      // register when the validation code is presented (firestore.rules: only isSeller staff may
+      // update /customers.points and fulfill the redemption; self points-write is denied).
       await addDoc(collection(db, "redemptions"), {
         customerId: customer.id,
         customerName: customer.name || "Cliente",
@@ -1330,38 +1332,18 @@ export function CustomerPortal() {
         pointsCost: reward.pointsCost,
         validationCode: validationCode,
         status: "pending",
-        timestamp: new Date() // Fallback timestamp to keep query and sort fully local/immediate-friendly
-      });
-
-      // 2. Subtract points from the customer document
-      await updateDoc(doc(db, "customers", customer.id), {
-        points: newPoints
-      });
-
-      // 3. Log a special entry in transactions
-      await addDoc(collection(db, "transactions"), {
-        customerId: customer.id,
-        customerName: customer.name || "Cliente",
-        customerTaxId: customer.taxId || "Sin RUT",
-        productName: `[Canje de Premio] ${reward.name}`,
-        productId: reward.id,
-        quantity: 1,
-        amount: 0,
-        pointsAwarded: -reward.pointsCost,
-        type: "redemption",
-        branchId: "default",
-        timestamp: new Date()
+        timestamp: new Date() // local/immediate-friendly; server stamps fulfillment
       });
 
       setAlertConfig({
         isOpen: true,
         type: "success",
-        title: lang === "es" ? "¡Canje Realizado con Éxito! 🎉" : "Redemption Successful! 🎉",
+        title: lang === "es" ? "¡Canje Solicitado! 🎉" : "Redemption Requested! 🎉",
         message: lang === "es"
-          ? `Has canjeado ${reward.pointsCost} puntos por "${reward.name}". Muestra tu código de canje "${validationCode}" en caja para retirar tu producto físico.`
-          : `You have redeemed ${reward.pointsCost} points for "${reward.name}". Present your redemption code "${validationCode}" at checkout to retrieve your physical product.`
+          ? `Solicitaste "${reward.name}". Muestra tu código "${validationCode}" en caja para retirarlo; tus ${reward.pointsCost} puntos se descuentan al validarlo.`
+          : `You requested "${reward.name}". Present your code "${validationCode}" at the register to collect it; your ${reward.pointsCost} points are deducted on validation.`
       });
-      
+
       setRewardViewTab("vouchers");
     } catch (e: any) {
       console.error(e);

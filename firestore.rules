@@ -453,9 +453,27 @@ service cloud.firestore {
     }
 
     match /redemptions/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isAdmin() || resource.data.customerId == request.auth.uid;
+      // Loyalty reward redemptions (staff-mediated, no client points/transactions writes).
+      // Customer creates a PENDING request for THEMSELVES only and reads their own; points are
+      // deducted STAFF-SIDE at the register on fulfillment. Staff (isSeller = owner/admin/manager/
+      // seller) read all + fulfill (update status + deduct /customers.points). Customer cannot
+      // update (no self-fulfill, no status tampering, no pre-confirmed create). No deletes.
+      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isSeller());
+      allow create: if isSignedIn()
+        && incoming().customerId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().validationCode is string
+        && incoming().productId is string
+        && incoming().productName is string
+        && incoming().pointsCost is number && incoming().pointsCost > 0
+        && incoming().keys().hasOnly(['customerId', 'customerName', 'customerRUT', 'customerEmail', 'productId', 'productName', 'pointsCost', 'validationCode', 'status', 'timestamp']);
+      // Staff fulfill: ONLY a controlled pending→fulfilled|cancelled transition, touching ONLY
+      // status + optional fulfilledAt/fulfilledBy. Identity/economic fields (customerId, productId,
+      // productName, pointsCost, validationCode) are IMMUTABLE — a seller cannot rewrite them.
+      allow update: if isSeller()
+        && existing().status == 'pending'
+        && incoming().status in ['fulfilled', 'cancelled']
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'fulfilledAt', 'fulfilledBy']);
       allow delete: if false;
     }
 

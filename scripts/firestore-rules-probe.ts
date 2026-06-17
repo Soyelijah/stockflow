@@ -19,7 +19,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, getDocs, query, collection, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, getDocs, query, collection, where } from "firebase/firestore";
 
 let pass = 0;
 let fail = 0;
@@ -52,6 +52,7 @@ await env.withSecurityRulesDisabled(async (c) => {
   await setDoc(doc(db, "settings", "global"), { businessName: "X", currency: "CLP" });
   await setDoc(doc(db, "coupons", "coup-active"), { code: "ACT", active: true });
   await setDoc(doc(db, "coupons", "coup-inactive"), { code: "INA", active: false });
+  await setDoc(doc(db, "redemptions", "redeem1"), { customerId: "customer-uid", status: "pending", pointsCost: 100, productId: "rew-1" });
 });
 
 console.log("=== /categories read — Fase A: signed-in ALLOW, anon DENY ===");
@@ -81,11 +82,39 @@ await check("admin list UNFILTERED ALLOWED (Settings mgmt)", assertSucceeds(list
 await check("logistics GET inactive coupon DENIED (not isSeller)", assertFails(read(ctx("logistics"), "coupons", "coup-inactive")));
 await check("driver GET inactive coupon DENIED (not isSeller)", assertFails(read(ctx("driver"), "coupons", "coup-inactive")));
 
+console.log("\n=== /redemptions — staff-mediated: well-formed own-pending create; staff fulfill (immutable fields) ===");
+const customer2 = env.authenticatedContext("customer2-uid", { role: "customer" });
+const cust = ctx("customer"); // uid "customer-uid" == seeded redeem1.customerId
+const mkRedeem = (c: any, id: string, data: any) => setDoc(doc(c.firestore(), "redemptions", id), data);
+const upRedeem = (c: any, id: string, data: any) => updateDoc(doc(c.firestore(), "redemptions", id), data);
+const validRedeem = { customerId: "customer-uid", customerName: "c", customerRUT: "r", customerEmail: "e", productId: "rew-1", productName: "Premio", pointsCost: 100, validationCode: "RDM-X", status: "pending", timestamp: 1 };
+// CREATE
+await check("customer create OWN well-formed pending ALLOWED", assertSucceeds(mkRedeem(cust, "r-own", validRedeem)));
+await check("customer create FORGED customerId DENIED", assertFails(mkRedeem(cust, "r-forged", { ...validRedeem, customerId: "customer2-uid" })));
+await check("customer create status=fulfilled (pre-confirmed) DENIED", assertFails(mkRedeem(cust, "r-pre", { ...validRedeem, status: "fulfilled" })));
+await check("customer create pointsCost<=0 DENIED (malformed)", assertFails(mkRedeem(cust, "r-mal1", { ...validRedeem, pointsCost: 0 })));
+await check("customer create missing validationCode DENIED (malformed)", assertFails(mkRedeem(cust, "r-mal2", { customerId: "customer-uid", status: "pending", productId: "rew-1", productName: "P", pointsCost: 100, timestamp: 1 })));
+await check("customer create EXTRA key DENIED (hasOnly)", assertFails(mkRedeem(cust, "r-mal3", { ...validRedeem, fulfilledBy: "hacker" })));
+await check("anon create DENIED", assertFails(mkRedeem(anon, "r-anon", validRedeem)));
+// READ
+await check("customer read OWN ALLOWED", assertSucceeds(read(cust, "redemptions", "redeem1")));
+await check("OTHER customer read DENIED", assertFails(read(customer2, "redemptions", "redeem1")));
+await check("seller read ALLOWED (staff)", assertSucceeds(read(ctx("seller"), "redemptions", "redeem1")));
+await check("admin read ALLOWED (staff)", assertSucceeds(read(ctx("admin"), "redemptions", "redeem1")));
+await check("anon read DENIED", assertFails(read(anon, "redemptions", "redeem1")));
+// UPDATE — deny cases first (redeem1 stays pending), allow last
+await check("customer update DENIED (no self-fulfill)", assertFails(upRedeem(cust, "redeem1", { status: "fulfilled" })));
+await check("logistics update DENIED (not isSeller)", assertFails(upRedeem(ctx("logistics"), "redeem1", { status: "fulfilled" })));
+await check("seller change pointsCost DENIED (immutable)", assertFails(upRedeem(ctx("seller"), "redeem1", { status: "fulfilled", pointsCost: 1 })));
+await check("seller change customerId DENIED (immutable)", assertFails(upRedeem(ctx("seller"), "redeem1", { status: "fulfilled", customerId: "x" })));
+await check("seller change validationCode DENIED (immutable)", assertFails(upRedeem(ctx("seller"), "redeem1", { status: "fulfilled", validationCode: "HACK" })));
+await check("seller fulfill (status + fulfilledBy) ALLOWED", assertSucceeds(upRedeem(ctx("seller"), "redeem1", { status: "fulfilled", fulfilledBy: "seller-uid" })));
+
 await env.cleanup();
 
 console.log("");
 if (fail === 0) {
-  console.log(`🏁 FIRESTORE RULES PROBE GREEN — ${pass}/${pass} assertions passed (Fase A + B).`);
+  console.log(`🏁 FIRESTORE RULES PROBE GREEN — ${pass}/${pass} assertions passed (Fase A + B + redemptions).`);
   process.exit(0);
 } else {
   console.log(`❌ FIRESTORE RULES PROBE RED — ${fail} failed, ${pass} passed.`);
