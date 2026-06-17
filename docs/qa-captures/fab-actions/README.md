@@ -29,6 +29,16 @@ Capturas on-device de la implementación de `design_handoff_stockflow_apps/SPEC-
 | `fase2-admin-05-post-producto.png` | Estado tras crear el producto. |
 | `fase2-admin-06-usuario-deshabilitado.png` | CreateUserSheet: form listo + submit deshabilitado ("Requiere deploy de backend" → Cloud Function `createStaffUser`). |
 
-## Fase 3 — Jefe/Gerente (approvals)
+## Fase 3 — Jefe/Gerente (FAB → resolver `/approvals`)
 
-Pendiente (no iniciada).
+Seed de 2 aprobaciones `pending` vía Admin SDK (productor vendedor = pasada POS futura).
+
+| Archivo | Qué muestra |
+|---|---|
+| `fase3-jefe-01-home-pendientes.png` | Home con "2 PENDIENTES" + tarjetas (Descuento $12.000, Devolución $64.990) + FAB ✓ activo. |
+| `fase3-jefe-02-sheet-descuento.png` | ApprovalDetailSheet (Descuento, RIESGO BAJO, contexto data-driven, nota habilitada). |
+| `fase3-jefe-03-sheet-devolucion-alto.png` | ApprovalDetailSheet (Devolución $64.990 = RIESGO ALTO ≥ $50.000). |
+| `fase3-jefe-04-sin-pendientes.png` | Tras aprobar+rechazar: 0 pendientes, empty-state honesto, FAB neutro/deshabilitado "Sin pendientes". |
+
+Verificado en Firestore: aprobó/rechazó con `status` + `resolvedBy` + `resolutionNote`;
+`type/refId/amount/requestedBy/branchId` inmutables (rules). Teardown completo.
