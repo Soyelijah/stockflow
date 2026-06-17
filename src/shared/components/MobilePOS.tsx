@@ -2216,7 +2216,7 @@ export function MobilePOS() {
                       onChange={e => setNewCustomer({...newCustomer, phone: formatChileanPhone(e.target.value)})}
                     />
                   </div>
-                  <button type="button" className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs mt-4">
+                  <button type="submit" className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs mt-4">
                     Guardar y Seleccionar
                   </button>
                 </form>
