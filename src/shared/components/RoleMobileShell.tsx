@@ -29,11 +29,13 @@ import {
   Mail,
   Smartphone,
   Trash2,
+  UserPlus,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { addDoc, collection, limit, onSnapshot, orderBy, query, serverTimestamp, where } from "firebase/firestore";
+import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
+import { productStockRef } from "../../lib/productStock";
 import { useAuth } from "../../contexts/AuthContext";
 import { useBranch } from "../../contexts/BranchContext";
 import { cn, formatCurrency, toDate } from "../../lib/utils";
@@ -207,6 +209,12 @@ export function RoleMobileShell() {
   const [transfers, setTransfers] = useState<AnyDoc[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
+  // P5 FAB action — Admin/Owner: create menu → sucursal / usuario / producto.
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [branchSheetOpen, setBranchSheetOpen] = useState(false);
+  const [userSheetOpen, setUserSheetOpen] = useState(false);
+  const [productSheetOpen, setProductSheetOpen] = useState(false);
+
   useEffect(() => {
     setActiveTab(defaultTab[role]);
   }, [role]);
@@ -377,8 +385,8 @@ export function RoleMobileShell() {
           {role === "admin" && (
             <>
               {activeTab === "home" && <AdminHome branches={branchMetrics} salesTotal={salesTotal} ticketCount={ticketCount} team={teamMembers} stockAlerts={stockAlerts} onJump={setActiveTab} />}
-              {activeTab === "branches" && <BranchesTab branches={branchMetrics} onOpenBranch={setSelectedBranch} />}
-              {activeTab === "users" && <UsersTab team={teamMembers} onOpenUser={setSelectedUser} />}
+              {activeTab === "branches" && <BranchesTab branches={branchMetrics} onOpenBranch={setSelectedBranch} onCreate={() => setBranchSheetOpen(true)} />}
+              {activeTab === "users" && <UsersTab team={teamMembers} onOpenUser={setSelectedUser} onCreate={() => setUserSheetOpen(true)} />}
               {activeTab === "profile" && <RoleProfile role={role} accent={accent} name={profile?.name || "Andrea"} email={profile?.email || ""} onLogout={logout} />}
             </>
           )}
@@ -393,6 +401,9 @@ export function RoleMobileShell() {
             if (role === "logistics") {
               // FAB acción real: abre el sheet de crear traslado (no solo navega).
               setTransferSheetOpen(true);
+            } else if (role === "admin") {
+              // FAB acción real: menú de creación (sucursal / usuario / producto).
+              setCreateMenuOpen(true);
             } else {
               setActiveTab(fab.target);
             }
@@ -432,6 +443,35 @@ export function RoleMobileShell() {
           products={data.products}
           profile={profile}
           onCreated={() => setToast("Traslado creado · pendiente de envío")}
+        />
+
+        <CreateMenuSheet
+          open={createMenuOpen}
+          onClose={() => setCreateMenuOpen(false)}
+          onPick={(which) => {
+            setCreateMenuOpen(false);
+            if (which === "branch") setBranchSheetOpen(true);
+            else if (which === "user") setUserSheetOpen(true);
+            else setProductSheetOpen(true);
+          }}
+        />
+        <CreateBranchSheet
+          open={branchSheetOpen}
+          onClose={() => setBranchSheetOpen(false)}
+          onCreated={() => setToast("Sucursal creada")}
+        />
+        <CreateUserSheet
+          open={userSheetOpen}
+          onClose={() => setUserSheetOpen(false)}
+          branches={branches}
+        />
+        <CreateProductSheet
+          open={productSheetOpen}
+          onClose={() => setProductSheetOpen(false)}
+          branches={branches}
+          selectedBranchId={selectedBranchId}
+          profile={profile}
+          onCreated={() => setToast("Producto creado")}
         />
 
         <AnimatePresence>
@@ -1250,7 +1290,7 @@ function GlassStat({ label, value, sub }: { label: string; value: string; sub?: 
   );
 }
 
-function BranchesTab({ branches, onOpenBranch }: { branches: any[]; onOpenBranch: (b: any) => void }) {
+function BranchesTab({ branches, onOpenBranch, onCreate }: { branches: any[]; onOpenBranch: (b: any) => void; onCreate: () => void }) {
   const avg = branches.length ? Math.round(branches.reduce((sum, b) => sum + (b.sales / Math.max(1, b.target)), 0) / branches.length * 100) : 0;
   return (
     <div className="space-y-4 px-4">
@@ -1268,7 +1308,7 @@ function BranchesTab({ branches, onOpenBranch }: { branches: any[]; onOpenBranch
           <BranchCard branch={b} rank={i + 1} onTap={onOpenBranch} />
         </React.Fragment>
       ))}</div>
-      <button type="button" className="sf-tap flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_10px_22px_-6px_rgba(79,70,229,0.55)]"><Plus size={14} /> Crear nueva sucursal</button>
+      <button type="button" onClick={onCreate} className="sf-tap flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_10px_22px_-6px_rgba(79,70,229,0.55)]"><Plus size={14} /> Crear nueva sucursal</button>
     </div>
   );
 }
@@ -1311,7 +1351,7 @@ function BranchCard({ branch, rank, onTap }: { branch: any; rank: number; onTap?
   );
 }
 
-function UsersTab({ team, onOpenUser }: { team: any[]; onOpenUser: (u: any) => void }) {
+function UsersTab({ team, onOpenUser, onCreate }: { team: any[]; onOpenUser: (u: any) => void; onCreate: () => void }) {
   return (
     <div className="space-y-4 px-4">
       <div className="flex items-center justify-between">
@@ -1324,7 +1364,7 @@ function UsersTab({ team, onOpenUser }: { team: any[]; onOpenUser: (u: any) => v
           <UserRow member={m} onTap={onOpenUser} />
         </React.Fragment>
       ))}</div>
-      <button type="button" className="sf-tap flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_10px_22px_-6px_rgba(79,70,229,0.55)]"><Plus size={14} /> Invitar a nuevo usuario</button>
+      <button type="button" onClick={onCreate} className="sf-tap flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_10px_22px_-6px_rgba(79,70,229,0.55)]"><Plus size={14} /> Invitar a nuevo usuario</button>
     </div>
   );
 }
@@ -1578,6 +1618,319 @@ function CreateTransferSheet({ open, onClose, branches, selectedBranchId, produc
         </button>
       </div>
     </SheetShell>
+  );
+}
+
+// P5 FAB — Admin/Owner: menú de creación. Cada fila abre su sub-sheet de creación real.
+function CreateMenuSheet({ open, onClose, onPick }: {
+  open: boolean;
+  onClose: () => void;
+  onPick: (which: "branch" | "user" | "product") => void;
+}) {
+  const rows: Array<{ which: "branch" | "user" | "product"; icon: LucideIcon; title: string; sub: string }> = [
+    { which: "branch", icon: Building2, title: "Nueva sucursal", sub: "Desbloquea traslados entre sucursales" },
+    { which: "user", icon: UserPlus, title: "Nuevo usuario", sub: "Invita personal con rol y sucursal" },
+    { which: "product", icon: Package, title: "Nuevo producto", sub: "Agrega un ítem al catálogo" },
+  ];
+  return (
+    <SheetShell open={open} onClose={onClose} title="Crear" subtitle="Administración · Qué deseas crear">
+      <div className="space-y-2.5">
+        {rows.map((r) => (
+          <button key={r.which} type="button" onClick={() => onPick(r.which)}
+            className="sf-tap flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 text-left shadow-sm hover:border-indigo-200">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-500/25">
+              <r.icon size={19} strokeWidth={2.5} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-black text-slate-900">{r.title}</span>
+              <span className="block text-[11px] font-medium text-slate-400">{r.sub}</span>
+            </span>
+            <ChevronRight size={18} className="shrink-0 text-slate-300" />
+          </button>
+        ))}
+      </div>
+    </SheetShell>
+  );
+}
+
+// CreateBranchSheet — /branches (admin/owner). Espejo del doc `default`.
+function CreateBranchSheet({ open, onClose, onCreated }: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [address, setAddress] = useState("");
+  const [active, setActive] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) { setName(""); setCity(""); setAddress(""); setActive(true); setError(null); setSubmitting(false); }
+  }, [open]);
+
+  const submit = async () => {
+    setError(null);
+    if (!name.trim()) { setError("Ingresa el nombre de la sucursal."); return; }
+    if (!city.trim()) { setError("Ingresa la ciudad."); return; }
+    if (!address.trim()) { setError("Ingresa la dirección."); return; }
+    setSubmitting(true);
+    try {
+      await addDoc(collection(db, "branches"), {
+        name: name.trim(),
+        city: city.trim(),
+        address: address.trim(),
+        active,
+        phone: "",
+        geolocation: null,
+        managerUserId: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      onCreated();
+      onClose();
+    } catch (e: any) {
+      setError(e?.code === "permission-denied" ? "Sin permisos para crear sucursales." : "No se pudo crear la sucursal. Intenta de nuevo.");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <SheetShell open={open} onClose={onClose} title="Nueva sucursal" subtitle="Administración · Sucursales" height="78%">
+      <div className="space-y-3.5">
+        <SheetField label="Nombre de la sucursal">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Sucursal Centro" aria-label="Nombre de la sucursal"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none placeholder-slate-400" />
+        </SheetField>
+        <SheetField label="Ciudad">
+          <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ej. Santiago" aria-label="Ciudad"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none placeholder-slate-400" />
+        </SheetField>
+        <SheetField label="Dirección">
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Ej. Av. Libertador 1200" aria-label="Dirección"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none placeholder-slate-400" />
+        </SheetField>
+        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
+          <div>
+            <p className="text-[13px] font-black text-slate-900">Sucursal activa</p>
+            <p className="text-[11px] font-medium text-slate-400">Disponible para ventas y traslados</p>
+          </div>
+          <button type="button" role="switch" aria-checked={active} aria-label="Sucursal activa" onClick={() => setActive((v) => !v)}
+            className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", active ? "bg-indigo-600" : "bg-slate-200")}>
+            <span className={cn("absolute top-1 size-5 rounded-full bg-white shadow transition-all", active ? "left-6" : "left-1")} />
+          </button>
+        </div>
+
+        {error && <p className="px-1 text-[11px] font-bold text-rose-600">{error}</p>}
+
+        <button type="button" disabled={submitting} onClick={submit}
+          className="sf-tap flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-[12px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-indigo-500/25 disabled:opacity-60">
+          {submitting ? "Creando…" : <><Building2 size={15} strokeWidth={3} /> Crear sucursal</>}
+        </button>
+      </div>
+    </SheetShell>
+  );
+}
+
+// CreateUserSheet — form listo; submit deshabilitado hasta desplegar la Cloud Function
+// `createStaffUser` (crea Auth + claim + mirror + invitación, server-side atómico).
+function CreateUserSheet({ open, onClose, branches }: {
+  open: boolean;
+  onClose: () => void;
+  branches: any[];
+}) {
+  const realBranches = (branches || []).filter((b) => b.id && b.id !== "*");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("seller");
+  const [branchId, setBranchId] = useState(realBranches[0]?.id || "default");
+
+  useEffect(() => {
+    if (open) { setName(""); setEmail(""); setRole("seller"); setBranchId(realBranches[0]?.id || "default"); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const branchName = (id: string) => (realBranches.find((b) => b.id === id)?.name || id || "—").replace(/^Sucursal\s+/i, "");
+  const roleOptions: Array<[string, string]> = [["seller", "Vendedor"], ["manager", "Jefe / Gerente"], ["logistics", "Logística"], ["admin", "Administrador"]];
+
+  return (
+    <SheetShell open={open} onClose={onClose} title="Nuevo usuario" subtitle="Administración · Equipo" height="82%">
+      <div className="space-y-3.5">
+        {/* Backend-pending banner */}
+        <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-3.5">
+          <ShieldCheck size={16} className="mt-0.5 shrink-0 text-amber-500" />
+          <p className="text-[11px] font-bold leading-snug text-amber-700">
+            Requiere deploy de backend. La creación de personal (cuenta + rol + invitación) corre
+            server-side de forma atómica vía Cloud Function. El formulario queda listo; el botón se
+            habilita cuando <span className="font-black">createStaffUser</span> esté desplegada.
+          </p>
+        </div>
+        <SheetField label="Nombre completo">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Andrea Rojas" aria-label="Nombre completo"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none placeholder-slate-400" />
+        </SheetField>
+        <SheetField label="Correo electrónico">
+          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="persona@empresa.cl" aria-label="Correo electrónico"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none placeholder-slate-400" />
+        </SheetField>
+        <SheetField label="Rol">
+          <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Rol"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none">
+            {roleOptions.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select>
+        </SheetField>
+        <SheetField label="Sucursal">
+          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} aria-label="Sucursal"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none">
+            {realBranches.length === 0 && <option value="default">Sucursal Principal</option>}
+            {realBranches.map((b) => <option key={b.id} value={b.id}>{branchName(b.id)}</option>)}
+          </select>
+        </SheetField>
+
+        <button type="button" disabled title="Requiere deploy de backend"
+          className="sf-tap flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-[12px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-indigo-500/25 opacity-50">
+          <UserPlus size={15} strokeWidth={3} /> Requiere deploy de backend
+        </button>
+      </div>
+    </SheetShell>
+  );
+}
+
+// CreateProductSheet — catálogo global /products (sin costPrice, C1 §6.2) + product_stock
+// por sucursal + stockMovements de apertura. Espejo mínimo de Inventory.tsx.
+function CreateProductSheet({ open, onClose, branches, selectedBranchId, profile, onCreated }: {
+  open: boolean;
+  onClose: () => void;
+  branches: any[];
+  selectedBranchId: string;
+  profile: any;
+  onCreated: () => void;
+}) {
+  const realBranches = (branches || []).filter((b) => b.id && b.id !== "*");
+  const pinned = selectedBranchId !== "*";
+  const defaultBranch = pinned ? selectedBranchId : (realBranches[0]?.id || "default");
+  const [name, setName] = useState("");
+  const [sku, setSku] = useState("");
+  const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("");
+  const [category, setCategory] = useState("");
+  const [branchId, setBranchId] = useState(defaultBranch);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) { setName(""); setSku(""); setPrice(""); setStock(""); setCategory(""); setBranchId(defaultBranch); setError(null); setSubmitting(false); }
+  }, [open, defaultBranch]);
+
+  const branchName = (id: string) => (realBranches.find((b) => b.id === id)?.name || id || "—").replace(/^Sucursal\s+/i, "");
+
+  const submit = async () => {
+    setError(null);
+    if (!name.trim()) { setError("Ingresa el nombre del producto."); return; }
+    const priceN = Math.round(Number(price) || 0);
+    if (priceN <= 0) { setError("Ingresa un precio válido (CLP)."); return; }
+    const stockN = Math.max(0, Math.round(Number(stock) || 0));
+    if (!branchId || branchId === "*") { setError("Selecciona una sucursal."); return; }
+    setSubmitting(true);
+    try {
+      // 1. Catálogo público — NUNCA costPrice/supplierId (C1 §6.2 + noCostFieldsOnProduct()).
+      const prodRef = await addDoc(collection(db, "products"), {
+        name: name.trim(),
+        sku: sku.trim().toUpperCase(),
+        price: priceN,
+        stock: stockN, // mirror legacy global; product_stock es la fuente por sucursal.
+        minThreshold: 5,
+        category: category.trim(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        updatedBy: profile?.name || profile?.email || "Admin",
+      });
+      // 2. Stock por sucursal (autoritativo).
+      await setDoc(productStockRef(prodRef.id, branchId), {
+        productId: prodRef.id,
+        branchId,
+        stock: stockN,
+        lastUpdated: serverTimestamp(),
+      });
+      // 3. Movimiento de apertura para el kardex.
+      if (stockN > 0) {
+        await addDoc(collection(db, "stockMovements"), {
+          productId: prodRef.id,
+          productName: name.trim(),
+          type: "purchase",
+          quantity: stockN,
+          previousStock: 0,
+          newStock: stockN,
+          reason: "Alta de producto (móvil)",
+          userId: profile?.uid || "",
+          userName: profile?.name || profile?.email || "Admin",
+          source: "mobile",
+          branchId,
+          timestamp: serverTimestamp(),
+        });
+      }
+      onCreated();
+      onClose();
+    } catch (e: any) {
+      setError(e?.code === "permission-denied" ? "Sin permisos para crear el producto." : "No se pudo crear el producto. Intenta de nuevo.");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <SheetShell open={open} onClose={onClose} title="Nuevo producto" subtitle="Administración · Catálogo" height="86%">
+      <div className="space-y-3.5">
+        <SheetField label="Nombre del producto">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Corona 330ml" aria-label="Nombre del producto"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none placeholder-slate-400" />
+        </SheetField>
+        <div className="grid grid-cols-2 gap-3">
+          <SheetField label="SKU">
+            <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU-001" aria-label="SKU"
+              className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold uppercase text-slate-900 outline-none placeholder-slate-400" />
+          </SheetField>
+          <SheetField label="Categoría">
+            <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ej. Bebidas" aria-label="Categoría"
+              className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none placeholder-slate-400" />
+          </SheetField>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <SheetField label="Precio (CLP)">
+            <input value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" placeholder="0" aria-label="Precio en pesos"
+              className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-black tabular-nums text-slate-900 outline-none placeholder-slate-400" />
+          </SheetField>
+          <SheetField label="Stock inicial">
+            <input value={stock} onChange={(e) => setStock(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" placeholder="0" aria-label="Stock inicial"
+              className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-black tabular-nums text-slate-900 outline-none placeholder-slate-400" />
+          </SheetField>
+        </div>
+        <SheetField label="Sucursal (stock inicial)">
+          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} aria-label="Sucursal para el stock inicial"
+            className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[13px] font-bold text-slate-900 outline-none">
+            {realBranches.length === 0 && <option value="default">Sucursal Principal</option>}
+            {realBranches.map((b) => <option key={b.id} value={b.id}>{branchName(b.id)}</option>)}
+          </select>
+        </SheetField>
+
+        {error && <p className="px-1 text-[11px] font-bold text-rose-600">{error}</p>}
+
+        <button type="button" disabled={submitting} onClick={submit}
+          className="sf-tap flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-[12px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-indigo-500/25 disabled:opacity-60">
+          {submitting ? "Creando…" : <><Package size={15} strokeWidth={3} /> Crear producto</>}
+        </button>
+      </div>
+    </SheetShell>
+  );
+}
+
+// Small labeled field wrapper for the create sheets.
+function SheetField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block px-1 text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</span>
+      {children}
+    </label>
   );
 }
 

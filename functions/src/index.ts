@@ -106,6 +106,130 @@ export const setUserRole = onCall(async (request: any) => {
   }
 });
 
+// 1.a HTTP Callable to CREATE a staff user end-to-end (admin/owner only).
+// Mirrors setUserRole's security model (claim caller-check + whitelist + audit) but
+// owns the WHOLE atomic flow that the client cannot do safely:
+//   1. Creates the Firebase Auth account (server-side — no client privilege juggling).
+//   2. Sets the authoritative custom claim { role, branchId }.
+//   3. Writes the /users/{uid} mirror (uid+email+name+role+branchId) so AuthContext
+//      hydrates a complete profile (it trusts doc.uid — a partial mirror breaks login).
+//   4. Audit row in /role_audit.
+//   5. Generates a password-reset link (the invite) and best-effort enqueues an email
+//      via the Firebase "Trigger Email" extension (/mail collection). The link is also
+//      returned so the admin can deliver it if no email extension is installed.
+// The new account has NO password and is unverified: completing the reset link both
+// sets the password AND verifies the email (Firebase marks emailVerified on reset),
+// which is exactly what the app's login gate requires.
+export const createStaffUser = onCall(async (request: any) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debe iniciar sesión.");
+  }
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "admin" && callerRole !== "owner") {
+    throw new HttpsError("permission-denied", "Solo admin/owner pueden crear usuarios.");
+  }
+
+  const { email: rawEmail, name: rawName, role, branchId: rawBranchId } = request.data || {};
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new HttpsError("invalid-argument", "Correo electrónico inválido.");
+  }
+  if (!name || name.length > 120) {
+    throw new HttpsError("invalid-argument", "Nombre requerido (máx. 120 caracteres).");
+  }
+  // Same whitelist as setUserRole — 'owner' excluded (bootstrap-only).
+  const validRoles = ["admin", "manager", "seller", "logistics", "driver"];
+  if (!validRoles.includes(role)) {
+    throw new HttpsError("invalid-argument", "Rol inválido.");
+  }
+
+  // Resolve + validate branchId exactly like setUserRole.
+  const branchId: string = typeof rawBranchId === "string" && rawBranchId.length > 0
+    ? rawBranchId
+    : defaultBranchForRole(role);
+  if (typeof branchId !== "string" || branchId.length > 128) {
+    throw new HttpsError("invalid-argument", "branchId con formato inválido.");
+  }
+  if (branchId !== CROSS_BRANCH_SENTINEL) {
+    const branchSnap = await db.collection("branches").doc(branchId).get();
+    if (!branchSnap.exists) {
+      throw new HttpsError("invalid-argument", `Sucursal '${branchId}' no existe.`);
+    }
+    if (branchSnap.data()?.active === false) {
+      throw new HttpsError("invalid-argument", `Sucursal '${branchId}' está inactiva.`);
+    }
+  }
+
+  let createdUid: string | null = null;
+  try {
+    // 1. Auth account — no password (the invite/reset flow sets it), unverified.
+    const userRecord = await getAuth().createUser({
+      email,
+      displayName: name,
+      emailVerified: false,
+    });
+    createdUid = userRecord.uid;
+
+    // 2. Authoritative claim.
+    await getAuth().setCustomUserClaims(createdUid, { role, branchId });
+
+    // 3. Complete mirror (uid included — AuthContext requires it).
+    await db.collection("users").doc(createdUid).set({
+      uid: createdUid,
+      email,
+      name,
+      role,
+      branchId,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    // 4. Audit.
+    await db.collection("role_audit").add({
+      action: "STAFF_USER_CREATED",
+      targetUserId: createdUid,
+      newRole: role,
+      newBranchId: branchId,
+      operatorUid: request.auth.uid,
+      operatorEmail: request.auth.token.email || "unknown",
+      operatorRole: callerRole,
+      timestamp: FieldValue.serverTimestamp(),
+    });
+
+    // 5. Invite link + best-effort email enqueue (Firebase "Trigger Email" extension).
+    const inviteLink = await getAuth().generatePasswordResetLink(email);
+    try {
+      await db.collection("mail").add({
+        to: email,
+        message: {
+          subject: "Activa tu cuenta de StockFlow",
+          html: `<p>Hola ${name},</p><p>Se creó tu cuenta de StockFlow (rol: <b>${role}</b>). ` +
+                `Activa tu acceso y define tu contraseña aquí:</p>` +
+                `<p><a href="${inviteLink}">Activar mi cuenta</a></p>`,
+        },
+      });
+    } catch (mailErr: any) {
+      // Non-fatal: the account exists; the admin can deliver inviteLink manually.
+      console.warn("createStaffUser: no se pudo encolar el correo de invitación:", mailErr?.message || mailErr);
+    }
+
+    return { success: true, uid: createdUid, inviteLink };
+  } catch (error: any) {
+    if (error?.code === "auth/email-already-exists") {
+      throw new HttpsError("already-exists", "Ya existe una cuenta con ese correo.");
+    }
+    // Best-effort rollback of a half-created account so retries are clean.
+    if (createdUid) {
+      await getAuth().deleteUser(createdUid).catch(() => undefined);
+      await db.collection("users").doc(createdUid).delete().catch(() => undefined);
+    }
+    if (error instanceof HttpsError) throw error;
+    console.error("Error en createStaffUser:", error?.message || error);
+    throw new HttpsError("internal", "No se pudo crear el usuario.");
+  }
+});
+
 // 1.b HTTP Callable to generate the customer's short-lived identity PIN.
 // Tier 5.C — APK PIN path. The Express route POST /api/customer/secure-pin is
 // unreachable from the Capacitor APK: its backend (ais-*) is fronted by an AI
