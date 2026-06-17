@@ -170,6 +170,32 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // POS approvals (P5 FAB action — Jefe/Gerente). A seller requests sign-off for a
+    // return/discount/void; owner/admin/manager (= isAdmin()) resolves it.
+    // Branch-scoped by `branchId`. Status enum fixed: pending | approved | rejected.
+    match /approvals/{approvalId} {
+      // Read: any staff in scope (sellers track their own requests; jefe sees the queue).
+      allow read, list: if isStaff() && (isCrossBranch() || inMyBranch(resourceBranch()));
+      // Create: the requesting seller (owner/admin/manager/seller — NOT driver/logistics).
+      // Only "pending"; branch valid + in scope; requestedBy cannot be forged.
+      allow create: if isSeller() &&
+        isValidBranchId(incomingBranch()) &&
+        (isCrossBranch() || inMyBranch(incomingBranch())) &&
+        incoming().status == 'pending' &&
+        incoming().requestedBy == request.auth.uid;
+      // Resolve: ONLY owner/admin/manager (isAdmin()). Seller/logistics/driver cannot.
+      // Only status + resolution metadata may change; type/refId/amount/requestedBy/
+      // branchId are IMMUTABLE. The doc must currently be 'pending'; status confined to
+      // approved | rejected (no revert to pending).
+      allow update: if isAdmin() &&
+        (isCrossBranch() || inMyBranch(resourceBranch())) &&
+        existing().status == 'pending' &&
+        incoming().diff(existing()).affectedKeys()
+          .hasOnly(['status', 'resolvedBy', 'resolvedByName', 'resolvedAt', 'resolutionNote']) &&
+        incoming().status in ['approved', 'rejected'];
+      allow delete: if isAdmin();
+    }
+
     match /products/{productId} {
       // Catalog is global (single retailer's catalog shared across branches).
       // Per-branch inventory lives in /product_stock (Tier 1.1).

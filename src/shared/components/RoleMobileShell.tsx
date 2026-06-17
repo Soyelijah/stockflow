@@ -26,14 +26,13 @@ import {
   User,
   Users,
   X,
-  Mail,
   Smartphone,
   Trash2,
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { productStockRef } from "../../lib/productStock";
 import { useAuth } from "../../contexts/AuthContext";
@@ -114,6 +113,60 @@ function roleFromProfile(role?: string | null): MobileRole {
   if (role === "logistics") return "logistics";
   if (role === "admin" || role === "owner") return "admin";
   return "manager";
+}
+
+// Risk tiers for POS approvals, by requested amount (CLP). Drives the badge color and the
+// jefe's attention priority — NOT a hard limit (the jefe still approves/rejects manually).
+// ≥ HIGH: requires careful sign-off (large refund/void). ≥ MED: worth a look. below: routine.
+const APPROVAL_RISK_HIGH_CLP = 50000;
+const APPROVAL_RISK_MED_CLP = 15000;
+
+function approvalRisk(amount: number): "high" | "med" | "low" {
+  if (amount >= APPROVAL_RISK_HIGH_CLP) return "high";
+  if (amount >= APPROVAL_RISK_MED_CLP) return "med";
+  return "low";
+}
+
+const APPROVAL_TYPE_LABEL: Record<string, string> = {
+  return: "Devolución",
+  refund: "Devolución",
+  discount: "Descuento",
+  void: "Anulación",
+};
+
+// Maps a raw /approvals doc to the shape the ApprovalRow / ApprovalDetailSheet UI expects.
+function toApprovalView(a: AnyDoc): AnyDoc {
+  const amount = Number(a.amount) || 0;
+  const typeLabel = APPROVAL_TYPE_LABEL[a.type] || "Aprobación";
+  return {
+    ...a,
+    amount,
+    title: typeLabel,
+    detail: `${typeLabel} · ${formatCurrency(amount)}`,
+    risk: approvalRisk(amount),
+    seller: a.requestedByName || "Vendedor",
+    time: relativeTimeFrom(a.createdAt),
+  };
+}
+
+// Lucide icon name for an approval type (return/refund → refresh, discount → tag, void → lock).
+function approvalIcon(type: string): string {
+  if (type === "return" || type === "refund") return "RefreshCw";
+  if (type === "discount") return "Tag";
+  return "Lock";
+}
+
+// "hace 3 min" style relative time from a Firestore Timestamp (or null).
+function relativeTimeFrom(ts: any): string {
+  const d = toDate(ts);
+  if (!d) return "recién";
+  const secs = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (secs < 60) return "recién";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs} h`;
+  return `hace ${Math.floor(hrs / 24)} d`;
 }
 
 function safeInitial(name?: string | null, fallback = "?") {
@@ -215,6 +268,9 @@ export function RoleMobileShell() {
   const [userSheetOpen, setUserSheetOpen] = useState(false);
   const [productSheetOpen, setProductSheetOpen] = useState(false);
 
+  // P5 FAB action — Jefe/Gerente: resolve pending POS approvals (live, branch-scoped).
+  const [pendingApprovals, setPendingApprovals] = useState<AnyDoc[]>([]);
+
   useEffect(() => {
     setActiveTab(defaultTab[role]);
   }, [role]);
@@ -239,11 +295,49 @@ export function RoleMobileShell() {
     return () => unsub();
   }, [role, selectedBranchId]);
 
+  // Live pending /approvals for the jefe (manager), branch-scoped. Cross-branch ("*")
+  // lists all pending; a pinned branch filters by branchId. Sorted client-side by recency.
+  useEffect(() => {
+    if (role !== "manager") return;
+    const base = collection(db, "approvals");
+    const q = selectedBranchId === "*"
+      ? query(base, where("status", "==", "pending"), limit(60))
+      : query(base, where("status", "==", "pending"), where("branchId", "==", selectedBranchId), limit(60));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as AnyDoc[];
+        rows.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+        setPendingApprovals(rows.map(toApprovalView));
+      },
+      () => setPendingApprovals([])
+    );
+    return () => unsub();
+  }, [role, selectedBranchId]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 2600);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Resolve an approval (jefe). Writes ONLY status + resolution metadata (rules enforce
+  // immutability of the rest). The live query drops it from the pending list on success.
+  const resolveApproval = async (approval: AnyDoc, decision: "approved" | "rejected", note: string) => {
+    if (!approval?.id) return;
+    try {
+      await updateDoc(doc(db, "approvals", approval.id), {
+        status: decision,
+        resolvedBy: profile?.uid || "",
+        resolvedByName: profile?.name || profile?.email || "Jefe",
+        resolvedAt: serverTimestamp(),
+        resolutionNote: (note || "").trim(),
+      });
+      setToast(decision === "approved" ? "Aprobación concedida" : "Solicitud rechazada");
+    } catch {
+      setToast("No se pudo resolver. Intenta de nuevo.");
+    }
+  };
 
   const branchLabel = useMemo(() => {
     if (selectedBranchId === "*") return "Centro";
@@ -351,7 +445,11 @@ export function RoleMobileShell() {
   }, [data.shipments]);
 
   const fab = fabConfig[role];
-  const FabIcon = fab.icon;
+  // Jefe FAB: "Aprobar" only makes sense with pending work. With 0 pending it becomes a
+  // neutral, disabled "Sin pendientes" (per SPEC — no dead "+").
+  const managerNoPending = role === "manager" && pendingApprovals.length === 0;
+  const fabLabel = managerNoPending ? "Sin pendientes" : fab.label;
+  const FabIcon = managerNoPending ? Check : fab.icon;
 
   return (
     <div className="min-h-[100dvh] bg-[#f8f9fc] text-slate-950 overflow-hidden font-sans">
@@ -368,7 +466,7 @@ export function RoleMobileShell() {
         <main className="h-[calc(100dvh-74px)] overflow-y-auto pb-28 pt-3 scrollbar-none">
           {role === "manager" && (
             <>
-              {activeTab === "home" && <ManagerHome team={teamMembers} stockAlerts={stockAlerts} salesTotal={salesTotal} ticketCount={ticketCount} onJump={setActiveTab} onOpenApproval={setSelectedApproval} />}
+              {activeTab === "home" && <ManagerHome team={teamMembers} stockAlerts={stockAlerts} salesTotal={salesTotal} ticketCount={ticketCount} pendingApprovals={pendingApprovals} onJump={setActiveTab} onOpenApproval={setSelectedApproval} />}
               {activeTab === "team" && <TeamTab team={teamMembers} />}
               {activeTab === "reports" && <ReportsTab salesTotal={salesTotal} ticketCount={ticketCount} team={teamMembers} transactions={todayTx} />}
               {activeTab === "profile" && <RoleProfile role={role} accent={accent} name={profile?.name || "Roberto"} email={profile?.email || ""} onLogout={logout} />}
@@ -396,7 +494,8 @@ export function RoleMobileShell() {
           items={tabConfig[role]}
           active={activeTab}
           onChange={setActiveTab}
-          fabLabel={fab.label}
+          fabLabel={fabLabel}
+          fabDisabled={managerNoPending}
           onFab={() => {
             if (role === "logistics") {
               // FAB acción real: abre el sheet de crear traslado (no solo navega).
@@ -404,6 +503,9 @@ export function RoleMobileShell() {
             } else if (role === "admin") {
               // FAB acción real: menú de creación (sucursal / usuario / producto).
               setCreateMenuOpen(true);
+            } else if (role === "manager") {
+              // FAB acción real: resuelve la primera aprobación pendiente.
+              if (pendingApprovals.length > 0) setSelectedApproval(pendingApprovals[0]);
             } else {
               setActiveTab(fab.target);
             }
@@ -415,8 +517,8 @@ export function RoleMobileShell() {
           open={!!selectedApproval}
           onClose={() => setSelectedApproval(null)}
           approval={selectedApproval}
-          onApprove={() => {}}
-          onReject={() => {}}
+          onApprove={(app, note) => resolveApproval(app, "approved", note)}
+          onReject={(app, note) => resolveApproval(app, "rejected", note)}
         />
         <DeliveryDetailSheet
           open={!!selectedDelivery}
@@ -566,13 +668,14 @@ function RoleTopBar({ role, accent, name, branchLabel, onLogout }: {
   );
 }
 
-function RoleBottomNav({ items, active, onChange, onFab, FabIcon, fabLabel }: {
+function RoleBottomNav({ items, active, onChange, onFab, FabIcon, fabLabel, fabDisabled = false }: {
   items: Array<{ id: TabId; label: string; icon: LucideIcon }>;
   active: TabId;
   onChange: (id: TabId) => void;
   onFab: () => void;
   FabIcon: LucideIcon;
   fabLabel: string;
+  fabDisabled?: boolean;
 }) {
   const navItems = [items[0], items[1], null, items[2], items[3]] as Array<typeof items[number] | null>;
   return (
@@ -580,7 +683,13 @@ function RoleBottomNav({ items, active, onChange, onFab, FabIcon, fabLabel }: {
       {navItems.map((item, index) => {
         if (!item) {
           return (
-            <button key="fab" type="button" onClick={onFab} aria-label={fabLabel} className="sf-tap relative -mt-9 grid size-[60px] place-items-center rounded-3xl bg-gradient-to-br from-indigo-600 to-indigo-500 text-white shadow-[0_16px_28px_-6px_rgba(79,70,229,0.55)]">
+            <button key="fab" type="button" onClick={onFab} disabled={fabDisabled} aria-label={fabLabel}
+              className={cn(
+                "sf-tap relative -mt-9 grid size-[60px] place-items-center rounded-3xl text-white transition-colors",
+                fabDisabled
+                  ? "bg-gradient-to-br from-slate-300 to-slate-400 shadow-[0_10px_20px_-8px_rgba(15,23,42,0.35)] cursor-default"
+                  : "bg-gradient-to-br from-indigo-600 to-indigo-500 shadow-[0_16px_28px_-6px_rgba(79,70,229,0.55)]"
+              )}>
               <FabIcon size={24} strokeWidth={2.7} />
             </button>
           );
@@ -724,17 +833,17 @@ function StockAlertRow({ product }: { product: AnyDoc }) {
   );
 }
 
-function ManagerHome({ team, stockAlerts, salesTotal, ticketCount, onJump, onOpenApproval }: {
+function ManagerHome({ team, stockAlerts, salesTotal, ticketCount, pendingApprovals, onJump, onOpenApproval }: {
   team: any[];
   stockAlerts: AnyDoc[];
   salesTotal: number;
   ticketCount: number;
+  pendingApprovals: AnyDoc[];
   onJump: (id: TabId) => void;
   onOpenApproval: (approval: any) => void;
 }) {
   const target = Math.max(500000, team.reduce((sum, m) => sum + (m.target || 0), 0) || 500000);
   const topSeller = team[0] || { name: "Sin ventas hoy", sales: 0 };
-  const pendingApprovals: any[] = []; // honest empty state
   return (
     <div className="space-y-4">
       <BranchHeroCard
@@ -767,7 +876,7 @@ function ManagerHome({ team, stockAlerts, salesTotal, ticketCount, onJump, onOpe
             ))}
           </div>
         ) : (
-          <EmptyState icon={Check} title="Sin aprobaciones — módulo pendiente" />
+          <EmptyState icon={Check} title="Sin aprobaciones pendientes" />
         )}
       </SectionCard>
       <SectionCard className="mx-4">
@@ -2063,7 +2172,7 @@ function BranchHeroCard({ branch, sales, count, target, topSeller, sellersActive
 
 function ApprovalRow({ approval, onTap }: { approval: any; onTap?: (app: any) => void }) {
   const palette = approval.risk === "high" ? "roseSolid" : approval.risk === "med" ? "amberSolid" : "blueSolid";
-  const ic = approval.type === "refund" ? "RefreshCw" : approval.type === "discount" ? "Tag" : "Lock";
+  const ic = approvalIcon(approval.type);
   return (
     <div
       onClick={() => onTap?.(approval)}
@@ -2197,12 +2306,15 @@ function ApprovalDetailSheet({ open, onClose, approval, onApprove, onReject }: {
   open: boolean;
   onClose: () => void;
   approval: any;
-  onApprove: (app: any) => void;
-  onReject: (app: any) => void;
+  onApprove: (app: any, note: string) => void;
+  onReject: (app: any, note: string) => void;
 }) {
+  const [note, setNote] = useState("");
+  useEffect(() => { if (open) setNote(""); }, [open]);
   if (!approval) return null;
-  const ic = approval.type === "refund" ? "RefreshCw" : approval.type === "discount" ? "Tag" : "Lock";
+  const ic = approvalIcon(approval.type);
   const palette = approval.risk === "high" ? "roseSolid" : approval.risk === "med" ? "amberSolid" : "blueSolid";
+  const typeLabel = APPROVAL_TYPE_LABEL[approval.type] || "Aprobación";
   return (
     <SheetShell open={open} onClose={onClose} title={approval.title} subtitle="Aprobación requerida">
       <div className="flex flex-col gap-3.5">
@@ -2225,22 +2337,20 @@ function ApprovalDetailSheet({ open, onClose, approval, onApprove, onReject }: {
             <Avatar initial={approval.seller?.charAt(0)} size={44} palette="indigoSolid" />
             <div className="flex-1">
               <p className="text-[13px] font-black text-slate-900">{approval.seller}</p>
-              <p className="mt-1 text-[11px] font-bold text-slate-400">Vendedor · Sucursal Centro</p>
+              <p className="mt-1 text-[11px] font-bold text-slate-400">Vendedor</p>
             </div>
-            <button type="button" className="sf-tap flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600"><Mail size={14} /></button>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400 mb-3">Contexto</p>
           {[
-            { k: "Tipo", v: approval.type === "refund" ? "Devolución" : approval.type === "discount" ? "Descuento" : "Cierre de caja" },
-            { k: "Sucursal", v: "Centro" },
-            { k: "Turno", v: "08:30 → en curso" },
-            { k: "Motivo", v: approval.type === "refund" ? "Producto en mal estado" : approval.type === "discount" ? "Cliente VIP" : "Diferencia de caja" },
-            { k: "Monto", v: approval.detail?.match(/\$[\d.,]+/)?.[0] || "—", mono: true },
-          ].map((r, i) => (
-            <div key={i} className="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-b-0">
+            { k: "Tipo", v: typeLabel },
+            { k: "Motivo", v: approval.reason || "—" },
+            { k: "Referencia", v: approval.refId || "—" },
+            { k: "Monto", v: formatCurrency(approval.amount || 0), mono: true },
+          ].map((r) => (
+            <div key={r.k} className="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-b-0">
               <span className="text-[10px] font-black uppercase tracking-[0.10em] text-slate-400">{r.k}</span>
               <span className={cn("text-[12px] font-black text-slate-900", r.mono && "font-mono")}>{r.v}</span>
             </div>
@@ -2250,8 +2360,10 @@ function ApprovalDetailSheet({ open, onClose, approval, onApprove, onReject }: {
         <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400 mb-2">Nota interna (opcional)</p>
           <textarea
-            placeholder="Agrega un comentario antes de aprobar…"
-            disabled
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            aria-label="Nota interna de la resolución"
+            placeholder="Agrega un comentario antes de resolver…"
             className="w-full min-h-[60px] p-3 font-sans text-[13px] font-medium border border-slate-100 rounded-xl bg-slate-50 outline-none resize-none text-slate-950 placeholder-slate-400"
           />
         </div>
@@ -2259,14 +2371,14 @@ function ApprovalDetailSheet({ open, onClose, approval, onApprove, onReject }: {
         <div className="grid grid-cols-2 gap-2 mt-1">
           <button
             type="button"
-            onClick={() => { onReject(approval); onClose(); }}
+            onClick={() => { onReject(approval, note); onClose(); }}
             className="sf-tap flex h-[50px] items-center justify-center gap-1.5 rounded-2xl border border-rose-200 bg-white text-[11px] font-black uppercase tracking-[0.14em] text-rose-600 hover:bg-rose-50/50 transition-colors"
           >
             <X size={14} strokeWidth={3} /> Rechazar
           </button>
           <button
             type="button"
-            onClick={() => { onApprove(approval); onClose(); }}
+            onClick={() => { onApprove(approval, note); onClose(); }}
             className="sf-tap flex h-[50px] items-center justify-center gap-1.5 rounded-2xl border border-transparent bg-gradient-to-br from-emerald-500 to-emerald-600 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-emerald-700 transition-all"
           >
             <Check size={14} strokeWidth={3} /> Aprobar
