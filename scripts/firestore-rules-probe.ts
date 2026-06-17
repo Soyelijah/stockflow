@@ -19,7 +19,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, updateDoc, getDocs, query, collection, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, query, collection, where } from "firebase/firestore";
 
 let pass = 0;
 let fail = 0;
@@ -53,6 +53,7 @@ await env.withSecurityRulesDisabled(async (c) => {
   await setDoc(doc(db, "coupons", "coup-active"), { code: "ACT", active: true });
   await setDoc(doc(db, "coupons", "coup-inactive"), { code: "INA", active: false });
   await setDoc(doc(db, "redemptions", "redeem1"), { customerId: "customer-uid", status: "pending", pointsCost: 100, productId: "rew-1" });
+  await setDoc(doc(db, "transfers", "t1"), { branchId: "default", status: "pending", items: [{ productId: "p1", productName: "P", qty: 2 }], origin: "default", createdAt: 1 });
 });
 
 console.log("=== /categories read — Fase A: signed-in ALLOW, anon DENY ===");
@@ -110,11 +111,40 @@ await check("seller change customerId DENIED (immutable)", assertFails(upRedeem(
 await check("seller change validationCode DENIED (immutable)", assertFails(upRedeem(ctx("seller"), "redeem1", { status: "fulfilled", validationCode: "HACK" })));
 await check("seller fulfill (status + fulfilledBy) ALLOWED", assertSucceeds(upRedeem(ctx("seller"), "redeem1", { status: "fulfilled", fulfilledBy: "seller-uid" })));
 
+console.log("\n=== /transfers — Logística (isLogistics): pending-only create, immutable items, status enum, admin delete ===");
+const validTransfer = { branchId: "default", status: "pending", items: [{ productId: "p1", productName: "P", qty: 1 }], origin: "default", createdAt: 1 };
+const mkT = (c: any, id: string, data: any) => setDoc(doc(c.firestore(), "transfers", id), data);
+const upT = (c: any, id: string, data: any) => updateDoc(doc(c.firestore(), "transfers", id), data);
+const delT = (c: any, id: string) => deleteDoc(doc(c.firestore(), "transfers", id));
+// create
+await check("logistics create pending valid-branch ALLOWED", assertSucceeds(mkT(ctx("logistics"), "t-own", validTransfer)));
+await check("admin create pending ALLOWED (isLogistics)", assertSucceeds(mkT(ctx("admin"), "t-adm", validTransfer)));
+await check("logistics create status!=pending DENIED", assertFails(mkT(ctx("logistics"), "t-bad1", { ...validTransfer, status: "received" })));
+await check("logistics create invalid branchId('*') DENIED", assertFails(mkT(ctx("logistics"), "t-bad2", { ...validTransfer, branchId: "*" })));
+await check("seller create DENIED (not isLogistics)", assertFails(mkT(ctx("seller"), "t-sel", validTransfer)));
+await check("customer create DENIED", assertFails(mkT(ctx("customer"), "t-cus", validTransfer)));
+await check("anon create DENIED", assertFails(mkT(anon, "t-anon", validTransfer)));
+// read
+await check("logistics read ALLOWED", assertSucceeds(read(ctx("logistics"), "transfers", "t1")));
+await check("admin read ALLOWED (isLogistics)", assertSucceeds(read(ctx("admin"), "transfers", "t1")));
+await check("seller read DENIED (not isLogistics)", assertFails(read(ctx("seller"), "transfers", "t1")));
+await check("customer read DENIED", assertFails(read(ctx("customer"), "transfers", "t1")));
+await check("anon read DENIED", assertFails(read(anon, "transfers", "t1")));
+// update — deny cases first (t1 stays pending), allow last
+await check("logistics change items DENIED (immutable)", assertFails(upT(ctx("logistics"), "t1", { status: "in_transit", items: [] })));
+await check("logistics change branchId DENIED (immutable)", assertFails(upT(ctx("logistics"), "t1", { status: "in_transit", branchId: "x" })));
+await check("logistics status out-of-enum DENIED", assertFails(upT(ctx("logistics"), "t1", { status: "hacked" })));
+await check("seller update DENIED (not isLogistics)", assertFails(upT(ctx("seller"), "t1", { status: "in_transit" })));
+await check("logistics transition (status + sentAt/By) ALLOWED", assertSucceeds(upT(ctx("logistics"), "t1", { status: "in_transit", sentAt: 1, sentBy: "log" })));
+// delete (admin only)
+await check("logistics delete DENIED (admin-only)", assertFails(delT(ctx("logistics"), "t1")));
+await check("admin delete ALLOWED", assertSucceeds(delT(ctx("admin"), "t1")));
+
 await env.cleanup();
 
 console.log("");
 if (fail === 0) {
-  console.log(`🏁 FIRESTORE RULES PROBE GREEN — ${pass}/${pass} assertions passed (Fase A + B + redemptions).`);
+  console.log(`🏁 FIRESTORE RULES PROBE GREEN — ${pass}/${pass} assertions passed (Fase A + B + redemptions + transfers).`);
   process.exit(0);
 } else {
   console.log(`❌ FIRESTORE RULES PROBE RED — ${fail} failed, ${pass} passed.`);
