@@ -32,7 +32,7 @@
 | Sprint | Estado | Owner | Notas |
 |---|---|---|---|
 | 5.C.8 | LOCAL pending push | Antigravity | i18n cleanup CustomerPortal — 14 sustituciones + 2 keys nuevas. Diff verificado coincide con plan v3. **Congelado por decisión CEO hasta nueva instrucción.** |
-| 5.C.4 | LIVE (este sprint cuando se cierre) | Claude Code Worktree | Docs honestos — README + ROADMAP + walkthrough + .gitignore. |
+| 5.C.4 | PILOTO | Claude Code Worktree | Documentación en reconciliación; README estratégico y estado operativo deben revisarse juntos antes de marcar LIVE. |
 | 5.C.5 | BLOCKED | CC-auditor + Pierre | Maps API key whitelist Capacitor. Bloqueado por billing. |
 
 ## Tier 6 — UX Premium Polish (PRÓXIMO post 5.C.4)

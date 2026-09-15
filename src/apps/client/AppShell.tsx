@@ -19,6 +19,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { FlowResult } from "../../shared/components/FlowResult";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
+import { VerifyEmail } from "../../shared/components/VerifyEmail";
+import { shouldShowEmailVerification } from "../../lib/authPolicy";
 
 const CustomerPortal = React.lazy(() =>
   import("../../shared/components/CustomerPortal").then(m => ({ default: m.CustomerPortal }))
@@ -81,6 +83,10 @@ export function AppShell() {
         body="Tu cuenta es de repartidor. Descarga e instala la app Sf Driver para ver tus rutas."
       />
     );
+  }
+
+  if (shouldShowEmailVerification(user)) {
+    return <VerifyEmail />;
   }
 
   // Everything else (no user, or user with claim=customer) → portal.

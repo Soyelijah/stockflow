@@ -13,6 +13,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist dist-staff dist-client dist-driver server.js",
     "lint": "tsc --noEmit",
+    "test": "tsx --test tests/**/*.test.ts",
     "doctor": "react-doctor",
     "cap:sync": "pnpm build && npx cap sync",
     "cap:sync:staff": "pnpm build:staff && node scripts/with-cap-config.cjs staff npx cap sync",

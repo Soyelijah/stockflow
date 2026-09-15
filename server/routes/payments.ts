@@ -4,6 +4,7 @@ import { MercadoPagoConfig, Payment } from "mercadopago";
 import { z } from "zod";
 import { emitElectronicBoleta } from "../services/boletaService";
 import { requireAuthBearer, AuthenticatedRequest } from "../services/security";
+import { flowConfirmationAuditSummary } from "../services/paymentAudit";
 
 export const paymentsRouter = Router();
 
@@ -27,7 +28,7 @@ const MercadoPagoPaymentSchema = z.object({
 const FlowCreatePaymentSchema = z.object({
   amount: z.union([z.number(), z.string()]).transform(val => Math.round(Number(val))),
   email: z.string().email("Correo de cliente inválido"),
-  description: z.string().min(1, "Descripción del cobor requerida"),
+  description: z.string().min(1, "Descripción del cobro requerida"),
   externalId: z.string().min(1, "ID de orden externo requerido"),
   baseUrl: z.string().url("URL de retorno inválida")
 });
@@ -284,12 +285,11 @@ paymentsRouter.post("/flow/confirm", async (req, res) => {
     const response = await fetch(`${FLOW_URL}/payment/getStatus?${query}`);
     const statusData = await response.json();
 
-    console.log("[Modular Payments Confirmation Webhook]:", statusData);
-    
     // Status 2 is PAID / APPROVED in Flow
     if (statusData.status === 2 || statusData.status === "2") {
       const orderId = statusData.commerceOrder || `FLOW-ORD-${cleanToken.substring(0, 8)}`;
       const amount = Number(statusData.amount);
+      const auditSummary = flowConfirmationAuditSummary(statusData);
       const buyerEmail = statusData.payer || "cliente@flow.cl";
       const subject = statusData.subject || "Compra Online Flow";
       
@@ -302,11 +302,17 @@ paymentsRouter.post("/flow/confirm", async (req, res) => {
         paymentId: cleanToken,
         items: [{ name: subject, quantity: 1, price: amount }]
       });
+
+      console.log(
+        "[Modular Payments Confirmation Webhook]",
+        auditSummary,
+      );
     }
 
     res.send("ok");
-  } catch (err) {
-    console.error("[Modular Payments Confirmation ERROR]:", err);
+  } catch {
+    // Provider/SDK errors may carry request payloads or payer data. Keep logs fixed.
+    console.error("[Modular Payments Confirmation ERROR] Processing failed.");
     res.status(500).send("error");
   }
 });

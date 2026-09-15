@@ -19,6 +19,7 @@ import { Login } from "../../shared/components/Login";
 import { VerifyEmail } from "../../shared/components/VerifyEmail";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
+import { requiresEmailVerification } from "../../lib/authPolicy";
 
 const DeliveryRoutes = React.lazy(() =>
   import("../delivery/routes").then(m => ({ default: m.DeliveryRoutes }))
@@ -86,8 +87,7 @@ export function AppShell() {
   // claimRole === "driver" — wait for the /users mirror to hydrate UI fields.
   if (!profile) return <LazyFallback />;
 
-  const isDemoEmail = user.email?.endsWith("@stockflow.com");
-  if (!user.emailVerified && !isDemoEmail) return <VerifyEmail />;
+  if (requiresEmailVerification(user.emailVerified)) return <VerifyEmail />;
 
   return (
     <Suspense fallback={<LazyFallback />}>

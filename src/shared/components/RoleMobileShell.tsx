@@ -1524,15 +1524,15 @@ function RoleProfile({ role, accent, name, email, onLogout }: { role: MobileRole
         </div>
       </div>
       <SectionCard>
-        <SectionHeader title="Permisos activos" subtitle="Segun rol y sucursal" />
-        {["Gestion operacional", "Lectura reportes", "Auditoria de stock"].map((label) => (
+        <SectionHeader title="Permisos activos" subtitle="Según rol y sucursal" />
+        {["Gestión operacional", "Lectura de reportes", "Auditoría de stock"].map((label) => (
           <div key={label} className="flex items-center justify-between border-b border-slate-100 py-3 last:border-b-0">
             <span className="text-[12px] font-extrabold text-slate-800">{label}</span>
             <CheckCircle2 size={16} className={accent.text} />
           </div>
         ))}
       </SectionCard>
-      <button type="button" onClick={onLogout} className="sf-tap flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-rose-100 bg-white text-[11px] font-black uppercase tracking-[0.14em] text-rose-500"><X size={14} /> Cerrar sesion</button>
+      <button type="button" onClick={onLogout} aria-label="Cerrar sesión" className="sf-tap flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-rose-100 bg-white text-[11px] font-black uppercase tracking-[0.14em] text-rose-500"><X size={14} /> Cerrar sesión</button>
     </div>
   );
 }
