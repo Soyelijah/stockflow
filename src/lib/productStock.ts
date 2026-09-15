@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { DEFAULT_BRANCH_ID } from "./branches";
-import { finalizeAggregatedStocks } from "./stockAggregation";
+import { aggregateStocksByBranch } from "./stockAggregation";
 
 export interface ProductStock {
   productId: string;
@@ -205,39 +205,15 @@ export async function batchStockAggregated(
   if (branchIds.length === 0 || branchIds.includes("*")) {
     throw new Error("batchStockAggregated requires concrete branchIds (no '*').");
   }
-  const result = new Map<string, number>();
-  const productsWithBranchStock = new Set<string>();
-  if (productIds.length === 0) return result;
-
-  for (const id of productIds) {
-    result.set(id, 0);
-  }
-
-  const reads: Promise<void>[] = [];
-  for (const branchId of branchIds) {
-    for (const productId of productIds) {
-      reads.push(
-        (async () => {
-          try {
-            const snap = await getDoc(productStockRef(productId, branchId));
-            if (snap.exists()) {
-              productsWithBranchStock.add(productId);
-              const branchStock = Number(snap.data()?.stock) || 0;
-              result.set(productId, (result.get(productId) || 0) + branchStock);
-            }
-          } catch (err) {
-            // Never present a partial aggregate as authoritative inventory.
-            throw new Error(`No se pudo leer el stock de ${productId} en ${branchId}.`, { cause: err });
-          }
-        })()
-      );
+  return aggregateStocksByBranch(productIds, branchIds, fallbacks, async (productId, branchId) => {
+    try {
+      const snap = await getDoc(productStockRef(productId, branchId));
+      return { exists: snap.exists(), stock: snap.data()?.stock };
+    } catch (err) {
+      // Never present a partial aggregate as authoritative inventory.
+      throw new Error(`No se pudo leer el stock de ${productId} en ${branchId}.`, { cause: err });
     }
-  }
-  await Promise.all(reads);
-
-  // Fall back only when no branch document exists. A real aggregate of zero is
-  // authoritative and must not be replaced by a stale positive products.stock mirror.
-  return finalizeAggregatedStocks(productIds, result, productsWithBranchStock, fallbacks);
+  });
 }
 
 // Resolve the branchId to use for stock operations given a selectedBranchId from BranchContext.
