@@ -90,8 +90,8 @@ documento. Ver `src/lib/roles.ts` para helpers (`isAdmin`, `isSeller`, etc.).
 | Tier 5.C.7 — Sf Client i18n + branding + RUT + safe area | LIVE | `0aa3143` |
 | Tier 5.C.8 — i18n cleanup CustomerPortal | LOCAL pending push | (sin commit) |
 | Tier 5.D — Create employee API + Settings modal | LIVE | `298a4b6` + `ee939f9` + `281548d` |
-| Tier 5.C.4 — Docs honestos | **ESTE sprint** | TBD |
-| Tier 6 — UX Premium Polish | PRÓXIMO post 5.C.4 | TBD |
+| Tier 5.C.4 — Docs honestos | EN CURSO | Ver `docs/ROADMAP.md` |
+| Tier 6 — UX Premium Polish | PLANIFICADO post 5.C.4 | TBD |
 
 Detalle completo: `docs/ROADMAP.md` y `docs/walkthrough.md`.
 

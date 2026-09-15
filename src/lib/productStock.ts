@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { DEFAULT_BRANCH_ID } from "./branches";
+import { finalizeAggregatedStocks } from "./stockAggregation";
 
 export interface ProductStock {
   productId: string;
@@ -192,8 +193,8 @@ export async function batchStockForBranch(
 
 // Aggregated stock across ALL branches for cross-branch users.
 // Used in Dashboard / Inventory when selectedBranchId === "*".
-// Strategy: for each product, sum its stock across every product_stock doc that references it.
-// Implementation here uses a per-branch fanout (one read per branch+product) which is
+// Strategy: read every requested product/branch pair and sum the documents that exist.
+// Implementation uses a per-branch fanout (one read per branch+product), which is
 // acceptable while branch count is ≤ ~10. If branch count grows, swap to a `collectionGroup`
 // query or a denormalized aggregate field on the product.
 export async function batchStockAggregated(
@@ -205,6 +206,7 @@ export async function batchStockAggregated(
     throw new Error("batchStockAggregated requires concrete branchIds (no '*').");
   }
   const result = new Map<string, number>();
+  const productsWithBranchStock = new Set<string>();
   if (productIds.length === 0) return result;
 
   for (const id of productIds) {
@@ -219,12 +221,13 @@ export async function batchStockAggregated(
           try {
             const snap = await getDoc(productStockRef(productId, branchId));
             if (snap.exists()) {
+              productsWithBranchStock.add(productId);
               const branchStock = Number(snap.data()?.stock) || 0;
               result.set(productId, (result.get(productId) || 0) + branchStock);
             }
           } catch (err) {
-            // Single branch failure should not poison the total — log and continue.
-            console.warn(`[productStock] aggregate read failed for ${productId}@${branchId}:`, err);
+            // Never present a partial aggregate as authoritative inventory.
+            throw new Error(`No se pudo leer el stock de ${productId} en ${branchId}.`, { cause: err });
           }
         })()
       );
@@ -232,17 +235,9 @@ export async function batchStockAggregated(
   }
   await Promise.all(reads);
 
-  // For any product that returned 0 across all branches (i.e., no /product_stock docs exist
-  // at all — pre-migration legacy product), fall back to products.stock so legacy data
-  // continues to display correctly.
-  for (const id of productIds) {
-    if ((result.get(id) || 0) === 0 && fallbacks.has(id)) {
-      const fallback = fallbacks.get(id) ?? 0;
-      if (fallback > 0) result.set(id, fallback);
-    }
-  }
-
-  return result;
+  // Fall back only when no branch document exists. A real aggregate of zero is
+  // authoritative and must not be replaced by a stale positive products.stock mirror.
+  return finalizeAggregatedStocks(productIds, result, productsWithBranchStock, fallbacks);
 }
 
 // Resolve the branchId to use for stock operations given a selectedBranchId from BranchContext.
