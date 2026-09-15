@@ -7,6 +7,7 @@ import { VerifyEmail } from "./shared/components/VerifyEmail";
 import { FlowResult } from "./shared/components/FlowResult";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { seedCouponsIfEmpty, seedCustomersIfEmpty } from "./lib/coupons";
+import { requiresEmailVerification, shouldShowEmailVerification } from "./lib/authPolicy";
 
 // Lazy-load sub-app routes to enable per-role code-splitting.
 // Without this, all admin/store/delivery code ships in a single ~2.4 MB bundle.
@@ -38,6 +39,10 @@ function AppContent() {
 
   // Allow accessing the customer portal or payment callback without auth
   if (isCustomerPath) {
+    if (loading) return <LazyFallback />;
+    if (shouldShowEmailVerification(user)) {
+      return <VerifyEmail />;
+    }
     return (
       <Suspense fallback={<LazyFallback />}>
         <StoreRoutes />
@@ -62,9 +67,9 @@ function AppContent() {
     return <Login />;
   }
 
-  // Bypass email verification for demo accounts and owner/reviewer to permit instant sandbox tests
-  const isDemoEmail = user.email?.endsWith("@stockflow.com") || profile?.role === "owner";
-  if (!user.emailVerified && !isDemoEmail) {
+  // Email verification is mandatory for every role. Demo behavior must be
+  // configured in Firebase Auth/emulators, never inferred from an email domain.
+  if (requiresEmailVerification(user.emailVerified)) {
     return <VerifyEmail />;
   }
 

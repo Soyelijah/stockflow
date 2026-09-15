@@ -91,7 +91,7 @@ operación real y observabilidad antes que sumar más pantallas.
 | Staff / POS / inventario | Funcional; MobilePOS tiene cola offline y el stock se separa por sucursal | Pruebas de concurrencia, conciliación y turnos completos en dispositivos reales |
 | Sf Client | Funcional, autenticado, con catálogo, fidelización y postventa | Checkout idempotente y pagos certificados en sandbox y producción controlada |
 | Sf Driver | Piloto, con firma, GPS y evidencia fotográfica preparada | Storage + Maps habilitados y smoke test en APK/dispositivo real |
-| Seguridad por roles | Custom Claims, reglas y guards implementados; quedan excepciones de verificación por dominio de correo por retirar | Matriz automatizada allow/deny por cada rol y colección en CI, sin bypass por email |
+| Seguridad por roles | Custom Claims, reglas y guards implementados; verificación de email obligatoria sin bypass por dominio | Matriz automatizada allow/deny por cada rol y colección en CI |
 | Pagos | Integración API parcial/piloto con Flow.cl y MercadoPago | Webhooks, reintentos, duplicados y conciliación financiera validados end-to-end |
 | Calidad | TypeScript, builds separados, probes y primeras pruebas unitarias | CI obligatorio con unitarias, emuladores Firebase y E2E críticos |
 
@@ -145,9 +145,11 @@ del producto hasta la venta, pago, entrega, devolución y conciliación.
 - [ ] Demostrar idempotencia de pagos ante callback duplicado, refresh del navegador, reintento
       del proveedor y entrega desordenada de webhooks. Una clave del proveedor debe materializar
       como máximo una venta, un movimiento de stock y una asignación de puntos.
-- [ ] Retirar los bypasses de verificación basados en `@stockflow.com` de los shells de aplicación;
+- [x] Retirar los bypasses de verificación basados en `@stockflow.com` de los shells de aplicación;
       los entornos demo deben habilitarse mediante configuración explícita solo fuera de producción.
-- [ ] Sanitizar el log de `/api/payments/flow/confirm`: nunca registrar `statusData` completo;
+- [ ] Antes de desplegar ese guard, auditar cuentas existentes no verificadas y confirmar su
+      identidad; enviar verificación o corregirlas administrativamente para evitar bloqueos legítimos.
+- [x] Sanitizar el log de `/api/payments/flow/confirm`: nunca registrar `statusData` completo;
       aplicar el allowlist de auditoría `{ id, total }` sin payer, email ni payload del proveedor.
 - [ ] Crear pruebas con Firebase Emulator Suite para roles, reglas, stock, devoluciones y webhooks.
 - [ ] Validar que `costPrice`, PII, tokens y payloads completos nunca lleguen a bundles, respuestas
@@ -160,8 +162,8 @@ permisos verde y procedimiento documentado para recuperar pagos aprobados con or
 | Trabajo P0 | Responsable recomendado | Horizonte | Evidencia de cierre |
 |---|---|---|---|
 | Orquestador server-side de pago + stock | Backend/payments + auditor de seguridad | 1–2 semanas | Prueba concurrente e idempotente con emuladores |
-| Eliminación de bypasses por email | Auth/Firebase | 2–3 días | Matriz por rol + build de las tres apps |
-| Redacción de logs de pagos | Backend/payments | 1 día | Test que inspeccione logs y payloads adversariales |
+| Eliminación de bypasses por email | Auth/Firebase | Completado en código; auditar cuentas antes del deploy | Verificación obligatoria + build de las tres apps |
+| Redacción de logs de pagos | Backend/payments | Completado | Helper allowlist probado sin PII ni token |
 | Reglas Firestore y aislamiento de datos sensibles | Firebase/security | 1 semana | Suite allow/deny por rol en Emulator Suite |
 | Flujo de conciliación y recuperación | Producto + operaciones + backend | 1 semana | Simulación de pago aprobado con fallo intermedio |
 

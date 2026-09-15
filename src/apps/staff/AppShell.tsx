@@ -25,6 +25,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { seedCouponsIfEmpty } from "../../lib/coupons";
 import { isStaff } from "../../lib/roles";
+import { requiresEmailVerification } from "../../lib/authPolicy";
 
 const AdminRoutes = React.lazy(() =>
   import("../admin/routes").then(m => ({ default: m.AdminRoutes }))
@@ -103,8 +104,7 @@ export function AppShell() {
   // explicitly inside AuthContext, which surfaces a warning).
   if (!profile) return <LazyFallback />;
 
-  const isDemoEmail = user.email?.endsWith("@stockflow.com") || profile?.role === "owner";
-  if (!user.emailVerified && !isDemoEmail) return <VerifyEmail />;
+  if (requiresEmailVerification(user.emailVerified)) return <VerifyEmail />;
 
   // Staff-only check via canonical helper (safety net against typos in role string)
   if (!isStaff(profile.role)) {
